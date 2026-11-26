@@ -189,6 +189,69 @@ function buildBody(random) {
   return geometry;
 }
 
+/**
+ * The bloom alone, small and cheap, for a floor of hundreds (world/props/glow-floor.js): the same five cupped petals at the same
+ * lean and curl and in the same colours, each cut to a diamond (hub, two edges where it is widest, tip: two triangles), round
+ * the gold centre's top (a fan of five), 15 triangles; no stem, no leaves, its hub on the origin, built at SCALE. Beside the
+ * open bloom's `position` it has `aBud`, each vertex where it is with the petals folded up into a bud, and `aPart` (1 a petal,
+ * 0.3 the gold centre: how much of a coloured light it takes). `random` turns the petals.
+ */
+export function buildSmallBloom(random = Math.random) {
+  const open = [], bud = [], colours = [], parts = [], indices = [];
+  const vertex = (o, b, c, part) => {
+    open.push(o.x * SCALE, o.y * SCALE, o.z * SCALE);
+    bud.push(b.x * SCALE, b.y * SCALE, b.z * SCALE);
+    colours.push(c.r, c.g, c.b);
+    parts.push(part);
+    return parts.length - 1;
+  };
+  const PETAL = 0.115; // as buildBody's
+  const OPEN = [THREE.MathUtils.degToRad(15), THREE.MathUtils.degToRad(55)];
+  const SHUT = [THREE.MathUtils.degToRad(68), THREE.MathUtils.degToRad(96)]; // folded up past the vertical: the tips meet
+  const share = u => (u < 0.62 ? 0.5 + (0.5 * u) / 0.62 : Math.sqrt(Math.max(0, 1 - ((u - 0.62) / 0.38) ** 2)));
+  const petalShade = u => (u < 0.5 ? colour(PETAL_BASE).lerp(colour(PETAL_MID), u / 0.5) : colour(PETAL_MID).lerp(colour(PETAL_TIP), (u - 0.5) / 0.5));
+  // a point of a petal turned `turn`, `u` along it, `sign` to a side (0 its middle), at a lean
+  const petalPoint = (turn, u, sign, lean, length) => {
+    const out = new THREE.Vector3(Math.cos(turn), 0, Math.sin(turn));
+    const side = new THREE.Vector3(-Math.sin(turn), 0, Math.cos(turn));
+    const curl = lean[1] - lean[0];
+    const angle = lean[0] + curl * u;
+    const reach = (length / curl) * (Math.sin(angle) - Math.sin(lean[0]));
+    const rise = (length / curl) * (Math.cos(lean[0]) - Math.cos(angle));
+    const middle = new THREE.Vector3().addScaledVector(out, reach).addScaledVector(UP, rise);
+    const half = share(u) * 0.55 * Math.abs(reach);
+    const inward = out.clone().multiplyScalar(-Math.sin(angle)).addScaledVector(UP, Math.cos(angle));
+    return middle.addScaledVector(side, sign * half).addScaledVector(inward, 0.3 * half * Math.abs(sign));
+  };
+  const hub = vertex(new THREE.Vector3(), new THREE.Vector3(), colour(PETAL_BASE), 1);
+  const turned = random() * TAU;
+  const WIDE = 0.62; // where a petal is widest
+  for (let p = 0; p < 5; p++) {
+    const turn = turned + (p / 5) * TAU;
+    const at = (u, sign) => [petalPoint(turn, u, sign, OPEN, PETAL), petalPoint(turn, u, sign * 0.6, SHUT, PETAL * 0.8)];
+    const left = vertex(...at(WIDE, -1), petalShade(WIDE), 1);
+    const tip = vertex(...at(1, 0), petalShade(1), 1);
+    const right = vertex(...at(WIDE, 1), petalShade(WIDE), 1);
+    indices.push(hub, left, tip, hub, tip, right);
+  }
+  // the gold centre's top, a low fan; in a bud it sinks into the hub
+  const top = vertex(new THREE.Vector3(0, 0.048, 0), new THREE.Vector3(0, 0.02, 0), colour(GOLD_PALE), 0.3);
+  const ring = [];
+  for (let s = 0; s < 5; s++) {
+    const turn = (s / 5) * TAU;
+    const o = new THREE.Vector3(Math.cos(turn) * 0.034, 0.022, Math.sin(turn) * 0.034);
+    ring.push(vertex(o, o.clone().multiplyScalar(0.4), colour(GOLD), 0.3));
+  }
+  for (let s = 0; s < 5; s++) indices.push(ring[s], ring[(s + 1) % 5], top);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(open, 3));
+  geometry.setAttribute('aBud', new THREE.Float32BufferAttribute(bud, 3));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
+  geometry.setAttribute('aPart', new THREE.Float32BufferAttribute(parts, 1));
+  geometry.setIndex(indices);
+  return geometry;
+}
+
 // Each part of the flower gives out light of its own colour, so the petals glow lilac-white, the centre
 // gold and the leaves green, instead of all of it going grey-white. The anchor is the line after which
 // the standard shader has the emissive colour; it is the same in every three material.

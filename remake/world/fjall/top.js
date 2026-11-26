@@ -11,7 +11,8 @@
 //   top.room -> [{ friend, at, r }]    where each of the six friends stands at the festival: a disc half her length, none
 //                                      overlapping, all inside the flat, ROOM.middle m round the middle kept free
 //   topRooms() -> the same rooms, with no top built (a page or a chapter that needs them before the place)
-//   top.sea                            { level, setGlow(v), light(v, { at, radius, colour }), spot, wave({ from, strength, seconds, speed, width }) -> Handle, cards, bank }
+//   top.sea                            { level, setGlow(v, colour), light(v, { at, radius, colour }), spot, wave({ from, strength, seconds, speed, width }) -> Handle,
+//                                      ripples([{ from, front, strength, width }]), cards, bank }
 //   top.veil                           { setLevel(v), level }: the last wisp chapter 6 climbs out of, by the south-west rim (0 gone, 1 thick)
 //
 // Not grey: the game's own ground material painted as a meadow (grass, a little dry grass, stone only on the steep), the game's own
@@ -42,6 +43,10 @@ const RIM = { cards: 44, out: 5, rise: [1.5, 4], width: [20, 32] }; // puffs lyi
 const HEAPS = { count: 70, from: 140, to: 1500, height: [10, 46] };
 const VEIL = { at: [-27, 37], cards: 6 }; // by the south-west rim, where Grameðla climbs out of the cloud
 const WAVE = { speed: 160, width: 70 };
+// The party's ripples (sea.ripples): at most `most` a frame, each a swell `width` m wide unless it says; the crest lights up in the
+// sea's glow, `light` of it for each metre it is lifted
+export const RIPPLE = { most: 4, width: 16, light: 0.35 };
+const GLOW = '#ffb46b'; // the cards' own warm glow (look.js setGlow's)
 
 /** Where each of the six friends stands on the top: [{ friend, at: [x, z], r }] (createTop's top.room). */
 export function topRooms() {
@@ -177,25 +182,40 @@ export function createTop(world, { grey = false, seed = 6, radius = FJALL.top.ra
   let wave = null;
   const centres = seaCards?.mesh.geometry.getAttribute('aCentre');
   const rest = centres ? Float32Array.from(centres.array) : null;
+  // each card's height: its rest, the wave's lift and the ripples' (a card is four vertices)
+  const cardCount = centres ? centres.count / 4 : 0;
+  const waveLift = new Float32Array(cardCount), rippleLift = new Float32Array(cardCount);
+  const liftAttr = seaCards?.lift;
+  function writeHeights() {
+    for (let k = 0; k < cardCount; k++) {
+      const lift = waveLift[k] + rippleLift[k];
+      for (let i = k * 4; i < k * 4 + 4; i++) {
+        centres.array[i * 3 + 1] = rest[i * 3 + 1] + lift;
+        liftAttr.array[i] = rippleLift[k];
+      }
+    }
+    centres.needsUpdate = true;
+    liftAttr.needsUpdate = true;
+  }
+  const glowNow = { level: 0, colour: GLOW };
+  const rippleLight = () => seaCards?.setLiftLight(glowNow.level * RIPPLE.light, glowNow.colour);
   function swell(dt) {
     if (!wave || !centres) return;
     wave.age += dt;
     const front = wave.age * wave.speed;
     const fade = 1 - smooth(wave.age / wave.seconds);
     if (wave.glow) for (const cards of [seaCards, bank, rimCards]) cards?.setRing(wave.age >= wave.seconds ? 0 : fade * wave.glowLevel, wave.glow, wave.from, front, wave.width * 0.5);
-    for (let card = 0; card < centres.count; card += 4) {
-      const dx = rest[card * 3] - wave.from[0], dz = rest[card * 3 + 2] - wave.from[1];
-      const k = (Math.hypot(dx, dz) - front) / wave.width;
-      const lift = wave.strength * fade * Math.exp(-k * k);
-      for (let i = card; i < card + 4; i++) centres.array[i * 3 + 1] = rest[i * 3 + 1] + lift;
+    for (let k = 0; k < cardCount; k++) {
+      const dx = rest[k * 12] - wave.from[0], dz = rest[k * 12 + 2] - wave.from[1];
+      const along = (Math.hypot(dx, dz) - front) / wave.width;
+      waveLift[k] = wave.strength * fade * Math.exp(-along * along);
     }
-    centres.needsUpdate = true;
     if (wave.age >= wave.seconds) {
-      centres.array.set(rest);
-      centres.needsUpdate = true;
+      waveLift.fill(0);
       wave.handle.finish();
       wave = null;
     }
+    writeHeights();
   }
 
   world.scene?.add?.(group); // a place adds itself, as Árdalurinn does (world/ardalur/index.js)
@@ -206,7 +226,29 @@ export function createTop(world, { grey = false, seed = 6, radius = FJALL.top.ra
       level: FJALL.top.sea, cards: seaCards, bank,
       /** A warm light of the sea's own (the festival's glow under the night): 0 none, 1 full. The rim's puffs and heaps take it too, in
        * place of the pale light of their own they have at the sunset (set at the build; chapter 6 never calls this). */
-      setGlow(v) { seaCards?.setGlow(v); bank?.setGlow(v * 0.6); rimCards?.setGlow(v); },
+      setGlow(v, colour) {
+        // with no colour exactly as before (the cards' own warm one); the party gives the sea its colours
+        seaCards?.setGlow(v, colour); bank?.setGlow(v * 0.6, colour); rimCards?.setGlow(v, colour);
+        glowNow.level = Math.max(0, v);
+        glowNow.colour = colour ?? GLOW;
+        rippleLight();
+      },
+      /** This frame's swells (the party's, on the beat): [{ from: [x, z], front (m out), strength (m), width (RIPPLE.width) }], at
+       * most RIPPLE.most; each card's height is its rest plus their sum (and a running wave's), its crest lit in the sea's glow.
+       * A pure function of the list: the same list, the same sea; [] the rest. */
+      ripples(list = []) {
+        if (!centres) return;
+        rippleLift.fill(0);
+        for (const { from = [0, 0], front = 0, strength = 0, width = RIPPLE.width } of list.slice(0, RIPPLE.most)) {
+          if (!(strength !== 0) || !(width > 0)) continue;
+          for (let k = 0; k < cardCount; k++) {
+            const along = (Math.hypot(rest[k * 12] - from[0], rest[k * 12 + 2] - from[1]) - front) / width;
+            if (Math.abs(along) < 4) rippleLift[k] += strength * Math.exp(-along * along);
+          }
+        }
+        rippleLight();
+        writeHeights();
+      },
       /** A light in the sea and the rim's puffs round one place ([x, z], soft out to `radius` m) on top of their own: 0 none, as built
        * (the festival's Kambeðla under the cloud). `spot` keeps what it was given last. */
       spot: { level: 0, at: [0, 0], radius: 10, colour: '#c9a2e6' },
@@ -221,7 +263,7 @@ export function createTop(world, { grey = false, seed = 6, radius = FJALL.top.ra
        * unless given). */
       wave({ from = [0, 0], strength = 3, seconds = 4, speed = WAVE.speed, width = WAVE.width, glow = null, glowLevel = 1 } = {}) {
         wave?.handle.finish();
-        if (centres) centres.array.set(rest);
+        if (centres) { waveLift.fill(0); writeHeights(); }
         const handle = new Handle('sea wave');
         if (!centres) { handle.finish(); return handle; }
         wave = { from, strength, seconds: Math.max(0.1, seconds), speed, width, glow, glowLevel, age: 0, handle };

@@ -301,19 +301,19 @@ test('ripples are a function: the same list gives the same sea, an empty one its
   const centres = top.sea.cards.mesh.geometry.getAttribute('aCentre');
   const rest = Float32Array.from(centres.array);
   const heights = () => Float32Array.from(centres.array);
-  const one = [{ from: [0, 0], front: 120, strength: 2 }, { from: [30, -20], front: 60, strength: 1.5 }];
+  // a card about 120 m out, far from the second ripple: the first ripple's front stands on it
+  const cards = centres.count / 4;
+  let card = 0;
+  for (let k = 0; k < cards; k++) {
+    const d = Math.hypot(rest[k * 12], rest[k * 12 + 2]);
+    if (Math.abs(d - 120) < 15 && Math.hypot(rest[k * 12] - 400, rest[k * 12 + 2] + 300) > 200) { card = k; break; }
+  }
+  const front = Math.hypot(rest[card * 12], rest[card * 12 + 2]);
+  const one = [{ from: [0, 0], front, strength: 2 }, { from: [400, -300], front: 60, strength: 1.5 }];
   top.sea.ripples(one);
   const first = heights();
   assert.notDeepEqual(first, rest, 'the cards rise');
-  // a card on the first ring's front, far from the second, rises by about its strength
-  const cards = centres.count / 4;
-  let best = null;
-  for (let k = 0; k < cards; k++) {
-    const x = rest[k * 12], z = rest[k * 12 + 2];
-    const off = Math.abs(Math.hypot(x, z) - 120);
-    if (Math.hypot(x - 30, z + 20) > 200 && (!best || off < best.off)) best = { k, off };
-  }
-  assert.ok(Math.abs(first[best.k * 12 + 1] - rest[best.k * 12 + 1] - 2) < 0.3, 'on the front, lifted by its strength');
+  assert.ok(Math.abs(first[card * 12 + 1] - rest[card * 12 + 1] - 2) < 0.01, 'on the front, lifted by its strength');
   for (let i = 0; i < centres.array.length; i += 3) assert.ok(first[i] === rest[i] && first[i + 2] === rest[i + 2], 'only heights move');
   top.sea.ripples([{ from: [-50, 10], front: 300, strength: 4 }]);
   top.update(0.5, 1);

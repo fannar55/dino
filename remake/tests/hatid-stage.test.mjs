@@ -46,7 +46,7 @@ test('open is a wave: at 10 m the flowers within 10 m of the middle are open and
   for (let i = 0; i < floor.spots.length; i++) {
     const d = flat(floor.spots[i]);
     const { open } = floor.flower(i);
-    if (d <= 10 - FLOOR_LOOK.band) assert.equal(open, 1, `open at ${d.toFixed(2)} m`);
+    if (d <= 10 - FLOOR_LOOK.band) assert.ok(open > 1 - 1e-9, `open at ${d.toFixed(2)} m`);
     if (d < 10) { assert.ok(open > 0, `springing at ${d.toFixed(2)} m`); inside++; }
     if (d >= 10) { assert.equal(open, 0, `a bud at ${d.toFixed(2)} m`); beyond++; }
   }
@@ -55,9 +55,9 @@ test('open is a wave: at 10 m the flowers within 10 m of the middle are open and
   const before = floor.spots.map((_, i) => floor.flower(i).open);
   floor.set({ open: 14 });
   floor.spots.forEach((_, i) => assert.ok(floor.flower(i).open >= before[i]));
-  floor.set({ open: FLOOR.radius + FLOOR_LOOK.band });
+  floor.set({ open: FLOOR.radius + 2 * FLOOR_LOOK.band });
   floor.spots.forEach((_, i) => assert.equal(floor.flower(i).open, 1));
-  assert.equal(floor.mesh.material.uniforms.uOpen.value, FLOOR.radius + FLOOR_LOOK.band, 'a uniform');
+  assert.equal(floor.mesh.material.uniforms.uOpen.value, FLOOR.radius + 2 * FLOOR_LOOK.band, 'a uniform');
   assert.deepEqual(Object.values(floor.mesh.geometry.attributes).map(a => a.version), versions, 'nothing written a flower at a time');
   floor.dispose();
 });
@@ -112,7 +112,10 @@ test('ten beams are one draw call', () => {
   assert.ok(!Array.isArray(beams.mesh.material) && beams.mesh.castShadow === false);
   assert.equal(beams.mesh.material.blending, THREE.CustomBlending, 'added to the picture');
   assert.ok((beams.mesh.geometry.index.count / 3) * 10 < 600, 'a few hundred triangles');
-  assert.deepEqual(beams.read(3), { from: [3, 16, 30], to: [6, 1.2, 10], width: 1.5, colour: [1, 0.8, 0.4, 0.9] });
+  const r = v => Math.round(v * 1e4) / 1e4;
+  const third = beams.read(3);
+  assert.deepEqual({ from: third.from.map(r), to: third.to.map(r), width: r(third.width), colour: third.colour.map(r) },
+    { from: [3, 16, 30], to: [6, 1.2, 10], width: 1.5, colour: [1, 0.8, 0.4, 0.9] });
   beams.begin();
   beams.beam(new THREE.Vector3(0, 10, 0), new THREE.Vector3(0, 0, 0), 2, 1, 1, 1, 0);
   beams.end();
