@@ -12,6 +12,7 @@
 //   tips     1 (default) her measured tips (constellations.js TIPS), 0 her skeleton alone
 //   pose     idle (default) | walk | happy: the clip she plays (walk on the spot)
 //   drawn    0 to 1 (default 1): how much of her constellation is drawn
+//   span     degrees of sky her bind length covers with friend=all (default 16, the engine's)
 //   face     the moon's face (Task 11's)
 //   measure  1: measure the tips on each model's skin and print them (console and window.__tips): measureTips below
 import * as THREE from 'three';
@@ -31,6 +32,7 @@ const WITH_TIPS = params.get('tips') !== '0';
 const POSE = params.get('pose') || 'idle';
 const DRAWN = params.has('drawn') ? Number(params.get('drawn')) : 1;
 const MEASURE = params.get('measure') === '1';
+const SPAN = params.has('span') ? Number(params.get('span')) || 16 : 16;
 const SIX = FRIENDS.map(f => f.key);
 const HUE = Object.fromEntries(FRIENDS.map(f => [f.key, f.colour]));
 
@@ -185,8 +187,8 @@ export const chapter = {
         const upright = (globalThis.innerWidth ?? 16) < (globalThis.innerHeight ?? 10);
         shot = { ...((upright && tallShot('stars_wide')) || SHOTS.toppur.stars_wide), label: 'stars_wide' };
         for (const who of SIX) {
-          sky.add(who, actors[who], { colour: HUE[who], ...SKY.stars[who], tips: tipsOf(who) });
-          placed[who] = { ...SKY.stars[who], span: 16 };
+          sky.add(who, actors[who], { colour: HUE[who], ...SKY.stars[who], span: SPAN, tips: tipsOf(who) });
+          placed[who] = { ...SKY.stars[who], span: SPAN };
         }
       }
       for (const who of Object.keys(placed)) sky.set(who, { drawn: DRAWN });
