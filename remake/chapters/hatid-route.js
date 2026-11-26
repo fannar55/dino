@@ -434,6 +434,12 @@ export function tallShot(name) {
  * Task 12 measured it with the real night sky, the six constellations at their party places, the moon and its cloud heaps
  * (`?chapter=veisla&t=partyTime(76.5)`, qa/remake/hatid/butur4/bench-*.txt; wide the worse of two runs): what chunk 5 (the stage,
  * the lights) builds inside is now about 0.7 ms, 58 calls and 28k triangles wide, 2.4 ms, 58 calls and 53k triangles upright.
+ * Task 14 measured it with the real stage (hatid-stage.js: stones, floor, beams, 480 of the `lights` points, rings; the stand-ins and
+ * `?gestir` are gone) at the same beat, the worse of two runs (qa/remake/hatid/butur5/bench-task14.txt): the stage itself is five
+ * draw calls and about 9k triangles, its paired cost (ten pairs in one page, the median) about 0.1 ms in party_wide and 0.6 ms in
+ * party_high at both sizes. Its worst shot of six is sky_dance upright at 4.65 ms. What chunk 6 (the dance, the band, the moves) has
+ * left in party_wide: about 1.7 ms, 53 calls and 18k triangles wide, 1.7 ms, 53 calls and 43k triangles upright; party_high, the
+ * fullest of triangles, has 9k left wide.
  */
 export const BUDGET = {
   shot: 'party_wide',
@@ -447,8 +453,8 @@ export const BUDGET = {
   wide: ['party_wide', 'party_high', 'final_pose'],
   limits: { gpuMs: 6, drawCalls: 100, triangles: 250000 },
   measured: {
-    '1280x800': { gpuMs: 5.27, drawCalls: 42, triangles: 222091 },
-    '800x1280': { gpuMs: 3.56, drawCalls: 42, triangles: 197387 },
+    '1280x800': { gpuMs: 4.3, drawCalls: 47, triangles: 231415 },
+    '800x1280': { gpuMs: 4.27, drawCalls: 47, triangles: 206711 },
   },
 };
 

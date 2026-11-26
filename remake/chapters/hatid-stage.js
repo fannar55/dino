@@ -144,12 +144,15 @@ export function stonesAt(beat) {
 
 // ---------------------------------------------------------------------------------------------
 // Slóeðla's cone: a pale warm light from high over her straight down onto her (the spec: "Slóeðla stendur á þeim í ljóskeilu"),
-// lit after the stones, dim in the quiet part.
-export const CONE = { up: 15, width: 5, colour: '#fff1d6', quiet: 0.4 };
+// lit after the stones, dim in the quiet part and in another friend's solo (`others`: there the four spotlights are the light, and
+// her white cone seen close from the side burned the soloist's shot out).
+export const CONE = { up: 15, width: 5, colour: '#fff1d6', quiet: 0.4, others: 0.35 };
 export function coneAt(beat, o = {}) {
   const [x, z] = STANDS.sloedla.at;
   const y = groundOf(o)(x, z);
-  const level = partsAt(beat).cone * (0.75 + 0.25 * pulseAt(beat)) * lerp(1, CONE.quiet, quietAt(beat));
+  const solo = soloAt(beat);
+  const others = solo && solo.who !== 'sloedla' ? CONE.others : 1;
+  const level = partsAt(beat).cone * (0.75 + 0.25 * pulseAt(beat)) * lerp(1, CONE.quiet, quietAt(beat)) * others;
   return { from: [x, y + CONE.up, z], to: [x, y, z], width: CONE.width, colour: rgbOf(CONE.colour), level };
 }
 
