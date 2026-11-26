@@ -2,7 +2,10 @@
 // with the help at 5/6 s and by itself at 12 s. Nothing here can fail, and a tap at the wrong moment counts nothing.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createOneTap, createStars, TAP_HELP, TONE_GAP } from '../chapters/hatid-stars.js';
+import * as THREE from 'three';
+import { createOneTap, createStars, createSkyStars, starTone, TAP_HELP, TONE_GAP, DRAW_SECONDS } from '../chapters/hatid-stars.js';
+import { SKY } from '../chapters/hatid-route.js';
+import { skyDirection } from '../engine/night-sky.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
 import { SONG } from '../chapters/hatid-song.js';
 
@@ -178,3 +181,71 @@ test('time that does not pass holds every wait', () => {
 
 import { createHelp } from '../chapters/kafli6-help.js';
 function createHelpFor(seconds) { return createHelp(seconds); }
+
+// ---- the six on the sky (createSkyStars) and their tones (starTone): the drawing's side of the stars' rules ----
+
+/** A stand-in for engine/constellations.js: what it was asked to add and set, and the star it says she has. */
+function figuresSpy() {
+  const added = new Map();
+  const sets = [];
+  return {
+    added, sets,
+    add(key, actor, options) { added.set(key, { actor, ...options }); },
+    set(key, state) { sets.push({ key, ...state }); },
+    starOf(key) { const a = added.get(key); return { azimuth: a.azimuth, elevation: a.elevation }; },
+  };
+}
+
+test('the six on the sky: dim as they arrive, glowing as the hint, and lit in her colour her constellation draws out from her star over DRAW_SECONDS', () => {
+  assert.equal(DRAW_SECONDS, 2.6);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(55, 1.6, 0.1, 1200);
+  const actors = Object.fromEntries(keys.map(k => [k, { name: k }]));
+  const figures = figuresSpy();
+  const sky = createSkyStars({ scene, camera }, { constellations: figures, actors, span: 9 });
+  for (const k of keys) assert.equal(sky.state(k).phase, 'away', `${k} not there before it arrives`);
+  sky.arrive('kambedla');
+  sky.update(camera, 0.5);
+  assert.equal(sky.state('kambedla').phase, 'dim');
+  assert.equal(sky.state('uggedla').phase, 'away');
+  // her tap point is her place on the sky, hung from the camera
+  const p = sky.pointOf('kambedla')(new THREE.Vector3());
+  const d = p.clone().sub(camera.position).normalize();
+  const want = skyDirection(SKY.stars.kambedla.azimuth, SKY.stars.kambedla.elevation);
+  assert.ok(d.angleTo(want) < 1e-6, 'at SKY.stars');
+  sky.glow('kambedla', true);
+  const glowing = [];
+  for (let t = 0.5; t < 2.5; t += 1 / 30) { sky.update(camera, t); glowing.push(sky.state('kambedla').level); }
+  assert.ok(Math.max(...glowing) > sky.state('uggedla').level + 0.3 && Math.max(...glowing) - Math.min(...glowing) > 0.1, 'stronger, and it breathes');
+  sky.glow('kambedla', false);
+  sky.update(camera, 2.6);
+  assert.equal(sky.state('kambedla').phase, 'dim');
+  // lit: her colour, her constellation added where her star is (its head star is this star), and drawn out over DRAW_SECONDS
+  const handle = sky.light('kambedla', '#ab85c1');
+  assert.equal(sky.state('kambedla').colour, '#ab85c1');
+  const added = figures.added.get('kambedla');
+  assert.equal(added.actor, actors.kambedla);
+  assert.deepEqual([added.azimuth, added.elevation, added.span, added.still], [SKY.stars.kambedla.azimuth, SKY.stars.kambedla.elevation, 9, true]);
+  for (let t = 2.6; t < 2.6 + DRAW_SECONDS - 0.05; t += 1 / 30) sky.update(camera, t);
+  assert.equal(handle.done, false, 'not whole before DRAW_SECONDS');
+  const drawn = figures.sets.filter(e => e.key === 'kambedla').map(e => e.drawn);
+  assert.ok(drawn[0] < 0.05 && drawn.every((v, i) => !i || v >= drawn[i - 1]), 'it grows');
+  sky.update(camera, 2.6 + DRAW_SECONDS + 0.01);
+  assert.equal(handle.done, true);
+  assert.equal(figures.sets.at(-1).drawn, 1);
+  assert.equal(sky.state('kambedla').phase, 'lit');
+  // a lit star does not glow again or go dim
+  sky.glow('kambedla', true);
+  sky.dim('kambedla');
+  assert.equal(sky.state('kambedla').phase, 'lit');
+  sky.dispose();
+  assert.equal(scene.children.length, 0, 'it leaves nothing in the scene');
+});
+
+test('a star\'s tone is the effects\' bell at SONG.motif[n]', () => {
+  const heard = [];
+  const s = { sfx: (name, detail) => heard.push([name, detail]) };
+  for (let n = 0; n < 6; n++) starTone(s, n);
+  assert.deepEqual(heard.map(([name]) => name), Array(6).fill('starBell'));
+  assert.deepEqual(heard.map(([, d]) => d.frequency), SONG.motif);
+});

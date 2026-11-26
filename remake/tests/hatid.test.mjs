@@ -12,15 +12,16 @@ import { playUnattended } from './chapter-harness.mjs';
 import { createFakeContext } from './fake-audio.mjs';
 import { topEnd } from '../chapters/kafli6-route.js';
 import { ARRIVALS, BUDGET, FRIENDS8, LENGTH as BODY, STAGE, FLOOR } from '../chapters/hatid-route.js';
-import { GUESTS, guestSeat } from '../chapters/hatid-guests.js';
-import { SUNSET, lookAt } from '../chapters/hatid-looks.js';
+import { GUESTS, guestSeat, createGuests, hideSpot } from '../chapters/hatid-guests.js';
+import { SUNSET, lookAt, HATID_LOOKS } from '../chapters/hatid-looks.js';
+import { DRAW_SECONDS } from '../chapters/hatid-stars.js';
 import { FJALL } from '../world/fjall/ground.js';
 import { BEAT, END_BEAT, secondsAt, CAMERA } from '../chapters/hatid-score.js';
 import { SONG } from '../chapters/hatid-song.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
 import { LOOKS } from '../engine/looks.js';
 
-const { chapter, party, WORDS, partyFrame, ALONE, partyTime } = hatid;
+const { chapter, party, WORDS, partyFrame, ALONE, partyTime, TOOT_GAP } = hatid;
 const FRAME = 1 / 30;
 const LENGTH = secondsAt(END_BEAT) + SONG.song.tail; // the song's file, from its first sound to its last
 const BEATS = [8, 100, 200, 300, 360]; // the party's frames compared (the rulings: 360, as 400 is past the end)
@@ -72,6 +73,7 @@ function playIt(module, { aspect = 1.6, reduced = false, child = null, pauses = 
         }
       }
       watchArrival(world, c, frame, seen);
+      watchNight(world, c, seen);
       child?.(c, frame, seen);
     },
   }).then(run => ({ ...run, watched: seen }));
@@ -201,6 +203,47 @@ function watchArrival(world, c, { sunFace }, seen) {
   a.drops.push({ at: time, drop: sunFace.dropDeg, look: world.lightLook });
 }
 
+// Scene 2 as the child sees it, frame by frame: what gives light in the dark and how Kambeðla's plates beat, everyone's head as
+// Þórseðla sees the first star, the first star's light, where the guests and Mosi are as she roars, each constellation as it is
+// drawn whole, the hundreds of stars, Egill's float down, and the moon.
+const LIGHTS = ['PointLight', 'SpotLight', 'RectAreaLight'];
+function watchNight(world, c, seen) {
+  if (c.scene !== 'stars') return;
+  const n = (seen.night ??= { dark: [], heads: [], first: [], roar: null, whole: {}, many: [], egill: [], atMoon: null, moon: [], logs: 0 });
+  const time = c.s.time;
+  const shot = c.shotLabel;
+  const fresh = c.chapterLog.slice(n.logs);
+  n.logs = c.chapterLog.length;
+  const roared = c.chapterLog.some(e => e.type === 'roared');
+  if (!roared) {
+    const lights = [];
+    world.scene.traverse(o => { if (LIGHTS.includes(o.type) && o.visible && o.intensity > 0) lights.push(o.name || o.type); });
+    n.dark.push({ time, shot, plates: c.plateLevel ?? null, lights, spot: c.top.sea?.spot?.level ?? 0, look: world.lightLook });
+  }
+  if (shot === 'first_star') {
+    const heads = Object.fromEntries([...world.actors].filter(([, a]) => a.root.visible).map(([who, a]) => [who, a.headPosition(new THREE.Vector3()).y]));
+    n.heads.push({ time, heads });
+    n.first.push({ time, light: c.night?.starAt(0).light ?? null });
+  }
+  for (const e of fresh) {
+    if (e.type === 'roared') {
+      const at = actor => { const p = world.actors.get(actor).root.position; return [p.x, p.z]; };
+      n.roar = { time, mosi: at('mosi'), her: at('gramedla'), guests: (c.guests?.where() ?? []).filter(g => g.shown).map(g => ({ key: `${g.group} ${g.k}`, at: [g.at.x, g.at.z] })) };
+    }
+    if (e.type === 'drawn') n.whole[e.friend] = { time, lines: c.figures.linesOf(e.friend).map(l => l.shown) };
+    if (e.type === 'moon' && e.act === 'peek') {
+      const egill = world.actors.get('egill').root.position, mosi = world.actors.get('mosi').root.position;
+      n.atMoon = { time, apart: Math.hypot(egill.x - mosi.x, egill.z - mosi.z), up: egill.y - world.heightAt(egill.x, egill.z), riding: Boolean(c.riding) };
+    }
+  }
+  n.many.push({ time, many: c.many ?? 0 });
+  if (shot === 'egill_down') {
+    const egill = world.actors.get('egill').root.position;
+    n.egill.push({ time, y: egill.y, ground: world.heightAt(egill.x, egill.z), floating: Boolean(c.floating) });
+  }
+  if (c.moon) n.moon.push({ time, rise: c.moon.pose.rise, mouth: c.moon.pose.mouth });
+}
+
 function firstFrame(world, c, { sunFace }) {
   const her = world.actors.get('gramedla'), mosi = world.actors.get('mosi'), egill = world.actors.get('egill');
   return {
@@ -213,6 +256,12 @@ function firstFrame(world, c, { sunFace }) {
 // screen all over every 0.7 s (no target there, and the names of the taps before, which are no longer targets).
 const BACKWARDS = FRIENDS.map(f => f.key).reverse();
 function busyChild(c, frame, seen) {
+  // and while the stars still fly out of the book, a tap on each of them every 0.1 s (they are not to be lit yet)
+  if (c.launching && c.s.time - (seen.lastFlying ?? -Infinity) >= 0.1) {
+    seen.lastFlying = c.s.time;
+    seen.flyingTaps = (seen.flyingTaps ?? 0) + 1;
+    frame.pointer.tap(`star-${BACKWARDS[seen.flyingTaps % BACKWARDS.length]}`, { x: 640, y: 200 });
+  }
   const w = c.waiting;
   if (w?.task === 'stars' && c.s.time - w.since >= 1 && c.s.time - (seen.lastStar ?? -Infinity) >= 1) {
     const next = BACKWARDS.find(friend => !c.starTask.state().lit.includes(friend));
@@ -500,6 +549,177 @@ test('a child who taps the stars backwards hears the six tones rise all the same
   }
   const stars = run.world.chapterState.stars;
   for (const { key, colour } of FRIENDS) assert.equal(`#${stars[key].sprite.material.color.getHexString()}`, colour, `${key}'s star in her colour`);
+});
+
+// ---- scene 2: the dark, the roar, the stars out of the book, the moon ----
+const lineAt = (run, id) => run.seen.said.find(e => e.id === id);
+
+test('in the dark only Kambeðla\'s plates give light, beating 45 to 55 times a minute', async () => {
+  for (const [what, run] of [['wide', await untouched()], ['upright', await upright()]]) {
+    const { dark } = run.watched.night;
+    assert.ok(dark.length > 300, `${what}: ${dark.length} frames of the dark before the roar`);
+    for (const f of dark) {
+      assert.deepEqual(f.lights, [], `${what}: no lamp at ${f.time.toFixed(1)} s`);
+      assert.equal(f.spot, 0, `${what}: no light in the cloud at ${f.time.toFixed(1)} s`);
+      assert.equal(f.look, HATID_LOOKS.dark, `${what}: the dark's light at ${f.time.toFixed(1)} s`);
+    }
+    const levels = dark.map(f => f.plates);
+    assert.ok(levels.every(v => Number.isFinite(v)), `${what}: her plates are lit all through the dark`);
+    assert.ok(Math.max(...levels) > 0.9 && Math.min(...levels) < 0.6, `${what}: they beat (${Math.min(...levels).toFixed(2)} to ${Math.max(...levels).toFixed(2)})`);
+    // the beats: each time the level crosses its middle going up
+    const mid = (Math.max(...levels) + Math.min(...levels)) / 2;
+    const ups = dark.filter((f, k) => k && dark[k - 1].plates < mid && f.plates >= mid).map(f => f.time);
+    const perMinute = ((ups.length - 1) / (ups.at(-1) - ups[0])) * 60;
+    assert.ok(ups.length >= 8 && perMinute >= 45 && perMinute <= 55, `${what}: ${ups.length} beats, ${perMinute.toFixed(1)} a minute`);
+  }
+});
+
+test('Þórseðla\'s head is the highest thing on the top when she says she sees it, and the first star lights with her line', async () => {
+  for (const [what, run] of [['wide', await untouched()], ['upright', await upright()]]) {
+    const said = lineAt(run, 'h_thorsedla_there');
+    assert.ok(said, `${what}: her line`);
+    const { heads, first } = run.watched.night;
+    const at = heads.find(f => f.time >= said.at - 1e-6);
+    assert.ok(at, `${what}: watched as she says it`);
+    const others = Object.entries(at.heads).filter(([who]) => who !== 'thorsedla');
+    for (const [who, y] of others) assert.ok(at.heads.thorsedla > y + 1, `${what}: her head ${at.heads.thorsedla.toFixed(1)} m, ${who}'s ${y.toFixed(1)}`);
+    const [star] = logOf(run, 'firstStar');
+    assert.ok(star && Math.abs(star.at - said.at) <= FRAME + 1e-6, `${what}: the first star lights at ${star?.at.toFixed(2)} s, her line at ${said.at.toFixed(2)} s`);
+    assert.ok(first.filter(f => f.time < said.at - 1e-6).every(f => f.light === 0), `${what}: not before`);
+    const full = first.find(f => f.light >= 0.999);
+    assert.ok(full && full.time - said.at <= 1.2 + 2 * FRAME, `${what}: whole within 1.2 s of her line`);
+  }
+});
+
+test('the roar: the guests are behind Mosi before it, a ring runs out over the sea from her, and the stars leave the book after it', async () => {
+  for (const [what, run] of [['wide', await untouched()], ['busy', await busy()]]) {
+    const { roar } = run.watched.night;
+    assert.ok(roar, `${what}: she roars`);
+    assert.ok(roar.guests.length >= BUDGET.guests - 2, `${what}: ${roar.guests.length} guests on the top`);
+    const away = [roar.mosi[0] - roar.her[0], roar.mosi[1] - roar.her[1]];
+    const len = Math.hypot(...away);
+    for (const g of roar.guests) {
+      const off = [g.at[0] - roar.mosi[0], g.at[1] - roar.mosi[1]];
+      const behind = (off[0] * away[0] + off[1] * away[1]) / len;
+      assert.ok(behind > 2 && Math.hypot(...off) < 14, `${what}: the ${g.key} ${behind.toFixed(1)} m behind Mosi, ${Math.hypot(...off).toFixed(1)} m from him`);
+    }
+    const [roared] = logOf(run, 'roared');
+    const [ring] = logOf(run, 'ring');
+    assert.ok(ring && ring.at > roared.at && ring.at - roared.at < 2, `${what}: the ring sets out with her roar`);
+    assert.ok(Math.hypot(ring.from[0] - roar.her[0], ring.from[1] - roar.her[1]) < 0.5, `${what}: from her`);
+    assert.equal(ring.strength, 4);
+    assert.equal(ring.seconds, 6);
+    const [launch] = logOf(run, 'launch');
+    assert.ok(launch && launch.at > roared.at, `${what}: the stars leave the book after the roar`);
+    const arrived = logOf(run, 'arrived');
+    assert.deepEqual(arrived.map(e => e.friend), FRIENDS.map(f => f.key), `${what}: all six on the sky, in the book's order`);
+    assert.ok(arrived.every(e => e.at > launch.at + 1.9 && e.at < launch.at + 4), `${what}: each 0.6 s + its gap + 1.4 s after the book swells`);
+    // and back in their seats after it
+    const back = logOf(run, 'hide').find(e => e.phase === 'out');
+    assert.ok(back && back.at > roared.at, `${what}: the guests go back to their seats after it`);
+  }
+});
+
+test('each star lights in its own friend\'s colour, its constellation is whole 2.6 s later, and its friend is glad', async () => {
+  assert.equal(DRAW_SECONDS, 2.6);
+  for (const [what, run] of [['wide', await untouched()], ['busy', await busy()]]) {
+    const lit = logOf(run, 'lit');
+    assert.deepEqual(lit.map(e => e.friend).sort(), FRIENDS.map(f => f.key).sort(), `${what}: six lit`);
+    const drawn = logOf(run, 'drawn');
+    const glad = logOf(run, 'glad');
+    const { whole } = run.watched.night;
+    for (const { friend, colour, at } of lit) {
+      assert.equal(colour, FRIENDS.find(f => f.key === friend).colour, `${what}: ${friend}'s star in her colour`);
+      const done = drawn.find(e => e.friend === friend);
+      assert.ok(done && Math.abs(done.at - at - DRAW_SECONDS) <= 2 * FRAME, `${what}: ${friend}'s constellation whole ${(done?.at - at).toFixed(2)} s after`);
+      assert.ok(whole[friend]?.lines.length > 80 && whole[friend].lines.every(v => v === 1), `${what}: every line of hers drawn then`);
+      const joy = glad.find(e => e.friend === friend);
+      assert.ok(joy && joy.at - at >= -1e-6 && joy.at - at < 0.5, `${what}: ${friend} glad as it lights`);
+      assert.equal(joy.how, friend === 'gramedla' ? 'nod' : friend === 'kambedla' ? 'plates' : 'happy', `${what}: ${friend} glad in her own way`);
+    }
+  }
+});
+
+test('a star tapped while it still flies out of the book does nothing', async () => {
+  const run = await busy();
+  assert.ok(run.watched.flyingTaps >= 15, `${run.watched.flyingTaps} taps on stars still in the air`);
+  const [launch] = logOf(run, 'launch');
+  const last = logOf(run, 'arrived').at(-1);
+  const early = logOf(run, 'tap').filter(e => e.task === 'stars' && e.at >= launch.at && e.at <= last.at);
+  assert.ok(early.length >= 15, `${early.length} of them heard`);
+  assert.ok(early.every(e => e.counted === false), 'none counted');
+  const [want] = tasks(run, 'stars', 'want');
+  const lights = tasks(run, 'stars', 'light');
+  assert.ok(lights.every(e => e.at >= want.at), 'no star lit before they are all on the sky and wanted');
+  assert.ok(want.at > last.at, 'wanted only after the last has arrived');
+  assert.equal(lights[0].friend, BACKWARDS[0], 'the first lit is the one tapped after');
+});
+
+test('the hundreds come out only when the sixth is lit, and then Mosi wishes a glad festival', async () => {
+  for (const [what, run] of [['wide', await untouched()], ['busy', await busy()]]) {
+    const [all] = tasks(run, 'stars', 'all');
+    const { many } = run.watched.night;
+    assert.ok(many.filter(f => f.time < all.at - 1e-6).every(f => f.many === 0), `${what}: none before the sixth`);
+    const full = many.find(f => f.many >= 0.999);
+    assert.ok(full && Math.abs(full.time - all.at - 5) <= 2 * FRAME, `${what}: all out ${(full?.time - all.at).toFixed(2)} s after it`);
+    const summer = lineAt(run, 'h_mosi_summer');
+    assert.ok(summer && summer.at > all.at && summer.at < all.at + 2, `${what}: "Gleðilega Stjörnuhátíð!" ${(summer?.at - all.at).toFixed(2)} s after`);
+    const night = run.world.chapterState.night;
+    let lit = 0;
+    for (let i = 0; i < 700; i++) if (night.starAt(i).light > 0) lit++;
+    assert.ok(lit > 500, `${what}: ${lit} stars out`);
+  }
+});
+
+test('Egill is on the ground beside Mosi before the moon rises, and never falls: his feet come down under 1 m/s', async () => {
+  for (const [what, run] of [['wide', await untouched()], ['upright', await upright()]]) {
+    const { atMoon, egill } = run.watched.night;
+    assert.ok(atMoon, `${what}: the moon peeks`);
+    assert.equal(atMoon.riding, false, `${what}: off her head`);
+    assert.ok(Math.abs(atMoon.up) < 0.15, `${what}: on the ground (${atMoon.up.toFixed(2)} m)`);
+    assert.ok(atMoon.apart < 7, `${what}: ${atMoon.apart.toFixed(1)} m from Mosi`);
+    const floating = egill.filter(f => f.floating);
+    assert.ok(floating.length > 30, `${what}: ${floating.length} frames of his float`);
+    let fastest = 0;
+    for (let k = 1; k < egill.length; k++) fastest = Math.max(fastest, (egill[k - 1].y - egill[k].y) / Math.max(1e-6, egill[k].time - egill[k - 1].time));
+    assert.ok(fastest < 1, `${what}: down at ${fastest.toFixed(2)} m/s at the most`);
+    assert.ok(egill.every(f => f.y >= f.ground - 0.05), `${what}: never under the ground`);
+  }
+});
+
+test('the moon peeks, smiles and blows, and the song starts 1.2 s after', async () => {
+  assert.equal(TOOT_GAP, 1.2);
+  for (const [what, run] of [['wide', await untouched()], ['upright', await upright()]]) {
+    const acts = logOf(run, 'moon');
+    assert.deepEqual(acts.map(e => e.act), ['peek', 'smile', 'toot'], what);
+    for (let k = 1; k < acts.length; k++) assert.ok(acts[k].at > acts[k - 1].at, `${what}: ${acts[k].act} after ${acts[k - 1].act}`);
+    const { moon } = run.watched.night;
+    assert.ok(moon.filter(f => f.time < acts[0].at - 1e-6).every(f => f.rise === 0), `${what}: under the cloud before it peeks`);
+    assert.ok(moon.find(f => f.time >= acts[2].at - 1e-6)?.rise === 1, `${what}: up when it blows`);
+    assert.ok(moon.some(f => f.mouth === 'blow' && f.time >= acts[2].at), `${what}: it blows`);
+    const blower = run.soundLog.find(e => e.name === 'blower');
+    assert.ok(blower && Math.abs(blower.at - acts[2].at) <= FRAME + 1e-6, `${what}: the blower sounds as it blows`);
+    const [song] = logOf(run, 'party');
+    assert.ok(Math.abs(song.at - acts[2].at - TOOT_GAP) <= FRAME + 1e-6, `${what}: the song ${(song.at - acts[2].at).toFixed(2)} s after the toot`);
+  }
+});
+
+test('the guests hide behind a place each in a spot of its own (hatid-guests.js hideSpot)', () => {
+  // the 'hiding' phase: u 0 in its seat, 1 in its spot behind the place it is told (Mosi, away from Grameðla)
+  const top = { heightAt: () => 1 };
+  const world = { scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera() };
+  const guests = createGuests(world, { top, models: {}, budget: 23 });
+  assert.equal(typeof guests.setHide, 'function');
+  assert.deepEqual(hideSpot({ at: [10, 0], away: [1, 0] }, 'frogs', 0).length, 2);
+  for (const group of Object.keys(GUESTS)) {
+    let was = null;
+    for (let k = 0; k < GUESTS[group]; k++) {
+      const spot = hideSpot({ at: [10, 0], away: [1, 0] }, group, k);
+      assert.ok(spot[0] - 10 > 2, `the ${group} ${k} behind the place`);
+      if (was) assert.ok(Math.hypot(spot[0] - was[0], spot[1] - was[1]) > 0.8, `the ${group} ${k} not on top of the one before`);
+      was = spot;
+    }
+  }
 });
 
 test('taps in the party change nothing: a child tapping all over the screen every 0.7 s gets the partyLog and the poses of the untouched play', async () => {

@@ -268,6 +268,50 @@ test('where she stands and which way she faces on the top leave it where it was;
   assert.ok(sky.group.position.distanceTo(c.position) < 1e-9);
 });
 
+test('still: the drawing holds her traced pose whatever she does under it, its own star exactly at her place, and place() moves it whole', async () => {
+  const world = emptyWorld();
+  for (const name of ['flugedla', 'gramedla']) {
+    const actor = await actorOf(world, name);
+    // her drawing as she was traced, from her own clip held there
+    bakedPose(actor, name);
+    const sky = createConstellations(world);
+    sky.add(name, actor, { colour: HUE[name], ...SKY.stars[name], span: 9 });
+    sky.set(name, {});
+    const traced = sky.drawingOf(name);
+    // now she stands in her idle (Flugeðla's wings folded), and her still drawing is the traced one all the same
+    actor.play('idle', { fade: 0 });
+    actor.update(0.7);
+    actor.root.updateMatrixWorld(true);
+    const live = sky.drawingOf(name);
+    assert.ok(Math.max(...live.map((p, i) => apart(p, traced[i]))) > 0.2, `${name}: her live drawing follows her idle`);
+    sky.add(name, actor, { colour: HUE[name], ...SKY.stars[name], span: 9, still: true });
+    sky.set(name, {});
+    const held = sky.drawingOf(name);
+    held.forEach((p, i) => assert.ok(apart(p, traced[i]) < 1e-3, `${name}: point ${i} as traced (${apart(p, traced[i]).toFixed(4)} degrees)`));
+    assert.ok(apart(sky.starOf(name), SKY.stars[name]) < 1e-3, `${name}: her own star at her place`);
+    actor.update(1.3);
+    actor.root.updateMatrixWorld(true);
+    assert.ok(sky.drawingOf(name).every((p, i) => apart(p, held[i]) < 1e-6), `${name}: and stays so as she moves`);
+    // place(): the whole drawing to another place and size, still as traced there
+    const to = { azimuth: SKY.stars[name].azimuth + 12, elevation: SKY.stars[name].elevation - 16 };
+    sky.place(name, { ...to, span: 11 });
+    assert.ok(apart(sky.starOf(name), to) < 1e-3, `${name}: her star moved to the new place`);
+    const moved = sky.drawingOf(name);
+    const spread = list => Math.max(...list.map(p => apart(p, list[0])));
+    assert.ok(Math.abs(spread(moved) / spread(held) - 11 / 9) < 0.02, `${name}: 11 / 9 the size`);
+  }
+  // the clip's pose is laid on her bones only for the moment it is read: her own pose is as it was
+  const actor = await actorOf(world, 'thorsedla');
+  actor.play('walk', { fade: 0 });
+  actor.update(0.4);
+  actor.root.updateMatrixWorld(true);
+  const bones = [];
+  actor.model.traverse(o => { if (o.isBone) bones.push([o, o.quaternion.clone(), o.position.clone()]); });
+  const sky = createConstellations(world);
+  sky.add('thorsedla', actor, { colour: HUE.thorsedla, ...SKY.stars.thorsedla, still: true });
+  for (const [bone, q, p] of bones) assert.ok(bone.quaternion.equals(q) && bone.position.equals(p), `${bone.name} as it was`);
+});
+
 test('look turns her head toward a place in the sky and leaves her body', async () => {
   const world = emptyWorld();
   const actor = await actorOf(world, 'gramedla');
