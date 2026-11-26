@@ -5,8 +5,8 @@
 //
 // Built in stages (the plan's tasks): scenes 1 and 2 are real (the night's light hatid-looks.js HATID_LOOKS, the night sky, the
 // constellations, the six stars and the moon: Task 12), the party's stage and lights (hatid-stage.js createStage: Task 14) and the
-// called dance with its groove (hatid-dance.js createDance: Task 15); still grey are the seventh star (a pale disc on the sky), the
-// band's parts and the solos (each friend's `happy` in her solo: Task 16).
+// called dance with its groove (hatid-dance.js createDance: Task 15), the band's parts and the six solos (hatid-band.js createBand:
+// Task 16); still grey is the seventh star (a pale disc on the sky).
 // The structure, the timing and the rules stay when later tasks put the real pictures in.
 //
 // Four scenes (`mark` names them in world.chapterTimeline):
@@ -39,6 +39,7 @@ import { createSeat, ride, floatTo, floatDown } from '../engine/riding.js';
 import { createSong } from '../engine/audio/song.js';
 import { createStage, moonAt } from './hatid-stage.js';
 import { createDance, CALL_LINE } from './hatid-dance.js';
+import { createBand } from './hatid-band.js';
 import { LOOKS } from '../engine/looks.js';
 import { easeLight, lightTo } from '../engine/light-blend.js';
 import { SUN_DISTANCE } from '../engine/sun-face.js';
@@ -722,17 +723,18 @@ function* theParty(s, c) {
   c.inParty = true;
   c.song.play(0);
   c.log({ type: 'party' });
-  c.stage = createStage(c); // the stage lights up with the intro and follows the song: its light, the sea, the floor, the lamps
-  c.band = greyBand(c);
   c.dance = createDance(c); // Task 15: the called dance, the groove, the drawings dancing with them, the feet under the floor
+  c.band = createBand(c); // Task 16: each friend's part on her cues and the six solos, over the dance (it takes the soloist)
+  c.stage = createStage(c); // the stage lights up with the intro and follows the song: its light, the sea, the floor, the lamps
+  const unshake = shakeOnStomps(c);
   const shadows = noShadows(c, BUDGET.noShadow);
   const frame = () => {
     const beat = beatAt(s.time - start);
     c.partyBeat = beat;
-    c.stage.update(beat);
-    c.moon?.update(s.time);
-    c.band.update(beat);
+    c.band.update(beat); // before the dance: the soloist taken or given back
     c.dance.update(beat);
+    c.stage.update(beat); // after both: the fireflies on Þórseðla's neck, Flugeðla's wind, the prints
+    c.moon?.update(s.time);
   };
   frame();
   let over = false;
@@ -753,6 +755,8 @@ function* theParty(s, c) {
     over = true;
     c.inParty = false;
     shadows.restore();
+    unshake();
+    c.band.dispose();
     c.dance.dispose();
     c.stage.dispose();
   }
@@ -803,9 +807,25 @@ function noShadows(c, who) {
   };
 }
 
-/** Grey band: nothing of its own yet (Task 16 gives each friend her part). */
-function greyBand() {
-  return { update() {}, state: () => ({}) };
+/**
+ * The camera's tremble on Grameðla's stomps (hatid-band.js joltAt; none with less motion): laid on the camera for the render only
+ * (scene.onBeforeRender, after what hangs there), the director puts it back each frame. Returns the undo.
+ */
+function shakeOnStomps(c) {
+  const scene = c.world.scene;
+  if (!scene) return () => {};
+  const before = scene.onBeforeRender;
+  const shake = function shake(renderer, sc, camera, ...rest) {
+    before?.call(this, renderer, sc, camera, ...rest);
+    if (!c.inParty || !c.band?.jolt) return;
+    const j = c.band.jolt(c.partyBeat);
+    if (!j.y && !j.pitch) return;
+    camera.position.y += j.y;
+    camera.rotateX(THREE.MathUtils.degToRad(j.pitch));
+    camera.updateMatrixWorld();
+  };
+  scene.onBeforeRender = shake;
+  return () => { if (scene.onBeforeRender === shake) scene.onBeforeRender = before; };
 }
 
 /**

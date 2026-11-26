@@ -17,6 +17,8 @@
 //   hideSpot({ at, back }, group, k)  [x, z]: the k-th of `group`'s spot there, in rows behind him, none on another
 //   guests.update(camera, time)     places and poses everyone shown, for this frame (time: the clock their idle runs on)
 //   guests.where()                  [{ group, k, at, heading, shown }]: where each is now (the tests watch them with it)
+//   guests.ride(fn)                 (Task 16) fn(group, k, time) -> { at, heading, pitch?, roll?, scale? } or null: where a
+//                                   member rides instead of its seat (the lizards on Kambeðla's back); ride(null) lets them go
 //   guests.dispose()
 //
 // A guest's way (`ways[group]`, from hatid-arrival.js: the points its friend comes up by) is made into each member's own: the flyers

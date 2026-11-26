@@ -408,7 +408,13 @@ const NECK_AXIS = (() => {
   return { u: u.toArray(), v: v.toArray() };
 })();
 const FLY = rgbOf(FIREFLIES.colour);
+/** (Task 16) Flugeðla's wake: every `every`th firefly, `behind` beats behind her on her lap, scattered `spread` m. */
+export const FIREFLY_WAKE = { every: 3, behind: [0.2, 1.6], spread: 1.6 };
+/** (Task 16) Grameðla's giant prints in the floor: each disc of a print a ring in her hue, and a step for the flowers under it. */
+export const PRINT_LIGHT = { ring: 0.9, step: 1.2 };
 const THOR = rgbOf(hueOf('thorsedla'));
+const GRAM = rgbOf(hueOf('gramedla'));
+const PRINTS_STEP_RADIUS = 3.2; // m: a step's pool round a giant print (its discs are 4.2 m long)
 export function firefliesAt(beat, i, out = {}, o = {}) {
   const heightAt = groundOf(o);
   const s = i % FIREFLIES.swarms;
@@ -460,10 +466,31 @@ export function firefliesAt(beat, i, out = {}, o = {}) {
     const turn = Math.PI * 2 * (t * 2.5) + s * (Math.PI / 3) + beat * 0.6;
     const radius = 1.6 * (1 - 0.45 * t);
     const { u, v } = NECK_AXIS;
-    const px = lerp(NECK.base[0], NECK.head[0], t) + (u[0] * Math.cos(turn) + v[0] * Math.sin(turn)) * radius;
-    const py = lerp(NECK.base[1], NECK.head[1], t) + heightAt(STANDS.thorsedla.at[0], STANDS.thorsedla.at[1]) + (u[1] * Math.cos(turn) + v[1] * Math.sin(turn)) * radius;
-    const pz = lerp(NECK.base[2], NECK.head[2], t) + (u[2] * Math.cos(turn) + v[2] * Math.sin(turn)) * radius;
+    const ou = Math.cos(turn) * radius, ov = Math.sin(turn) * radius;
+    let px, py, pz;
+    if (o.neck?.length > 1) {
+      // (Task 16) up her neck as she holds it (hatid-band.js lights().neck: world points from its base to her head), so they climb
+      // with her head when it goes up into the lights
+      const n = o.neck, at = t * (n.length - 1), k = Math.min(n.length - 2, Math.floor(at)), e = at - k;
+      px = lerp(n[k][0], n[k + 1][0], e) + u[0] * ou + v[0] * ov;
+      py = lerp(n[k][1], n[k + 1][1], e) + u[1] * ou + v[1] * ov;
+      pz = lerp(n[k][2], n[k + 1][2], e) + u[2] * ou + v[2] * ov;
+    } else {
+      px = lerp(NECK.base[0], NECK.head[0], t) + u[0] * ou + v[0] * ov;
+      py = lerp(NECK.base[1], NECK.head[1], t) + heightAt(STANDS.thorsedla.at[0], STANDS.thorsedla.at[1]) + u[1] * ou + v[1] * ov;
+      pz = lerp(NECK.base[2], NECK.head[2], t) + u[2] * ou + v[2] * ov;
+    }
     x = lerp(x, px, pull); y = lerp(y, py, pull); z = lerp(z, pz, pull);
+  }
+  // (Task 16) Flugeðla's wind (o.lap: hatid-band.js lights().lap): a third of them caught up in her wake on her lap, trailing a
+  // beat and a half behind her and let go as she comes down
+  const wake = o.lap && i % FIREFLY_WAKE.every === 0 ? o.lap.wind : 0;
+  if (wake > 0) {
+    const [wx, wy, wz] = o.lap.at(o.lap.b - FIREFLY_WAKE.behind[0] - (FIREFLY_WAKE.behind[1] - FIREFLY_WAKE.behind[0]) * rnd(i, 41));
+    const spread = FIREFLY_WAKE.spread * (0.4 + rnd(i, 42));
+    x = lerp(x, wx + (rnd(i, 43) - 0.5) * 2 * spread, wake);
+    y = lerp(y, wy + (rnd(i, 44) - 0.5) * 1.4 * spread, wake);
+    z = lerp(z, wz + (rnd(i, 45) - 0.5) * 2 * spread, wake);
   }
   const colour = pull > 0 ? mixRgb(FLY, THOR, pull * 0.6) : FLY;
   out.x = x; out.y = y; out.z = z;
@@ -627,7 +654,7 @@ export function moonAt(beat, base = moonPose([], beat * BEAT)) {
 // c: { world, top (heightAt, sea), figures (the constellations: the strings hang from their feet; optional), reduced }.
 const r3 = v => Math.round(v * 1000) / 1000;
 const r2 = v => Math.round(v * 100) / 100;
-const RINGS = { capacity: 24, spot: 0.45, cone: 0.5, step: 0.35 };
+const RINGS = { capacity: 40, spot: 0.45, cone: 0.5, step: 0.35 }; // (Task 16: 24 + Grameðla's three prints of four discs)
 const linear = new THREE.Color();
 
 function stoneMesh(world) {
@@ -651,7 +678,7 @@ function stoneMesh(world) {
   geometry.computeVertexNormals();
   // Task 14b: each stone's light from inside, an instance's own (rgb as light, linear; level): its rock tinted toward the hue and a
   // glow that is strongest where the stone turns away from the eye (its edges, as a lit stone's skin) and low on it
-  const glow = new THREE.InstancedBufferAttribute(new Float32Array(STAGE.stones * 4), 4);
+  const glow = new THREE.InstancedBufferAttribute(new Float32Array((STAGE.stones + 1) * 4), 4); // (Task 16: and the deck)
   glow.setUsage(THREE.DynamicDrawUsage);
   geometry.setAttribute('aGlow', glow);
   const material = new THREE.MeshLambertMaterial({ vertexColors: true });
@@ -669,7 +696,7 @@ function stoneMesh(world) {
       totalEmissiveRadiance += vGlow.rgb * vGlow.a * ( ${STONE_GLOW.body.toFixed(3)} + ${STONE_GLOW.edge.toFixed(3)} * edge * edge ) * ( 1.0 - ${STONE_GLOW.low.toFixed(3)} * vUp );`);
   };
   material.customProgramCacheKey = () => 'stage stones glow';
-  const mesh = new THREE.InstancedMesh(geometry, material, STAGE.stones);
+  const mesh = new THREE.InstancedMesh(geometry, material, STAGE.stones + 1); // the last: Flugeðla's deck (Task 16), when there is a band
   mesh.name = 'Stage stones';
   mesh.castShadow = false;
   mesh.receiveShadow = false;
@@ -710,8 +737,10 @@ export function createStage(c) {
   let seaTouched = false;
   let now = null;
 
+  const deckAt = STAGE.stones;
   function update(beat) {
     const parts = partsAt(beat);
+    const band = c.band?.lights ? c.band.lights(beat) : null; // (Task 16) the band's: Þórseðla's neck, Flugeðla's lap, the prints
     // the stones
     const rises = stonesAt(beat);
     STONE_PLACES.forEach((s, k) => {
@@ -721,7 +750,18 @@ export function createStage(c) {
       scale.set(s.width, s.height + 0.15, s.width * 0.8);
       stones.mesh.setMatrixAt(k, matrix.compose(position, quaternion, scale));
     });
+    // (Task 16) the deck Flugeðla scratches: a flat stone at her left wing, up with her, lit in her hue on each scratch
+    const deck = c.band?.deck ?? null;
+    const deckUp = deck ? deck.rise(beat) : 0;
+    if (deck) {
+      const [dx, dz] = deck.at;
+      position.set(dx, heightAt(dx, dz) - 0.05 - (1 - deckUp) * (deck.size[1] + 0.2), dz);
+      quaternion.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, -deck.yaw);
+      scale.set(deck.size[0], deck.size[1] + 0.05, deck.size[2]);
+    } else { position.set(0, -50, 0); quaternion.identity(); scale.set(0, 0, 0); }
+    stones.mesh.setMatrixAt(deckAt, matrix.compose(position, quaternion, scale));
     stones.mesh.instanceMatrix.needsUpdate = true;
+    if (deck) { linear.set(deck.colour); stones.glow.setXYZW(deckAt, linear.r, linear.g, linear.b, deck.glow(beat) * deckUp); }
     const stoneLights = stoneLightsAt(beat);
     stoneLights.forEach((l, k) => {
       linear.set(l.colour);
@@ -730,6 +770,8 @@ export function createStage(c) {
     stones.glow.needsUpdate = true;
     // the floor
     const f = floorAt(beat, c.dance?.feetAt ? { feet: c.dance.feetAt(beat), places: c.dance.places() } : undefined);
+    // (Task 16) Grameðla's giant prints: a step under each for the flowers to jump on (as old as it is)
+    for (const p of band?.prints ?? []) if (p.level > 0.003) f.steps.push([p.at[0], p.at[1], PRINTS_STEP_RADIUS, p.level * PRINT_LIGHT.step, Math.max(0, p.age)]);
     floor.set(f);
     // the beams and the light on the ground
     beams.begin();
@@ -744,6 +786,10 @@ export function createStage(c) {
     }
     const floorRgb = rgbOf(f.colour);
     for (const [x, z, radius, level] of f.steps) rings.disc(x, heightAt(x, z) + 0.06, z, radius * 0.75, ...floorRgb, level * RINGS.step);
+    for (const p of band?.prints ?? []) {
+      if (!(p.level > 0.003)) continue;
+      for (const [x, z, r] of p.discs) rings.disc(x, heightAt(x, z) + 0.07, z, r, ...GRAM, p.level * PRINT_LIGHT.ring);
+    }
     rings.end();
     beams.end();
     // the light points: the spotlights' swarms, the strings, the fireflies
@@ -765,7 +811,7 @@ export function createStage(c) {
     for (const l of lights) { points.add(...l.at, l.size, ...l.colour, l.level); if (l.level > 0.003) strings++; }
     let fireflies = 0;
     for (let i = 0; i < flies; i++) {
-      firefliesAt(beat, i, fly, o);
+      firefliesAt(beat, i, fly, band ? { ...o, neck: band.neck, lap: band.lap } : o);
       points.add(fly.x, fly.y, fly.z, fly.size, fly.r, fly.g, fly.b, fly.level);
       if (fly.level > 0.003) fireflies++;
     }
@@ -804,7 +850,7 @@ export function createStage(c) {
     update,
     state: () => (now ? structuredClone(now) : null),
     /** The stage's own triangles: the stones', the floor's (a test's, the bench's). */
-    get triangles() { return stones.triangles * STAGE.stones + (floor.mesh.geometry.index.count / 3) * floor.mesh.geometry.instanceCount; },
+    get triangles() { return stones.triangles * (STAGE.stones + (c.band?.deck ? 1 : 0)) + (floor.mesh.geometry.index.count / 3) * floor.mesh.geometry.instanceCount; },
     parts: { stones, floor, beams, points, rings, dusk },
     dispose() {
       dusk.restore();

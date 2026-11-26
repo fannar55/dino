@@ -388,7 +388,7 @@ function printsOf(b) {
       const ax = a * PRINTS.size, rx = r * PRINTS.size;
       return [x + fx * ax - fz * rx, z + fz * ax + fx * rx, s * PRINTS.size];
     });
-    return { at: [x, z], level, discs };
+    return { at: [x, z], level, discs, age: b - land };
   });
 }
 
