@@ -171,8 +171,8 @@ function headChain(bones) {
  *                elevation) in the pose she was traced in; facing 1 as traced (her front to the right, but Flugeðla's view), -1 her
  *                mirror image. `still`: drawn in her traced pose (her own clip at FIGURES[key].pose, read once as it is added),
  *                whatever she does under it, so it never folds (Flugeðla standing under her flying drawing). Nothing shows until set().
- *   follow(key, { live, carry })  a `still` drawing blended toward her bones now (live 0 to 1) and/or carried by her model's hop and
- *                turn (carry): the festival's dance (add-only)
+ *   follow(key, { live, carry, rise, turn })  a `still` drawing blended toward her bones now (live 0 to 1), carried by her model's
+ *                hop and turn (carry), lifted (rise, degrees) or twirled in the sky's plane (turn, degrees): the festival's dance (add-only)
  *   place(key, { azimuth, elevation, span })  hers moved whole to another place and size on the sky (her star there as traced)
  *   set(key, { drawn = 1, level = 1, breath = 0, look = null })  drawn 0 to 1: the outline grows both ways round from the point
  *                nearest her star, then the inner lines, a star coming out as its line reaches it, her tips' stars last (her own
@@ -286,7 +286,7 @@ export function createConstellations(world, { capacity = 6, lineWidth = LINE_WID
       shown: new Float32Array(segments.length),
       light: new Float32Array(figure.stars.length + 1),
       frozen: null,
-      follow: { live: 0, carry: false, rise: 0 },
+      follow: { live: 0, carry: false, rise: 0, turn: 0 },
     };
     c.north = new THREE.Vector3().crossVectors(c.east, c.home).normalize();
     if (still) c.frozen = tracedPoints(c);
@@ -408,6 +408,15 @@ export function createConstellations(world, { capacity = 6, lineWidth = LINE_WID
       livePoints(c, put);
     }
     if (c.follow.rise) for (let i = 0; i < c.count + 2; i++) flat[2 * i + 1] += c.follow.rise; // (follow's rise) the whole drawing up
+    if (c.follow.turn) { // (follow's turn) the whole drawing turned in the sky's plane about her own star: a twirl that never folds
+      const a = rad(c.follow.turn), cs = Math.cos(a), sn = Math.sin(a);
+      const ox = flat[2 * c.count], oy = flat[2 * c.count + 1];
+      for (let i = 0; i < c.count + 2; i++) {
+        const x = flat[2 * i] - ox, y = flat[2 * i + 1] - oy;
+        flat[2 * i] = ox + x * cs - y * sn;
+        flat[2 * i + 1] = oy + x * sn + y * cs;
+      }
+    }
     const look = c.state.look;
     if (look) {
       const [tx, ty] = toFlat(c, look);
@@ -556,11 +565,12 @@ export function createConstellations(world, { capacity = 6, lineWidth = LINE_WID
      * bones now (1: she is drawn as she stands and moves, as without `still`); `carry` lays her model's hop and turn in her root since
      * she was traced (actor.model: an overlay's lift and spin) on the traced pose, so a drawing kept in its traced pose (Flugeðla's
      * flier under her standing body) still rises and turns with her; `rise` lifts the whole drawing so many degrees up the sky (a hop
-     * seen from far off: fun before realism). As added: { live: 0, carry: false, rise: 0 }.
+     * seen from far off: fun before realism); `turn` turns it whole so many degrees in the sky's plane about her own star (a twirl
+     * that never folds). As added: { live: 0, carry: false, rise: 0, turn: 0 }.
      */
-    follow(key, { live = 0, carry = false, rise = 0 } = {}) {
+    follow(key, { live = 0, carry = false, rise = 0, turn = 0 } = {}) {
       const c = get(key);
-      c.follow = { live: clamp(Number(live) || 0, 0, 1), carry: Boolean(carry), rise: Number(rise) || 0 };
+      c.follow = { live: clamp(Number(live) || 0, 0, 1), carry: Boolean(carry), rise: Number(rise) || 0, turn: Number(turn) || 0 };
     },
     starOf(key) {
       const c = get(key);

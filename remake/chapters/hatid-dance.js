@@ -590,12 +590,14 @@ export function createDance(c, { reduced = Boolean(c.reduced) } = {}) {
       for (const who of who8) {
         if (who === 'mosi' || who === 'egill') continue; // no drawing of their own
         // a hop seen from far off: the drawing hops DANCE.skyHop degrees at the top of hers (and dips with the two that bounce)
-        const hop = m?.move === 'hop' ? m.weight * Math.min(1, m.n < m.length ? 1 : 0) : 0;
-        const u = m ? fract(Math.min(m.n, m.length)) : 0;
-        const rise = !hop ? 0 : HOP[who] > 0 ? DANCE.skyHop * 4 * u * (1 - u) * hop : -0.4 * DANCE.skyHop * onBeat(u) * hop;
+        const pose = poses.get(who);
+        const bounce = m?.move === 'hop' && HOP_BOUNCE[who] ? m.weight * onBeat(fract(Math.min(m.n, m.length))) : 0;
+        const rise = HOP[who] > 0 ? (DANCE.skyHop * pose.lift) / HOP[who] : -0.4 * DANCE.skyHop * bounce;
         try {
-          if (who === 'flugedla') figures.follow(who, { live: 0, carry: true, rise });
-          else figures.follow(who, { live, carry: false, rise });
+          // Flugeðla's drawing is her flier: held in its traced pose (it folds on her standing bones), it hops with her and twirls in
+          // the sky's plane as she spins (a turn of the flier in depth squeezed it to a knot: the first stills)
+          if (who === 'flugedla') figures.follow(who, { live: 0, rise, turn: pose.spin });
+          else figures.follow(who, { live, rise });
         } catch { /* not in the sky */ }
       }
     }
