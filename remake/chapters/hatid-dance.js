@@ -9,7 +9,7 @@
 //                                 weight: in over DANCE.in beats from its first, out over DANCE.out after its last), else null
 //   moveOf(who, move, n, out)     her pose for the move n dance beats into it (its fraction is the phase), unweighted
 //   grooveOf(who, beat, out, size) her groove at the beat, `size` of itself
-//   createDance(c)                { update(beat), feetAt(beat), places(), take(who, fn), layer(fn), state(), dispose() }
+//   createDance(c)                { update(beat), feetAt(beat), places(), middle(who), take(who, fn), layer(fn), state(), setOn(on), dispose() }
 //
 // A pose (`out`): { lift (m: her model off the ground), spin (degrees about the up, round her body's middle), dip (m: her body
 // down on bent legs, feet kept), turns { bone: [pitch, roll, yaw] } (degrees about her own side, front and up: pitch + noses and
@@ -480,7 +480,7 @@ function lay(rig, pose) {
  * <who>.raw (the actors) }. update(beat) each frame before the actors: her clip at the beat (her idle; in her solo her happy, or
  * Grameðla's roar, until Task 16), her root on her stand, and the pose (grooveOf, and moveOf while a call's move runs, its weight)
  * laid over it in her own update; the six drawings follow their friends' bones from DANCE.follow (Flugeðla's flier drawing kept in
- * its traced pose and carried by her hop and turn); Kambeðla's plates run in her up.
+ * its traced pose, lifted with her hop and twirled flat in the sky's plane with her spin); Kambeðla's plates run in her up.
  *   feetAt(beat)      the feet that land, [{ who, x, z, age (beats since it came down), radius, level }] for the floor
  *   places()          { who: [x, z] } where each stands; middle(who) her body's middle in the world now
  *   take(who, fn)     a solo or the quiet part takes her: fn(beat, out) gives her pose (the same shape, filled from clear) in place of
