@@ -497,7 +497,8 @@ function trickFrames() {
     ['solo_thorsedla', 3, [T('thorsedla', 3).top]],
     ['trick_thorsedla', 7, [top, [top[0], top[1] + 4, top[2]], [top[0], top[1] - 4, top[2]]]],
     ['solo_flugedla', 1.2, [lap(1.2), headAt('flugedla')]],
-    ['trick_flugedla', 7, [lap(7)]], ['trick_flugedla', 8.5, [lap(8.5)]], ['trick_flugedla', 10, [lap(10)]],
+    // (fix 1: she flies toward the lens and over it, so her landing at b 10 is behind it)
+    ['trick_flugedla', 8, [lap(8)]], ['trick_flugedla', 8.5, [lap(8.5)]], ['trick_flugedla', 9, [lap(9)]],
     ['solo_sloedla', 2, [headAt('sloedla'), herPoint('sloedla', 1.2, 4)]],
     ['trick_sloedla', 9, [headAt('sloedla'), herPoint('sloedla', 1.2, 4)]],
     ['solo_gramedla', 2.5, [headAt('gramedla'), [T('gramedla', 2.5).prints[0].at[0], TOP_GROUND, T('gramedla', 2.5).prints[0].at[1]]]],
@@ -514,6 +515,10 @@ test('a solo shot holds its trick in frame, wide and upright, and no more than t
       const big = BIG.filter(who => seen(headAt(who), 0));
       assert.ok(big.length <= 3, `${name} at ${aspect}: ${big.join(', ')}`);
     }
+    // (fix 1) the hero big at her moment: Flugeðla within 16 m of the lens at b 9
+    const l = lapAt(9), lens = ((aspect < 1 && tallShot('trick_flugedla')) || SHOTS.toppur.trick_flugedla).position;
+    const far = Math.hypot(l.x - lens[0], TOP_GROUND + l.lift + 1 - lens[1], l.z - lens[2]);
+    assert.ok(far <= 16, `Flugeðla ${far.toFixed(1)} m from trick_flugedla's lens at ${aspect}`);
   }
 });
 

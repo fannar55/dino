@@ -343,9 +343,10 @@ export const SHOTS = {
     trick_uggedla: shot(fp(-5, -7, 1.6), fp(-13, -1, 6.5), 50),
     // Þórseðla's head up in the lights and the berries raining past it, from below on her left
     trick_thorsedla: shot(fp(13, 6, 1.6), fp(20.5, 18, 10), 52),
-    // Flugeðla's lap in the sky over the floor among the constellations, high on the front's right looking up across it to her
-    // stand (from the front's left Uggeðla stood big in front of the lens: 264k triangles; .tools/hatid-16/body-flug.txt)
-    trick_flugedla: shot(fp(24, -18, 7.3), fp(9, 28, 12.5), 42),
+    // Flugeðla, the hero of her solo: low behind her stand looking up to the front, where the sky is clear of the drawings (they are
+    // all on the stage's side), as she comes round her lap toward the lens with her firefly wake behind her and flies over it (fix
+    // 1: from the front she was a small figure among the constellations' lines; her landing at b 10 is behind this lens)
+    trick_flugedla: shot(fp(8, 31, 1.5), fp(14, 24, 15), 50),
     // Slóeðla's head and crest from her right front (from her side the lens stood 3 m from Flugeðla, drawn whole out of the frame)
     trick_sloedla: shot(fp(5, 23, 3.4), fp(0, 27.5, 3.9), 42),
     // Grameðla's roar at the end of her three prints, which run toward the lens: from the floor's front left, low, 20 m off,
@@ -409,6 +410,8 @@ export const SHOWS = {
   solo_sloedla: ['sloedla'],
   solo_gramedla: ['gramedla'],
   ...Object.fromEntries(Object.keys(STAR_ROW).map(f => [`trick_${f}`, [f]])),
+  // (Task 16 fix 1) in the air over the lens, not on her stand: her lap is held by hatid-party.test.mjs's trick frames
+  trick_flugedla: [],
   moon_close: [],
   final_pose: FRIENDS8,
   gather: ['egill', 'mosi', 'kambedla', 'sloedla'],
@@ -432,8 +435,8 @@ export const SCENE = Object.fromEntries(Object.entries(SCENES).flatMap(([scene, 
 const TALL = {
   lineup_sun: sunShot(0.625),
   stars_wide: starsShot(0.625),
-  // upright: low at the front looking steeply up, her stand at the bottom and the lap over it, no other head in it
-  trick_flugedla: shot(fp(6, -18, 3), fp(4, 8, 17), 40),
+  // upright: the same lens, tighter, so her wings are a quarter of the frame or more
+  trick_flugedla: shot(fp(8, 31, 1.5), fp(14, 24, 15.5), 42),
 };
 /** The upright frame of shot `name`, where one is needed (else null: the wide frame holds upright too). */
 export function tallShot(name) {
