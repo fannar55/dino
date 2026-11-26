@@ -17,8 +17,10 @@
 //            without that clip falls back to her drawn pose
 //   hold     seconds into the held clip
 //   drawn    0 to 1 (default 1): how much of her constellation is drawn
-//   span     degrees of sky her drawing covers across (default 16, the engine's)
+//   span     degrees of sky her drawing's longest side covers (default 16, the engine's)
 //   nedar    degrees every row of stars is lowered by with friend=all (default 0: hatid-route.js SKY.stars as they are)
+//   saman    with friend=all, each star's azimuth off the middle of the shot's view times this (default 1: as they are; 0.6 brings
+//            them 40 % closer together, for the wide party shot, which cannot hold them all side by side)
 //   face     the moon's face, one of MOON_FACES below (default brosir)
 //   lens     show=tungl: close (default: the moon large), party_wide or moon_peek; show=merki&friend=all: stars_wide (default) or
 //            party_wide. With party_wide everyone stands where the party has them, else where the dark has them
@@ -38,6 +40,7 @@ const POSE = params.get('pose') || 'drawn';
 const DRAWN = params.has('drawn') ? Number(params.get('drawn')) : 1;
 const SPAN = params.has('span') ? Number(params.get('span')) || 16 : 16;
 const LOWER = Number(params.get('nedar')) || 0;
+const TOGETHER = params.has('saman') ? Number(params.get('saman')) : 1;
 const FACE = params.get('face') || 'brosir';
 const LENS = params.get('lens'); // not 'shot': main.js takes ?shot= for its own
 const MOON_SHOT = LENS || 'close';
@@ -93,6 +96,14 @@ function closeShot(world, who) {
   const a = azimuth * Math.PI / 180, p = CLOSE.pitch * Math.PI / 180;
   const target = [position[0] + Math.cos(a) * Math.cos(p) * 40, position[1] + Math.sin(p) * 40, position[2] + Math.sin(a) * Math.cos(p) * 40];
   return { shot: { position, target, fov: CLOSE.fov, label: `close_${who}` }, sky: { azimuth: -90 + CLOSE.sky.right, elevation: CLOSE.sky.up } };
+}
+
+/** Her star's place for a wide look: SKY.stars lowered by `nedar`, its azimuth off the shot's middle times `saman`. */
+function placeFor(who, shot) {
+  const [px, , pz] = shot.position, [tx, , tz] = shot.target;
+  const middle = Math.atan2(tz - pz, tx - px) * 180 / Math.PI;
+  const { azimuth, elevation } = SKY.stars[who];
+  return { azimuth: middle + wrap(azimuth - middle) * TOGETHER, elevation: elevation - LOWER };
 }
 
 /** Hers `span` wide with her drawing's middle at `centre`: added there, measured, then added again moved by what was off. */
@@ -173,7 +184,7 @@ export const chapter = {
         const wide = LENS === 'party_wide' ? 'party_wide' : 'stars_wide';
         shot = { ...((upright && tallShot(wide)) || SHOTS.toppur[wide]), label: wide };
         for (const who of SIX) {
-          const at = { ...SKY.stars[who], elevation: SKY.stars[who].elevation - LOWER };
+          const at = placeFor(who, shot);
           sky.add(who, actors[who], { colour: HUE[who], ...at, span: SPAN });
           placed[who] = { ...at, span: SPAN };
         }

@@ -114,10 +114,10 @@ test('a constellation is a drawing of its friend: a closed outline of points eac
     // traced in her telling pose, her own star is where she was put
     bakedPose(actor, name);
     assert.ok(apart(sky.starOf(name), SKY.stars[name]) < 0.05, `${name}: ${apart(sky.starOf(name), SKY.stars[name]).toFixed(3)} degrees from her place`);
-    // she is about `span` (16 degrees) across
-    const across = sky.outlineOf(name).map(p => flat(SKY.stars[name], p)[0]);
-    const wide = Math.max(...across) - Math.min(...across);
-    assert.ok(Math.abs(wide - 16) < 0.5, `${name}: ${wide.toFixed(2)} degrees across`);
+    // her longest side is about `span` (16 degrees): across, or wing to wing
+    const flats = sky.outlineOf(name).map(p => flat(SKY.stars[name], p));
+    const side = Math.max(...[0, 1].map(a => Math.max(...flats.map(p => p[a])) - Math.min(...flats.map(p => p[a]))));
+    assert.ok(Math.abs(side - 16) < 0.5, `${name}: ${side.toFixed(2)} degrees on her longest side`);
   }
 });
 

@@ -33,11 +33,11 @@ export const STAR_BONE = 'Head';
 export { FIGURES };
 const STAR_SLOT = 16; // stars a constellation may have (her own and 7 to 13 more)
 const LINE_SLOT = 320; // lines a constellation may have (the outline's 80 to 200 and the inner lines')
-const SIZE = [0.66, 0.42, 0.28]; // degrees across at span 16 (her own, the middle, the small), growing with the square root of the span
-const LIGHT = { star: [1, 0.86, 0.7], line: 0.5 };
+const SIZE = [1.05, 0.72, 0.5]; // degrees across at span 16 (her own, the middle, the small), growing with the square root of the span
+const LIGHT = { star: [1, 0.9, 0.75], line: 0.62 };
 const LINE_WIDTH = 1.8; // CSS pixels (the controller's first value)
-const LINE_TINT = 0.22; // the lines are her colour a little toward white (her deep colours read on the night)
-const STAR_TINT = 0.62; // the stars are her colour mostly white
+const LINE_GLOW = { saturation: 0.85, lightness: 0.62 }; // the lines are her hue, brighter and fuller (her own colours are deep for the night)
+const STAR_TINT = 0.55; // the stars are her line colour more than half way to white
 const BREATH = 0.35; // how much larger the stars are at breath 1
 /** How `drawn` 0 to 1 goes: the outline both ways round from her star until OUTLINE, then the inner lines until INNER, then the last
  * stars (the middle-sized ones: her tips) come out one after another. */
@@ -147,6 +147,12 @@ function material(key, vertexShader, fragmentShader, uniforms = {}) {
 
 /** How much a bone turns with her head when she looks: the head 1, the neck's bones less toward its base, the rest 0; and the
  * neck's base bone (the pivot). */
+/** Her colour as her lines glow: the same hue, at least LINE_GLOW's fullness, LINE_GLOW's lightness. */
+function glowOf(colour) {
+  const hsl = new THREE.Color(colour).getHSL({});
+  return new THREE.Color().setHSL(hsl.h, Math.max(hsl.s, LINE_GLOW.saturation), LINE_GLOW.lightness);
+}
+
 function headChain(bones) {
   const by = new Map(bones.map(b => [b.name, b]));
   const head = by.get(STAR_BONE);
@@ -161,7 +167,7 @@ function headChain(bones) {
  * Up to `capacity` constellations in `world.scene`.
  *   group        the THREE.Group 'Constellations', in world.scene
  *   add(key, actor, { colour, azimuth, elevation, span = 16, facing = 1, figure = FIGURES[key] })  hers (the same key again replaces
- *                hers): her drawing's outline covers `span` degrees of sky across as she was traced, her own star at (azimuth,
+ *                hers): her drawing's longest side covers `span` degrees of sky as she was traced, her own star at (azimuth,
  *                elevation) in the pose she was traced in; facing 1 as traced (her front to the right, but Flugeðla's view), -1 her
  *                mirror image. Nothing shows until set().
  *   set(key, { drawn = 1, level = 1, breath = 0, look = null })  drawn 0 to 1: the outline grows both ways round from the point
@@ -267,8 +273,8 @@ export function createConstellations(world, { capacity = 6, lineWidth = LINE_WID
       east: new THREE.Vector3(-Math.sin(rad(azimuth)), 0, Math.cos(rad(azimuth))),
       turnShare,
       sizeScale: Math.sqrt(span / 16),
-      colour: new THREE.Color(colour).lerp(new THREE.Color('#ffffff'), LINE_TINT),
-      starColour: new THREE.Color(colour).lerp(new THREE.Color('#ffffff'), STAR_TINT),
+      colour: glowOf(colour),
+      starColour: glowOf(colour).lerp(new THREE.Color('#ffffff'), STAR_TINT),
       state: { drawn: 1, level: 0, breath: 0, look: null },
       flat: new Float64Array(2 * (count + 2)), // the points, her own star, the pivot: degrees right and up of home
       dirs: Array.from({ length: count + 2 }, () => new THREE.Vector3()),
