@@ -7,10 +7,12 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createGlowFloor, FLOOR_LOOK } from '../world/props/glow-floor.js';
 import { createBeams } from '../engine/show/beams.js';
-import { FLOOR, STAGE, partyStands } from '../chapters/hatid-route.js';
+import { FLOOR, HEAD, STAGE, partyStands } from '../chapters/hatid-route.js';
 import {
   STAGE_PARTS, FIREFLIES, FLOOR_FROM, partsAt, stonesAt, spotsAt, stringsAt, firefliesAt, seaAt, floorAt, partyLook, createStage,
+  stonePlaces, stoneLightsAt, FRIEND_HUES,
 } from '../chapters/hatid-stage.js';
+import { FRIENDS } from '../engine/scene/journal-data.js';
 import { entered, cuesIn, soloAt, sectionAt, BEAT, END_BEAT } from '../chapters/hatid-score.js';
 import { SONG } from '../chapters/hatid-song.js';
 import { HATID_LOOKS } from '../chapters/hatid-looks.js';
@@ -370,4 +372,35 @@ test('reduced: half the fireflies, the spotlights still, no lift', () => {
   assert.ok(spotsAt(100.5).some((s, k) => near(s.to, spotsAt(103.9)[k].to) > 1));
   for (let b = -2; b < END_BEAT + 8; b += 0.1) assert.equal(partyLook(b, { reduced: true }).lift, 0, `no lift at ${b}`);
   assert.ok(stringsAt(100).length === 120);
+});
+
+// -----------------------------------------------------------------------------------------------
+// Seven more things on the stage (Task 14b, the owner's word of 2026-11-26)
+
+test('each stone lights in its friend\'s hue when she comes into the song, and the soloist\'s stone is the brightest in her solo', () => {
+  const places = stonePlaces();
+  assert.equal(places.length, STAGE.stones, 'taller, not more');
+  for (const f of FRIENDS) assert.equal(places.filter(p => p.who === f.key).length, 1, `one stone is ${f.key}'s`);
+  for (const p of places) {
+    assert.ok(p.height > HEAD.gramedla[1] + 1, `a stone ${p.height} m high stands over Grameðla's head`);
+    assert.ok(Math.hypot(...p.at) > FLOOR.radius, 'round the dance floor, off it');
+  }
+  const fromOf = who => SONG.song.entries.some(e => e.who === who) ? entry(who) : entry('choir'); // Mosi's, Egill's, the choir's
+  places.forEach((p, k) => {
+    const from = fromOf(p.who);
+    for (const b of beatsOf(-2, from)) assert.equal(stoneLightsAt(b)[k].level, 0, `${p.who}'s stone dark at ${b}`);
+    const lit = stoneLightsAt(from + 1)[k];
+    assert.ok(lit.level > 0.5, `${p.who}'s stone lit a beat after she comes in: ${lit.level}`);
+    assert.equal(lit.colour, FRIEND_HUES[p.who], `${p.who}'s stone in her hue`);
+    assert.equal(lit.who, p.who);
+    for (const b of beatsOf(from + 1, END_BEAT)) assert.ok(stoneLightsAt(b)[k].level > 0, `${p.who}'s stone stays lit at ${b}`);
+  });
+  for (const solo of SONG.song.solos) {
+    const k = places.findIndex(p => p.who === solo.who);
+    for (const b of beatsOf(solo.startBeat, solo.startBeat + solo.beats)) {
+      const lights = stoneLightsAt(b);
+      lights.forEach((l, j) => { if (j !== k) assert.ok(lights[k].level > l.level, `${solo.who}'s stone the brightest at ${b} (${lights[k].level} against ${l.who}'s ${l.level})`); });
+    }
+  }
+  assert.deepEqual(stoneLightsAt(130.3), stoneLightsAt(130.3), 'a function of the beat');
 });

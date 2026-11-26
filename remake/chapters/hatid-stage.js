@@ -54,12 +54,18 @@ const QUIET = SONG.song.sections.find(s => s.id === 'quiet');
 // The friends' hues, as light: each friend's colour (journal-data.js FRIENDS) fuller and brighter, as the constellations' lines are
 const LIGHT_HUE = { saturation: 0.85, lightness: 0.6 };
 const hsl = {};
-const HUES = Object.fromEntries(FRIENDS.map(({ key, colour }) => {
+// Mosi's and Egill's (who have no constellation, so no colour in the book): Mosi moss green, Egill red; the choir's a white light
+const OTHER_COLOURS = { mosi: '#5fae5a', egill: '#e2574c' };
+const lightHue = colour => {
   const c = new THREE.Color().setStyle(colour, THREE.SRGBColorSpace);
   c.getHSL(hsl, THREE.SRGBColorSpace);
   c.setHSL(hsl.h, LIGHT_HUE.saturation, LIGHT_HUE.lightness, THREE.SRGBColorSpace);
-  return [key, `#${c.getHexString(THREE.SRGBColorSpace)}`];
-}));
+  return `#${c.getHexString(THREE.SRGBColorSpace)}`;
+};
+const HUES = Object.fromEntries([...FRIENDS, ...Object.entries(OTHER_COLOURS).map(([key, colour]) => ({ key, colour }))].map(({ key, colour }) => [key, lightHue(colour)]));
+HUES.choir = '#f4f0ff';
+/** Each one's hue as the stage's light: the six friends', Mosi's, Egill's and the choir's white (sRGB hex). */
+export const FRIEND_HUES = Object.freeze({ ...HUES });
 const ORDER = FRIENDS.map(f => f.key);
 const rgbOf = hex => { const n = parseInt(hex.slice(1), 16); return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
 const hexOf = ([r, g, b]) => `#${[r, g, b].map(v => Math.round(clamp01(v) * 255).toString(16).padStart(2, '0')).join('')}`;
@@ -122,17 +128,25 @@ export function partsAt(beat) {
 // The stones: STAGE.stones of the game's own `rock` in a half ring of STAGE.arc degrees, STAGE.radius m round the stage's middle, on
 // the side away from the child, tallest in the middle (STAGE.height). Each rises out of the ground over a beat, one after another
 // over the first bar from Slóeðla's horn.
-export const STONES = { width: [1.7, 2.3], rise: 1, seed: 14 };
+// Task 14b (the owner's first of seven, 2026-11-26: "Hærri steinar í hring, hver í lit síns vinar, sem kvikna þegar vinurinn kemur
+// inn. Þá sést sviðið úr fjarlægð"): the nine are tall standing stones in a ring round the dance floor, STONES.ring m from the top's
+// middle, at `rels` degrees from the stage's bearing (about 23 apart), open 60 degrees behind the stage as a gate the moon rises in: from
+// the low lenses in front of the stage (floor_low, egill_mosi, the solos: -3 to 18 m across its line) a stone nearer the line
+// stood in front of the moon (.tools/hatid-14b/occlude.mjs). Tallest at the back (`height`), lower toward the child's side. Each is
+// one friend's (`who`): the six friends' on the six at the back (matched to the strings by their azimuth from party_wide's lens, so
+// each string lands on its own friend's stone), Mosi's, Egill's and the choir's on the three at the ends (Mosi on his side, Egill on
+// his).
+export const STONES = { width: [1.9, 2.5], rise: 1, seed: 14, ring: 37, rels: [-116, -93, -70, -47, -22, 38, 60, 82, 104], height: [5.6, 8.2] };
 const STONE_PLACES = Array.from({ length: STAGE.stones }, (_, k) => {
-  const n = STAGE.stones - 1;
-  const a = BEARING.stage - STAGE.arc / 2 + (k / n) * STAGE.arc;
-  const [x, z] = way(a);
-  const middle = 1 - Math.abs(k - n / 2) / (n / 2);
+  const rel = STONES.rels[k]; // degrees from the stage's bearing
+  const [x, z] = way(BEARING.stage + rel);
+  const back = Math.cos(rel * deg); // 1 straight behind the stage, 0 at the sides
   return {
-    at: [STAGE.centre[0] + x * STAGE.radius, STAGE.centre[1] + z * STAGE.radius],
+    at: [x * STONES.ring, z * STONES.ring],
     width: lerp(STONES.width[0], STONES.width[1], rnd(k, 1)),
-    height: lerp(STAGE.height[0], STAGE.height[1], middle),
+    height: lerp(STONES.height[0], STONES.height[1], clamp01(back)) + 0.4 * (rnd(k, 3) - 0.5),
     yaw: rnd(k, 2) * Math.PI * 2,
+    rel,
   };
 });
 export const stonePlaces = () => STONE_PLACES.map(s => ({ ...s, at: [...s.at] }));
@@ -140,6 +154,27 @@ export function stonesAt(beat) {
   const gap = (BAR - STONES.rise) / (STAGE.stones - 1);
   const from = entryOf('sloedla');
   return STONE_PLACES.map((_, k) => smooth((beat - from - k * gap) / STONES.rise));
+}
+// Each stone's light (Task 14b): dark until its one comes into the song (entered: the six friends' entries; Mosi, Egill and the
+// choir with the choir, beat 76, where everything is on), then it lights in a flash over half a beat that settles to `on`, beating a
+// little with the pulse; in a solo the soloist's at `solo` and the others down to `others`; dim in the quiet part (`quiet`).
+export const STONE_LIGHT = { on: 0.75, flash: 1, beat: 0.2, solo: 1, others: 0.4, quiet: 0.35 };
+const ENTRY_OF = who => SONG.song.entries.find(e => e.who === who)?.beat ?? entryOf('choir');
+export function stoneLightsAt(beat) {
+  const solo = soloAt(beat);
+  const q = quietAt(beat);
+  const pulse = pulseAt(beat);
+  return STONE_PLACES.map(({ who }) => {
+    const u = beat - ENTRY_OF(who);
+    let level = 0;
+    if (u >= 0) {
+      const flash = Math.exp(-3 * u) * STONE_LIGHT.flash; // a bright "on" that settles
+      level = STONE_LIGHT.on * smooth(u / 0.5) * (1 - STONE_LIGHT.beat + STONE_LIGHT.beat * pulse) + flash * smooth(u / 0.15);
+      if (solo) level *= solo.who === who ? STONE_LIGHT.solo / STONE_LIGHT.on : STONE_LIGHT.others;
+      level *= lerp(1, STONE_LIGHT.quiet, q);
+    }
+    return { who, colour: HUES[who], level: Math.min(1.5, level) };
+  });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -195,7 +230,7 @@ export function spotsAt(beat, o = {}) {
 // The strings of lights (the chunk's ruling 3): six, one from each drawing's feet (her lowest star at her party place) down to a
 // stone, STRINGS.lights on each, hanging a little; a run of light goes down each on the beat. A string's top is that star as seen from
 // party_wide's lens, STRINGS.reach m out (so in the party's wide shot it hangs from the star itself); its colour is its friend's.
-export const STRINGS = { count: 6, lights: 20, reach: 85, sag: 0.06, size: 0.75, drop: 7, stones: [0, 2, 3, 5, 6, 8] };
+export const STRINGS = { count: 6, lights: 20, reach: 85, sag: 0.06, size: 0.75, drop: 7, stones: [2, 3, 4, 5, 6, 7] };
 const LENS = SHOTS.toppur.party_wide.position;
 const skyWay = ({ azimuth, elevation }) => [Math.cos(elevation * deg) * Math.cos(azimuth * deg), Math.sin(elevation * deg), Math.cos(elevation * deg) * Math.sin(azimuth * deg)];
 /** Where a string's top hangs: `place` ({ azimuth, elevation }) STRINGS.reach m from party_wide's lens. */
@@ -206,18 +241,27 @@ export function stringTop(place) {
 // without the drawings (a test's world): each friend's party place STRINGS.drop degrees lower, about her feet
 const STRING_FEET = Object.fromEntries(ORDER.map(key => { const p = partyPlace(key); return [key, { azimuth: p.azimuth, elevation: p.elevation - STRINGS.drop }]; }));
 const azimuthFromLens = ([x, , z]) => Math.atan2(z - LENS[2], x - LENS[0]) / deg;
+// Whose each stone is (STONES): the six at the back (STRINGS.stones) the six friends' in the strings' order from party_wide's lens,
+// so no two strings cross and each lands on its own friend's stone; the three at the front ends the choir's, Mosi's and Egill's.
+(() => {
+  const tops = ORDER.map(key => ({ key, az: azimuthFromLens(stringTop(STRING_FEET[key])) })).sort((a, b) => a.az - b.az);
+  const backs = STRINGS.stones.map(k => ({ k, az: azimuthFromLens([STONE_PLACES[k].at[0], 0, STONE_PLACES[k].at[1]]) })).sort((a, b) => a.az - b.az);
+  tops.forEach(({ key }, s) => { STONE_PLACES[backs[s].k].who = key; });
+  const ends = STONE_PLACES.map((s, k) => k).filter(k => !STRINGS.stones.includes(k)).sort((a, b) => STONE_PLACES[a].rel - STONE_PLACES[b].rel);
+  ['choir', 'mosi', 'egill'].forEach((who, j) => { STONE_PLACES[ends[j]].who = who; }); // Mosi dances on the child's left, Egill on the right
+})();
+const STONE_OF = Object.fromEntries(STONE_PLACES.map(s => [s.who, s]));
 export function stringsAt(beat, o = {}) {
   const feet = o.feet ?? STRING_FEET; // { friend: { azimuth, elevation } }
   const heightAt = groundOf(o);
-  const tops = ORDER.map(key => ({ key, top: stringTop(feet[key]) })).sort((a, b) => azimuthFromLens(a.top) - azimuthFromLens(b.top));
-  const stones = STRINGS.stones.map(k => STONE_PLACES[k]).map(s => [s.at[0], heightAt(s.at[0], s.at[1]) + s.height * 0.9, s.at[1]])
-    .sort((a, b) => azimuthFromLens(a) - azimuthFromLens(b));
+  const tops = ORDER.map(key => ({ key, top: stringTop(feet[key]) }));
   const lit = partsAt(beat).strings;
   const q = quietAt(beat);
   const phase = 1 - fract(beat); // the run is at the top on the beat and goes down
   const out = [];
-  tops.forEach(({ key, top }, s) => {
-    const bottom = stones[s];
+  tops.forEach(({ key, top }) => {
+    const s = STONE_OF[key];
+    const bottom = [s.at[0], heightAt(s.at[0], s.at[1]) + s.height * 0.92, s.at[1]];
     const span = Math.hypot(top[0] - bottom[0], top[1] - bottom[1], top[2] - bottom[2]);
     const colour = rgbOf(hueOf(key));
     for (let k = 0; k < STRINGS.lights; k++) {
@@ -412,16 +456,35 @@ function stoneMesh(world) {
   geometry.translate(-(min.x + max.x) / 2, -min.y, -(min.z + max.z) / 2);
   geometry.scale(1 / (max.x - min.x), 1 / (max.y - min.y), 1 / (max.z - min.z));
   geometry.computeVertexNormals();
+  // Task 14b: each stone's light from inside, an instance's own (rgb as light, linear; level): its rock tinted toward the hue and a
+  // glow that is strongest where the stone turns away from the eye (its edges, as a lit stone's skin) and low on it
+  const glow = new THREE.InstancedBufferAttribute(new Float32Array(STAGE.stones * 4), 4);
+  glow.setUsage(THREE.DynamicDrawUsage);
+  geometry.setAttribute('aGlow', glow);
   const material = new THREE.MeshLambertMaterial({ vertexColors: true });
   material.name = 'stage stones';
+  material.onBeforeCompile = shader => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', 'attribute vec4 aGlow;\nvarying vec4 vGlow;\nvarying float vUp;\n#include <common>')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGlow = aGlow;\nvUp = position.y;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', 'varying vec4 vGlow;\nvarying float vUp;\n#include <common>')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+      diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * 0.35 + vGlow.rgb * 0.45, clamp( vGlow.a, 0.0, 1.0 ) * ${STONE_GLOW.tint.toFixed(3)} );`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      float edge = 1.0 - abs( dot( normalize( normal ), normalize( vViewPosition ) ) );
+      totalEmissiveRadiance += vGlow.rgb * vGlow.a * ( ${STONE_GLOW.body.toFixed(3)} + ${STONE_GLOW.edge.toFixed(3)} * edge * edge ) * ( 1.0 - ${STONE_GLOW.low.toFixed(3)} * vUp );`);
+  };
+  material.customProgramCacheKey = () => 'stage stones glow';
   const mesh = new THREE.InstancedMesh(geometry, material, STAGE.stones);
   mesh.name = 'Stage stones';
   mesh.castShadow = false;
   mesh.receiveShadow = false;
   mesh.frustumCulled = false;
   world.scene?.add(mesh);
-  return { mesh, geometry, material, triangles: geometry.index.count / 3 };
+  return { mesh, geometry, material, glow, triangles: geometry.index.count / 3 };
 }
+const STONE_GLOW = { tint: 0.7, body: 0.28, edge: 1.4, low: 0.35 };
 
 export function createStage(c) {
   const { world, top = null, reduced = false } = c;
@@ -466,6 +529,12 @@ export function createStage(c) {
       stones.mesh.setMatrixAt(k, matrix.compose(position, quaternion, scale));
     });
     stones.mesh.instanceMatrix.needsUpdate = true;
+    const stoneLights = stoneLightsAt(beat);
+    stoneLights.forEach((l, k) => {
+      linear.set(l.colour);
+      stones.glow.setXYZW(k, linear.r, linear.g, linear.b, l.level * rises[k]);
+    });
+    stones.glow.needsUpdate = true;
     // the floor
     const f = floorAt(beat);
     floor.set(f);
@@ -520,6 +589,7 @@ export function createStage(c) {
       beat: r3(beat),
       parts: Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, r3(v)])),
       stones: rises.map(r3),
+      stoneLights: stoneLights.map(l => ({ who: l.who, colour: l.colour, level: r3(l.level) })),
       floor: { open: r2(f.open), pulse: r3(f.pulse), colour: f.colour, steps: f.steps.length },
       cone: r3(cone.level),
       spots: spots.map(s => ({ from: s.from.map(r2), to: s.to.map(r2), colour: hexOf(s.colour), level: r3(s.level) })),
