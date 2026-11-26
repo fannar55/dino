@@ -327,7 +327,7 @@ export const SHOTS = {
     floor_low: shot(fp(4, -18, 0.5), fp(0, -9, 1.4), 46),
     egill_mosi: shot(fp(5, -19, 1.1), fp(0, -10, 1.6), 42),
     sky_dance: shot(fp(0, -30, 1.2), toSky(fp(0, -30, 1.2), { azimuth: 33, elevation: 30 }), 58),
-    solo_kambedla: shot(fp(16, -6, 1.2), fp(12, 6, 1.6), 40),
+    solo_kambedla: shot(fp(16, -6, 1.2), fp(10.2, 6, 1.6), 32),
     // (Task 16: each solo's first shot holds the start of her trick, its second, `trick_<who>` from her solo's seventh beat, the
     // trick's own moment: hatid-band.js SOLO_TRICKS) the fish leaping over the rim behind her
     solo_uggedla: shot(fp(-1, 2, 1.4), fp(-13, 0.5, 5), 46),
