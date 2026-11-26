@@ -403,7 +403,11 @@ function* theStars(s, c) {
   toTheParty(c);
   toot(s, c, 'blower');
   yield s.wait(TOOT_GAP);
-  shadows.restore();
+  // the party opens on this shot: the shadows come back with its first cut away from it (the moon's shot with them is 264k)
+  s.after(0, function* shadowsBack() {
+    yield s.until(() => c.shotLabel !== 'moon_peek' || c.ended);
+    shadows.restore();
+  });
 }
 
 /** The moon's party blower: the sign the party starts on (`sound`: the chapter's blower, the tile's horn). */
