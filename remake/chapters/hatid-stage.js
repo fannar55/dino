@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { BEAT, END_BEAT, entered, sectionAt, soloAt, energyAt, pulseAt, cuesIn } from './hatid-score.js';
 import { SONG } from './hatid-song.js';
-import { BEARING, BUDGET, FLOOR, HEAD, SHOTS, STAGE, floorPoint, partyPlace, partyStands } from './hatid-route.js';
+import { BEARING, BUDGET, FLOOR, HEAD, SHOTS, SKY, STAGE, floorPoint, partyPlace, partyStands } from './hatid-route.js';
 import { PARTY_LOOKS } from './hatid-looks.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
 import { createDusk } from '../engine/show/dusk.js';
@@ -372,6 +372,24 @@ export function stringsAt(beat, o = {}) {
 // The fireflies (spec 6: fireflies as lamps): FIREFLIES.count in loose swarms over the floor (firefly i in swarm i % swarms), drawn up
 // Þórseðla's neck in a spiral through her solo, drifting free and wide through the quiet part.
 export const FIREFLIES = { count: 240, swarms: 6, size: 0.4, colour: '#ffd98a', height: 4.5 };
+// Task 14b (the owner's seventh: "Í kyrru stundinni safnast ljósflugurnar saman og fljúga upp til sjöundu stjörnunnar"): through the
+// quiet part (beats 208-252) the fireflies drift free as before until `at.gather`, then come together over the floor into one slow
+// turning swarm (`gather`, `ball` m round, by `at.rise`; 7 m left of the stage's line: from party_wide a swarm on it hid the moon),
+// and from there, one after another over `spread` beats, each rises in
+// a spiral (`turns` times round its way up, narrowing to `end` m) over `rise` beats to where the seventh star will come: SKY.seventh
+// `distance` m from the quiet part's shot's lens (sky_dance), about 60 m over the floor's middle; it fades into that place and is
+// gone, the last of them two beats before the last chorus, whose first beat brings them all back over the floor at once. The seventh
+// star itself is not drawn (it shows only in scene 4). Reduced: they drift and fade in the same order, no swarm, no spiral.
+const FLY_SEVENTH = (() => {
+  const lens = SHOTS.toppur.sky_dance.position;
+  const { azimuth: az, elevation: el } = SKY.seventh;
+  const d = [Math.cos(el * deg) * Math.cos(az * deg), Math.sin(el * deg), Math.cos(el * deg) * Math.sin(az * deg)];
+  return [0, 1, 2].map(k => lens[k] + d[k] * 70);
+})();
+export const FIREFLY_QUIET = {
+  at: { gather: 218, rise: 226 }, spread: 12, rise: 12, turns: 3, swirl: 0.35, ball: [1.5, 4.5], end: 0.4,
+  gather: (() => { const [x, z] = floorPoint(-7, 2); return [x, GROUND + 5, z]; })(), seventh: FLY_SEVENTH, distance: 70,
+};
 const SWARMS = [[-14, -4], [0, -14], [14, -2], [-8, 12], [10, 14], [0, 3]].map(([a, d]) => floorPoint(a, d));
 const NECK = (() => {
   const { at, heading } = STANDS.thorsedla;
@@ -399,13 +417,36 @@ export function firefliesAt(beat, i, out = {}, o = {}) {
   const a = rnd(i, 2) * Math.PI * 2 + beat * (0.25 + 0.3 * rnd(i, 3)) * (rnd(i, 4) < 0.5 ? -1 : 1);
   let x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r;
   let y = GROUND + FIREFLIES.height + (rnd(i, 5) - 0.5) * 2.4 + 0.4 * Math.sin(beat * 0.8 + i);
-  // free, in the quiet part: wide over the whole top, slow
+  // free, in the quiet part: wide over the whole top, slow (Task 14b: at first; then they gather and rise, see FIREFLY_QUIET)
   const q = quietAt(beat);
-  if (q > 0) {
+  const inQuiet = beat >= QUIET.startBeat && beat < QUIET_END;
+  const free = inQuiet ? smooth((beat - QUIET.startBeat) / BAR) : 0; // in over the first bar; out at once on the chorus's first beat
+  let gone = 1; // how much of its light is left (0: it has flown into the seventh star's place, or faded)
+  if (free > 0) {
     const R = 4 + 24 * Math.sqrt(rnd(i, 6));
     const b = rnd(i, 7) * Math.PI * 2 + beat * 0.012 * (rnd(i, 8) + 0.3);
     const fx = Math.cos(b) * R, fz = Math.sin(b) * R, fy = GROUND + 2 + 9 * rnd(i, 9) + 0.6 * Math.sin(beat * 0.2 + i);
-    x = lerp(x, fx, q); y = lerp(y, fy, q); z = lerp(z, fz, q);
+    x = lerp(x, fx, free); y = lerp(y, fy, free); z = lerp(z, fz, free);
+    const Q = FIREFLY_QUIET;
+    const leave = Q.at.rise + Q.spread * rnd(i, 31); // its turn to go up
+    if (o.reduced) {
+      gone = 1 - smooth((beat - leave) / Q.rise); // reduced: they drift and fade, in the same order, no spiral
+    } else if (beat >= Q.at.gather) {
+      // one slow swarm over the floor, turning
+      const turn = rnd(i, 32) * Math.PI * 2 + beat * Q.swirl;
+      const rh = Q.ball[0] + (Q.ball[1] - Q.ball[0]) * rnd(i, 33);
+      const dy = (rnd(i, 34) - 0.5) * Q.ball[1];
+      const g = smooth((beat - Q.at.gather) / (Q.at.rise - Q.at.gather));
+      const [gx, gy, gz] = Q.gather;
+      const p = clamp01((beat - leave) / Q.rise); // up: 0 in the swarm, 1 at the seventh star's place
+      const e = p * p * (3 - 2 * p);
+      const radius = lerp(rh, Q.end, e);
+      const a2 = turn + Q.turns * Math.PI * 2 * e;
+      const [tx, ty, tz] = Q.seventh;
+      const bx = lerp(gx, tx, e) + Math.cos(a2) * radius, by = lerp(gy + dy, ty, e), bz = lerp(gz, tz, e) + Math.sin(a2) * radius;
+      x = lerp(x, bx, g); y = lerp(y, by, g); z = lerp(z, bz, g);
+      gone = beat >= leave + Q.rise ? 0 : 1 - smooth((p - 0.75) / 0.25);
+    }
   }
   // up Þórseðla's neck in a spiral, while she plays
   const solo = soloAt(beat);
@@ -424,7 +465,7 @@ export function firefliesAt(beat, i, out = {}, o = {}) {
   out.x = x; out.y = y; out.z = z;
   out.size = FIREFLIES.size;
   out.r = colour[0]; out.g = colour[1]; out.b = colour[2];
-  out.level = partsAt(beat).fireflies * (0.7 + 0.3 * Math.sin(beat * 3 + i * 1.7)) * lerp(1, 0.9, q);
+  out.level = partsAt(beat).fireflies * (0.7 + 0.3 * Math.sin(beat * 3 + i * 1.7)) * lerp(1, 0.9, q) * gone;
   return out;
 }
 

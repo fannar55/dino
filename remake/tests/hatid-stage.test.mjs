@@ -10,8 +10,9 @@ import { createBeams } from '../engine/show/beams.js';
 import { FLOOR, HEAD, STAGE, partyStands } from '../chapters/hatid-route.js';
 import {
   STAGE_PARTS, FIREFLIES, FLOOR_FROM, partsAt, stonesAt, spotsAt, stringsAt, firefliesAt, seaAt, floorAt, partyLook, createStage,
-  stonePlaces, stoneLightsAt, FRIEND_HUES, fireworksAt, FIREWORKS, moonAt, MOON_MOVES,
+  stonePlaces, stoneLightsAt, FRIEND_HUES, fireworksAt, FIREWORKS, moonAt, MOON_MOVES, FIREFLY_QUIET,
 } from '../chapters/hatid-stage.js';
+import { SKY, SHOTS } from '../chapters/hatid-route.js';
 import { moonPose, MOON_HAT_LIFT } from '../engine/moon-face.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
 import { entered, cuesIn, soloAt, sectionAt, BEAT, END_BEAT } from '../chapters/hatid-score.js';
@@ -227,7 +228,8 @@ test('in every solo all four spotlights are on the soloist; in the quiet part ev
     }
     return { spread: sum / FIREFLIES.swarms, pts };
   };
-  const dance = spread(100), still = spread(quiet.startBeat + 20), later = spread(quiet.startBeat + 21);
+  // (Task 14b: they drift free at first, then gather and rise to the seventh star's place: the drift is sampled in its first part)
+  const dance = spread(100), still = spread(quiet.startBeat + 6), later = spread(quiet.startBeat + 7);
   assert.ok(still.spread > 2 * dance.spread, `wider in the quiet part: ${still.spread.toFixed(1)} m, in the dance ${dance.spread.toFixed(1)} m`);
   assert.ok(still.pts.every(p => p[3] > 0), 'and lit');
   const moved = still.pts.map((p, i) => Math.hypot(p[0] - later.pts[i][0], p[1] - later.pts[i][1], p[2] - later.pts[i][2]));
@@ -601,4 +603,55 @@ test('the strings swing on a stomp and hang still two beats later', () => {
   const i = stringsAt(s).findIndex(l => l.lantern);
   const peak = c => c.indexOf(Math.max(...c));
   assert.ok(peak(curve(i)) > peak(curve(i - 1)), 'the lantern swings a little after its line');
+});
+
+test('in the quiet part the fireflies gather and rise to the seventh star\'s place, and they are back on the last chorus\'s first beat; the seventh star is not drawn', () => {
+  const quiet = SONG.song.sections.find(x => x.id === 'quiet');
+  const end = quiet.startBeat + quiet.beats;
+  assert.equal(end, entry('choir') > 0 ? SONG.song.sections.find(x => x.id === 'chorus').startBeat : NaN, 'the last chorus follows the quiet part');
+  const all = (b, o) => Array.from({ length: FIREFLIES.count }, (_, i) => ({ ...firefliesAt(b, i, {}, o) }));
+  const centre = pts => [0, 1, 2].map(k => pts.reduce((a, p) => a + [p.x, p.y, p.z][k], 0) / pts.length);
+  const spreadOf = pts => { const c = centre(pts); return pts.reduce((a, p) => a + Math.hypot(p.x - c[0], p.y - c[1], p.z - c[2]), 0) / pts.length; };
+  const { gather, seventh } = FIREFLY_QUIET;
+  // where they fly: the seventh star's place on the sky as the quiet part's shot (sky_dance) sees it
+  const lens = SHOTS.toppur.sky_dance.position;
+  const d = [seventh[0] - lens[0], seventh[1] - lens[1], seventh[2] - lens[2]];
+  const az = Math.atan2(d[2], d[0]) * 180 / Math.PI, el = Math.atan2(d[1], Math.hypot(d[0], d[2])) * 180 / Math.PI;
+  assert.ok(Math.abs(az - SKY.seventh.azimuth) < 0.5 && Math.abs(el - SKY.seventh.elevation) < 0.5, `toward the seventh star: ${az.toFixed(1)}, ${el.toFixed(1)}`);
+  // free at first, then one swarm over the floor
+  const free = all(quiet.startBeat + 6);
+  assert.ok(spreadOf(free) > 8, `free and wide: ${spreadOf(free).toFixed(1)} m`);
+  const together = all(FIREFLY_QUIET.at.rise - 0.25);
+  assert.ok(together.every(p => Math.hypot(p.x - gather[0], p.y - gather[1], p.z - gather[2]) < 6 && p.level > 0), 'gathered into one swarm over the floor, lit');
+  // rising, in a stream, higher and higher
+  const heights = [];
+  for (let b = FIREFLY_QUIET.at.rise; b < end; b += 2) {
+    const lit = all(b).filter(p => p.level > 0.003);
+    heights.push(lit.length ? Math.max(...lit.map(p => p.y)) : seventh[1]);
+  }
+  for (let k = 1; k < heights.length; k++) assert.ok(heights[k] >= heights[k - 1] - 1, `up and up: ${heights.map(h => h.toFixed(0)).join(' ')}`);
+  const mid = all(FIREFLY_QUIET.at.rise + 8).filter(p => p.level > 0.003);
+  assert.ok(mid.some(p => p.y > gather[1] + 15) && mid.some(p => p.y < gather[1] + 5), 'a stream between the swarm and the sky');
+  // a spiral: one firefly's way up turns round its line
+  const way = Array.from({ length: 60 }, (_, k) => firefliesAt(FIREFLY_QUIET.at.rise + k * 0.4, 17, {}));
+  const turns = way.map(p => Math.atan2(p.z - gather[2], p.x - gather[0]));
+  let swept = 0;
+  for (let k = 1; k < turns.length; k++) { let t = turns[k] - turns[k - 1]; t = ((t + 3 * Math.PI) % (2 * Math.PI)) - Math.PI; swept += t; }
+  assert.ok(Math.abs(swept) > 2 * Math.PI, `it circles as it rises: ${(swept / Math.PI).toFixed(1)} pi`);
+  // gone before the last chorus, back all at once on its first beat
+  assert.ok(all(end - 0.1).every(p => !(p.level > 0.003)), 'the last of them gone before the last chorus');
+  const back = all(end);
+  assert.ok(back.every(p => p.level > 0.003 && p.y < gather[1] + 4), 'back over the floor on its first beat');
+  // reduced: they drift and fade, no spiral
+  const r = all(FIREFLY_QUIET.at.rise + 8, { reduced: true });
+  assert.ok(r.every(p => p.y < gather[1] + 10), 'reduced: nobody flies up');
+  assert.ok(all(end - 0.1, { reduced: true }).every(p => !(p.level > 0.003)), 'reduced: faded');
+  assert.ok(all(end, { reduced: true }).filter(p => p.level > 0.003).length === FIREFLIES.count, 'and back');
+  // the stage draws no seventh star: its five things, nothing else, while they fly to its place
+  const c = stageWorld();
+  const stage = createStage(c);
+  stage.update(FIREFLY_QUIET.at.rise + 10);
+  assert.deepEqual(c.world.scene.children.map(o => o.name).sort(), ['Stage floor', 'Stage beams', 'Stage lights', 'Stage rings', 'Stage stones'].sort());
+  assert.ok(stage.state().counts.fireflies > 0);
+  stage.dispose();
 });
