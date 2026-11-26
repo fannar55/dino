@@ -278,6 +278,65 @@ test('createTop alone builds with no chapter 6 state, and dispose leaves the sce
   assert.equal(top.group.parent, null);
 });
 
+test('the sea glows in the colour it is given, and with none as it did', () => {
+  const top = createTop(world());
+  const glowOf = cards => cards.uniforms.uGlow.value.clone();
+  const warm = new THREE.Color('#ffb46b');
+  top.sea.setGlow(0.8);
+  assert.ok(glowOf(top.sea.cards).equals(warm.clone().multiplyScalar(0.8 * 0.6)), 'with no colour the warm glow of before');
+  assert.ok(glowOf(top.sea.bank).equals(warm.clone().multiplyScalar(0.8 * 0.6 * 0.6)), 'the bank at 0.6 of it, as before');
+  const pink = new THREE.Color('#ff4fd8');
+  top.sea.setGlow(0.8, '#ff4fd8');
+  assert.ok(glowOf(top.sea.cards).equals(pink.clone().multiplyScalar(0.8 * 0.6)), 'the sea in pink');
+  assert.ok(glowOf(top.sea.bank).equals(pink.clone().multiplyScalar(0.8 * 0.6 * 0.6)), 'its bank in pink');
+  const rim = top.group.children.find(m => m.name === 'Sea of cloud: round the rim and its heaps');
+  assert.ok(rim.material.uniforms.uGlow.value.equals(pink.clone().multiplyScalar(0.8 * 0.6)), 'the rim\'s puffs in pink');
+  top.sea.setGlow(0.5);
+  assert.ok(glowOf(top.sea.cards).equals(warm.clone().multiplyScalar(0.5 * 0.6)), 'and with none again, warm');
+  top.dispose();
+});
+
+test('ripples are a function: the same list gives the same sea, an empty one its rest; sea.wave still runs out and ends at rest', () => {
+  const top = createTop(world());
+  const centres = top.sea.cards.mesh.geometry.getAttribute('aCentre');
+  const rest = Float32Array.from(centres.array);
+  const heights = () => Float32Array.from(centres.array);
+  const one = [{ from: [0, 0], front: 120, strength: 2 }, { from: [30, -20], front: 60, strength: 1.5 }];
+  top.sea.ripples(one);
+  const first = heights();
+  assert.notDeepEqual(first, rest, 'the cards rise');
+  // a card on the first ring's front, far from the second, rises by about its strength
+  const cards = centres.count / 4;
+  let best = null;
+  for (let k = 0; k < cards; k++) {
+    const x = rest[k * 12], z = rest[k * 12 + 2];
+    const off = Math.abs(Math.hypot(x, z) - 120);
+    if (Math.hypot(x - 30, z + 20) > 200 && (!best || off < best.off)) best = { k, off };
+  }
+  assert.ok(Math.abs(first[best.k * 12 + 1] - rest[best.k * 12 + 1] - 2) < 0.3, 'on the front, lifted by its strength');
+  for (let i = 0; i < centres.array.length; i += 3) assert.ok(first[i] === rest[i] && first[i + 2] === rest[i + 2], 'only heights move');
+  top.sea.ripples([{ from: [-50, 10], front: 300, strength: 4 }]);
+  top.update(0.5, 1);
+  top.sea.ripples(one);
+  assert.deepEqual(heights(), first, 'the same list, the same sea, whatever came before');
+  // at most four: a fifth changes nothing
+  const four = [...one, { from: [5, 5], front: 80, strength: 1 }, { from: [-5, 5], front: 200, strength: 1 }];
+  top.sea.ripples(four);
+  const withFour = heights();
+  top.sea.ripples([...four, { from: [0, 0], front: 400, strength: 3 }]);
+  assert.deepEqual(heights(), withFour, 'the fifth is not drawn');
+  top.sea.ripples([]);
+  assert.deepEqual(heights(), rest, 'an empty list is the rest');
+  // and the swell as scenes 1 and 2 have it: it runs out and ends exactly at rest
+  const swell = top.sea.wave({ from: [-40, 30], strength: 3, seconds: 0.5 });
+  top.update(0.2, 1.2);
+  assert.notDeepEqual(heights(), rest, 'the swell lifts them');
+  for (let t = 0; t < 0.6; t += DT) top.update(DT, t);
+  assert.ok(swell.done, 'the swell has passed');
+  assert.deepEqual(heights(), rest, 'and the sea is at rest');
+  top.dispose();
+});
+
 test('in the cloud at level 0.5 a bush 30 m off is whiter than one 8 m off; at level 1 neither shows beyond 20 m', () => {
   const w = world();
   const belt = createBelt(w, { prints: PRINTS });
