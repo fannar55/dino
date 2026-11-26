@@ -311,9 +311,10 @@ export const SHOTS = {
     stars_wide: starsShot(1.6),
     // she lays her head down and Egill floats down to Mosi
     egill_down: shot(off(S.gramedla, 12, -7, 1.4), off(S.mosi, 0, 0, 2.2), 48),
-    // the half moon peeks up over the clouds behind the top, a party hat on: past Mosi on his party stand (everyone is at theirs by
-    // then: Task 12), over the stage, a long lens on the sea beyond it so the moon is big and nobody stands in front of it
-    moon_peek: shot(fp(-4.5, -15, 3.2), toSky(fp(-4.5, -15, 3.2), { azimuth: 45, elevation: 5 }), 34),
+    // the half moon peeks up over the clouds behind the top, a party hat on: past Mosi's face on his party stand (everyone is at
+    // theirs by then: Task 12), over the stage, a long lens on the sea beyond it so the moon is big and nobody stands in front of it;
+    // 20 m back so the near ones are smaller on the tablet's budget (at 15 m: 264k triangles shadows off, at 20 m 244k)
+    moon_peek: shot(fp(-4.5, -20, 3.2), toSky(fp(-4.5, -20, 3.2), { azimuth: 45, elevation: 5 }), 34),
     // Scene 3. The party, all toward the stage from the child's side
     stage_front: shot(fp(2, 14, 1.6), fp(3, 30, 3), 44),
     party_wide: shot(fp(0, -36, 4.2), fp(1, 10, 3.6), 55),
@@ -370,7 +371,7 @@ export const SHOWS = {
   sea_ring: ['gramedla'],
   stars_wide: ['kambedla', 'uggedla', 'thorsedla', 'flugedla', 'sloedla', 'gramedla', 'egill'],
   egill_down: ['gramedla', 'egill', 'mosi'],
-  moon_peek: [], // the moon is what it shows (SKY_SHOTS); Mosi only as a back in its corner, his head past the edge
+  moon_peek: ['mosi'],
   stage_front: ['sloedla', 'flugedla'],
   party_wide: FRIENDS8,
   party_high: ['gramedla', 'thorsedla', 'sloedla', 'mosi', 'egill'],
@@ -425,7 +426,9 @@ export function tallShot(name) {
  *   4 a wide shot held `wideBars` bars at the most (CAMERA already cuts every wide shot within 4: not needed beyond that).
  * `measured`: the shot after the levers, the worse of two runs. Before them: 264,014 triangles wide (over), 239,316 upright. Task 8
  * measured it again with the real guests (hatid-guests.js) and `?gestir` for the light points only (qa/remake/hatid/butur3/maeling.md).
- * Chunks 5 and 6 (the stage, the lights, the guests) build inside what is left: about 1.4 ms, 60 calls and 30k triangles wide.
+ * Task 12 measured it with the real night sky, the six constellations at their party places, the moon and its cloud heaps
+ * (`?chapter=veisla&t=partyTime(76.5)`, qa/remake/hatid/butur4/bench-*.txt; wide the worse of two runs): what chunk 5 (the stage,
+ * the lights) builds inside is now about 0.7 ms, 58 calls and 28k triangles wide, 2.4 ms, 58 calls and 53k triangles upright.
  */
 export const BUDGET = {
   shot: 'party_wide',
@@ -439,8 +442,8 @@ export const BUDGET = {
   wide: ['party_wide', 'party_high', 'final_pose'],
   limits: { gpuMs: 6, drawCalls: 100, triangles: 250000 },
   measured: {
-    '1280x800': { gpuMs: 4.75, drawCalls: 34, triangles: 218227 },
-    '800x1280': { gpuMs: 4.7, drawCalls: 37, triangles: 193529 },
+    '1280x800': { gpuMs: 5.27, drawCalls: 42, triangles: 222091 },
+    '800x1280': { gpuMs: 3.56, drawCalls: 42, triangles: 197387 },
   },
 };
 

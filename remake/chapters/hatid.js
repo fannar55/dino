@@ -364,6 +364,9 @@ function* theStars(s, c) {
   yield s.until(() => keys.every(key => c.drawn?.[key]) && c.many >= 1); // the whole sky out before the cut
   // Egill floats down beside Mosi, so they can dance together; the stars gather over the party as he does
   cut(s, c, 'egill_down');
+  // the tablet's budget (BUDGET.limits): from here to the party nobody casts a sun shadow (the sun is down; egill_down and moon_peek
+  // came to 272k and 320k triangles with them, 239k and 244k without); the party then keeps its own four out (theParty)
+  const shadows = noShadows(c, FRIENDS8);
   c.skyStars.gather(partyPlace, { seconds: DOWN.gather, span: SKY.party.span });
   yield* c.her.headDown({ seconds: DOWN.head }); // slower than chapter 6's: Egill rides it down, his feet under 1 m/s
   sound(s, c, 'float');
@@ -400,6 +403,7 @@ function* theStars(s, c) {
   toTheParty(c);
   toot(s, c, 'blower');
   yield s.wait(TOOT_GAP);
+  shadows.restore();
 }
 
 /** The moon's party blower: the sign the party starts on (`sound`: the chapter's blower, the tile's horn). */
