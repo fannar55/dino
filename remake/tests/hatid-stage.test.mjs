@@ -566,3 +566,39 @@ test('the moon bobs its hat on the beat and opens its mouth only while the choir
   assert.deepEqual(moonAt(130.37), moonAt(130.37));
   assert.ok(Array.isArray(MOON_MOVES) && MOON_MOVES.length >= 3);
 });
+
+test('the strings swing on a stomp and hang still two beats later', () => {
+  const stomps = cuesIn('stomp', 0, END_BEAT).map(c => c.beat);
+  const lone = stomps.filter(b => !stomps.some(o => o !== b && Math.abs(o - b) < 2));
+  assert.ok(lone.length > 50, `${lone.length} stomps with none closer than two beats`);
+  const moved = (b, o = {}) => {
+    const rest = stringsAt(b, { reduced: true }), now = stringsAt(b, o);
+    return now.map((l, i) => Math.hypot(l.at[0] - rest[i].at[0], l.at[1] - rest[i].at[1], l.at[2] - rest[i].at[2]));
+  };
+  for (const s of lone) {
+    assert.ok(Math.max(...moved(s)) < 1e-9, `still as Grameðla's foot lands at ${s}`);
+    assert.ok(Math.max(...moved(s + 0.4)) > 0.5, `swinging at ${s + 0.4}: ${Math.max(...moved(s + 0.4)).toFixed(2)} m`);
+    assert.ok(Math.max(...moved(s + 2)) < 1e-9, `still two beats after ${s}`);
+    assert.ok(Math.max(...moved(s + 0.4, { reduced: true })) === 0, 'reduced: they hang still');
+  }
+  // the lanterns: every fifth light or so, bigger, warmer, hanging below the line, lagging a little behind it
+  const lights = stringsAt(100.5, { reduced: true });
+  for (const key of FRIENDS.map(f => f.key)) {
+    const mine = lights.filter(l => l.string === key);
+    const lanterns = mine.map((l, k) => [l, k]).filter(([l]) => l.lantern);
+    assert.ok(lanterns.length >= 3 && lanterns.length <= 5, `${key}: ${lanterns.length} lanterns`);
+    for (const [l, k] of lanterns) {
+      const a = mine[k - 1], b = mine[k + 1];
+      assert.ok(!a.lantern && !b.lantern);
+      assert.ok(l.size > 1.5 * a.size, 'bigger');
+      assert.ok(l.at[1] < (a.at[1] + b.at[1]) / 2 - 0.3, 'hanging below the line');
+      const warm = [1, 0xc4 / 255, 0x6b / 255], far = c => Math.hypot(c[0] - warm[0], c[1] - warm[1], c[2] - warm[2]);
+      assert.ok(far(l.colour) < far(a.colour), 'warmer: nearer a lamp\'s yellow');
+    }
+  }
+  const s = lone[3];
+  const curve = k => Array.from({ length: 40 }, (_, j) => moved(s + j * 0.05)[k]);
+  const i = stringsAt(s).findIndex(l => l.lantern);
+  const peak = c => c.indexOf(Math.max(...c));
+  assert.ok(peak(curve(i)) > peak(curve(i - 1)), 'the lantern swings a little after its line');
+});

@@ -284,7 +284,31 @@ export function burstFlash(beat) {
 // The strings of lights (the chunk's ruling 3): six, one from each drawing's feet (her lowest star at her party place) down to a
 // stone, STRINGS.lights on each, hanging a little; a run of light goes down each on the beat. A string's top is that star as seen from
 // party_wide's lens, STRINGS.reach m out (so in the party's wide shot it hangs from the star itself); its colour is its friend's.
-export const STRINGS = { count: 6, lights: 20, reach: 85, sag: 0.06, size: 0.75, drop: 7, stones: [2, 3, 4, 5, 6, 7] };
+// Task 14b (the owner's sixth: "Luktir á ljósaseríunum sem sveiflast þegar Grameðla stappar"): every fifth light of a string (from the
+// third) is a lantern, `lantern.size` m, warmer (`warmth` of the way to `warm`), hanging `hang` m under the line and glowing
+// steadily; on every stomp cue the strings swing sideways (across their own line, most in the middle of each, `swing.amp` of its
+// length), a beat's swing that dies away and is still `settle` beats after the stomp, the lanterns `lag` beat behind and a little
+// wider. Reduced: they hang still.
+export const STRINGS = {
+  count: 6, lights: 20, reach: 85, sag: 0.06, size: 0.75, drop: 7, stones: [2, 3, 4, 5, 6, 7],
+  lantern: { every: 5, first: 2, size: 2.4, hang: 0.9, warm: '#ffc46b', warmth: 0.55, glow: 0.8 },
+  swing: { amp: 0.04, settle: 2, lag: 0.2, lanterns: 1.35 },
+};
+/** How far the strings are swung at `beat` (-1 to 1 or so; 0 still), `lag` beat behind a stomp: still on it and `settle` beats after. */
+function swingAt(beat, lag = 0) {
+  const { settle } = STRINGS.swing;
+  let v = 0;
+  for (let k = STOMPS.length - 1; k >= 0; k--) {
+    const since = beat - STOMPS[k];
+    if (since < 0) continue;
+    if (since >= settle) break;
+    const age = since - lag;
+    if (age <= 0) continue;
+    const u = age / (settle - lag);
+    v += Math.sin(Math.PI * 2 * age) * (1 - u) ** 2;
+  }
+  return v;
+}
 const LENS = SHOTS.toppur.party_wide.position;
 const skyWay = ({ azimuth, elevation }) => [Math.cos(elevation * deg) * Math.cos(azimuth * deg), Math.sin(elevation * deg), Math.cos(elevation * deg) * Math.sin(azimuth * deg)];
 /** Where a string's top hangs: `place` ({ azimuth, elevation }) STRINGS.reach m from party_wide's lens. */
@@ -313,18 +337,31 @@ export function stringsAt(beat, o = {}) {
   const q = quietAt(beat);
   const phase = 1 - fract(beat); // the run is at the top on the beat and goes down
   const out = [];
+  const { lantern: L, swing: W } = STRINGS;
+  const swung = o.reduced ? 0 : swingAt(beat), lagged = o.reduced ? 0 : swingAt(beat, W.lag);
   tops.forEach(({ key, top }) => {
     const s = STONE_OF[key];
     const bottom = [s.at[0], heightAt(s.at[0], s.at[1]) + s.height * 0.92, s.at[1]];
     const span = Math.hypot(top[0] - bottom[0], top[1] - bottom[1], top[2] - bottom[2]);
     const colour = rgbOf(hueOf(key));
+    const warm = mixRgb(colour, rgbOf(L.warm), L.warmth);
+    // sideways: across the string's own line, level
+    const across = Math.hypot(top[0] - bottom[0], top[2] - bottom[2]) || 1;
+    const side = [-(top[2] - bottom[2]) / across, (top[0] - bottom[0]) / across];
     for (let k = 0; k < STRINGS.lights; k++) {
       const t = 1 - k / (STRINGS.lights - 1); // 1 at the top
-      const sag = STRINGS.sag * span * 4 * t * (1 - t);
+      const bow = 4 * t * (1 - t);
+      const sag = STRINGS.sag * span * bow;
       const run = Math.exp(-((t - phase) ** 2) / 0.006);
+      const lantern = k >= L.first && (k - L.first) % L.every === 0 && k < STRINGS.lights - 1;
+      const sway = (lantern ? lagged * W.lanterns : swung) * W.amp * span * bow;
+      const level = lit * (0.4 + 0.6 * run * (1 - 0.6 * q)) * (1 - 0.4 * q);
       out.push({
-        at: [lerp(bottom[0], top[0], t), lerp(bottom[1], top[1], t) - sag, lerp(bottom[2], top[2], t)],
-        colour, level: lit * (0.4 + 0.6 * run * (1 - 0.6 * q)) * (1 - 0.4 * q), string: key,
+        at: [lerp(bottom[0], top[0], t) + side[0] * sway, lerp(bottom[1], top[1], t) - sag - (lantern ? L.hang : 0), lerp(bottom[2], top[2], t) + side[1] * sway],
+        colour: lantern ? warm : colour,
+        level: lantern ? Math.max(level, lit * L.glow * (1 - 0.4 * q)) : level,
+        size: lantern ? L.size : STRINGS.size,
+        lantern, string: key,
       });
     }
   });
@@ -673,7 +710,7 @@ export function createStage(c) {
     for (const p of fireworksAt(beat, o)) { points.add(...p.at, p.size, ...p.colour, p.level, 0); fireworks++; }
     const lights = stringsAt(beat, { ...o, feet: feetOf() ?? undefined });
     let strings = 0;
-    for (const l of lights) { points.add(...l.at, STRINGS.size, ...l.colour, l.level); if (l.level > 0.003) strings++; }
+    for (const l of lights) { points.add(...l.at, l.size, ...l.colour, l.level); if (l.level > 0.003) strings++; }
     let fireflies = 0;
     for (let i = 0; i < flies; i++) {
       firefliesAt(beat, i, fly, o);
