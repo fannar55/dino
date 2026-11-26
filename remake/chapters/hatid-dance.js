@@ -35,6 +35,15 @@ export const HOP_BOUNCE = { thorsedla: 0.35, gramedla: 0.3 };
  * and back, not round; reducedHop: and a hop this share of itself.
  */
 export const DANCE = { in: 1, out: 1.5, turn: 2, follow: [68, 72], quiet: 0.4, solo: 0.5, reducedSpin: 35, reducedHop: 0.5, skyHop: 1.5 };
+/**
+ * (Task 17 fix 1) In the quiet part Egill and Mosi look up as the fireflies gather and rise (hatid-stage.js FIREFLY_QUIET): from
+ * `from` over a bar, down again over the bar before `to` (the last chorus); degrees of pitch (+ up) on their own bones.
+ */
+export const LOOK_UP = { from: 228, to: 252, egill: { Neck: 12, Head: 20 }, mosi: { Neck: 14, Head: 12 } };
+/** How far Egill and Mosi look up at the beat, 0 to 1. */
+export function lookUpAt(beat) {
+  return smooth((beat - LOOK_UP.from) / BAR) * (1 - smooth((beat - (LOOK_UP.to - BAR)) / BAR));
+}
 
 const DB = SONG.danceBeats; // song beats a dance beat
 const BAR = SONG.beatsPerBar;
@@ -614,6 +623,8 @@ export function createDance(c, { reduced = Boolean(c.reduced) } = {}) {
           if (m.move === 'stomp' || m.move === 'hop') { pose.feet.L *= 1 - m.weight; pose.feet.R *= 1 - m.weight; }
           addPose(pose, scratch, m.weight);
         }
+        const up = LOOK_UP[who] ? lookUpAt(beat) : 0;
+        if (up > 0) for (const [bone, d] of Object.entries(LOOK_UP[who])) turn(pose, bone, d, 0, 0, up);
       }
       for (const fn of layers) fn(who, beat, pose);
     }

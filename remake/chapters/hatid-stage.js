@@ -407,7 +407,9 @@ const FLY_SEVENTH = (() => {
   return [0, 1, 2].map(k => lens[k] + d[k] * 70);
 })();
 export const FIREFLY_QUIET = {
-  at: { gather: 218, rise: 226 }, spread: 12, rise: 12, turns: 3, swirl: 0.35, ball: [1.5, 4.5], end: 0.4,
+  // (Task 17 fix 1: gather 230, rise 236, spread 7, rise 8, so the camera's story sees it: the swarm forms behind Egill and Mosi
+  // from 232, the stream goes up in sky_dance from 240, the last in by 251, a beat before the chorus; it was 218, 226, 12, 12)
+  at: { gather: 230, rise: 236 }, spread: 7, rise: 8, turns: 3, swirl: 0.35, ball: [1.5, 4.5], end: 0.4,
   gather: (() => { const [x, z] = floorPoint(-7, 2); return [x, GROUND + 5, z]; })(), seventh: FLY_SEVENTH, distance: 70,
 };
 const SWARMS = [[-14, -4], [0, -14], [14, -2], [-8, 12], [10, 14], [0, 3]].map(([a, d]) => floorPoint(a, d));

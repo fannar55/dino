@@ -352,12 +352,18 @@ export const SHOTS = {
     trick_sloedla: shot(fp(5, 23, 3.4), fp(0, 27.5, 3.9), 42),
     // Grameðla's roar at the end of her three prints, which run toward the lens: high on her right, looking down along them so each
     // shows its heel and three toes, and the moon (low over the rim behind her) is out over the frame's top (fix 1: from low it sat
-    // behind her head and the prints were ovals); Uggeðla at the right edge
-    trick_gramedla: shot(fp(-28, -4, 7.3), fp(-21, 10, 1.2), 46),
+    // behind her head and the prints were ovals); (Task 17 fix 1) turned 1.5 m left and 4 degrees tighter, so Uggeðla's body is out
+    // of the frame and only her tail's end at its right edge (her body there was the frame's cost: 6.47 ms less the drift); no lens
+    // that holds all three prints leaves her tail out, she stands beside their line
+    trick_gramedla: shot(fp(-28, -4, 7.3), fp(-22.5, 10, 1.2), 42),
     // the moon alone over the sea of cloud, from behind the stage, everyone behind the lens (Task 6: from the floor its long lens drew
-    // Mosi, Uggeðla and Þórseðla at full detail, 309k triangles, over the budget)
-    moon_close: shot(fp(0, 41, 1.4), toSky(fp(0, 41, 1.4), { azimuth: 45, elevation: 7 }), 28),
-    final_pose: shot(fp(0, -34, 3.2), fp(1, 8, 3), 55),
+    // Mosi, Uggeðla and Þórseðla at full detail, 309k triangles, over the budget; Task 17 fix 1: on 24, the lens limit, the quiet
+    // part's close; it was 28)
+    moon_close: shot(fp(0, 41, 1.4), toSky(fp(0, 41, 1.4), { azimuth: 45, elevation: 7 }), 24),
+    // the party's last picture (Task 17 fix 1: from far back and high Egill was a speck and half the frame floor): low and near Egill,
+    // he and Mosi in front in their end poses, the six whole behind them (.tools/hatid-17/finalpose.mjs: no nearer lens holds every
+    // head and tail on 16:10), looking up 13 degrees so the floor is a quarter of the frame and the drawings and the moon are over them
+    final_pose: shot(fp(1, -24.5, 1), fp(-0.57, 5.46, 7.38), 43.5),
     // Task 17 (chunk-6 ruling 17: the dance must be seen to be copied): Egill whole and big doing each called move, Mosi beside him
     // doing it too. From in front of them to his right, at his chest's height, Mosi behind him over his shoulder (from straight in
     // front Mosi's head left the frame in the spin)
@@ -368,6 +374,13 @@ export const SHOTS = {
     // the last chorus's sky: from the child's side of the floor, the whole party low in the frame, the moon over the stage, the
     // bursts and the northern lights over everything
     chorus_sky: shot(fp(0, -40, 3), toSky(fp(0, -40, 3), { azimuth: 40, elevation: 24 }), 60),
+    // Task 17 fix 1, the quiet part as a small story: Egill and Mosi side by side, low in front of them to his right, looking up
+    // past them to where the fireflies gather (hatid-stage.js FIREFLY_QUIET.gather, behind them over the floor)
+    // (from 0.5 m nearer Egill: further back Mosi took the frame and Egill was a sixth of it)
+    quiet_egill: shot(fp(5.2, -14.6, 0.5), fp(-2, -7, 3.2), 40),
+    // and its first shot: everyone whole and swaying under the breathing drawings, from low on the child's side so the sky is most of
+    // the frame (party_wide's was half floor)
+    quiet_wide: shot(fp(0, -32, 1.2), toSky(fp(0, -32, 1.2), { azimuth: 45, elevation: 12 }), 40),
     // Scene 4. Round Egill, the seventh star, the lift
     gather: shot(off(GATHER.egill, -15, 1, 3.4), off(GATHER.egill, 4, 0, 1.4), 54),
     seventh_sky: shot(SEVENTH_FROM, toSky(SEVENTH_FROM, { azimuth: 45, elevation: 44 }), 55),
@@ -427,6 +440,8 @@ export const SHOWS = {
   dance_egill: ['egill', 'mosi'],
   dance_egill_b: ['egill', 'mosi'],
   chorus_sky: [],
+  quiet_egill: ['egill', 'mosi'],
+  quiet_wide: FRIENDS8,
   gather: ['egill', 'mosi', 'kambedla', 'sloedla'],
   seventh_sky: ['thorsedla'],
   lift_side: ['egill', 'mosi'],
@@ -439,7 +454,7 @@ const SCENES = {
   start: ['top_empty', ...ARRIVALS.flatMap(({ friend }) => [`arrive_${friend}`, ...(friend === 'flugedla' ? [] : [`home_${friend}`])])],
   farewell: ['home_flugedla', 'lineup_sun', 'sun_faces'],
   dark: ['dark_wait', 'first_star', 'roar_up', 'sea_ring', 'stars_wide', 'egill_down'],
-  party: ['moon_peek', 'stage_front', 'party_wide', 'party_high', 'floor_low', 'egill_mosi', 'sky_dance', ...Object.keys(STAR_ROW).map(f => `solo_${f}`), ...Object.keys(STAR_ROW).map(f => `trick_${f}`), 'moon_close', 'final_pose', 'dance_egill', 'dance_egill_b', 'chorus_sky'],
+  party: ['moon_peek', 'stage_front', 'party_wide', 'party_high', 'floor_low', 'egill_mosi', 'sky_dance', ...Object.keys(STAR_ROW).map(f => `solo_${f}`), ...Object.keys(STAR_ROW).map(f => `trick_${f}`), 'moon_close', 'final_pose', 'dance_egill', 'dance_egill_b', 'chorus_sky', 'quiet_egill', 'quiet_wide'],
   gather: ['gather', 'seventh_sky', 'lift_side', 'mosi_up', 'rise_down'],
 };
 export const SCENE = Object.fromEntries(Object.entries(SCENES).flatMap(([scene, names]) => names.map(name => [name, scene])));
@@ -457,6 +472,12 @@ const TALL = {
   dance_egill_b: shot(fp(5.8, -13.1, 0.6), fp(-1, -9.4, 2.1), 25),
   // upright: the same place, looking higher and tighter (at its own lens the bottom two fifths were empty floor and the bursts small)
   chorus_sky: shot(fp(0, -40, 3), toSky(fp(0, -40, 3), { azimuth: 40, elevation: 32 }), 44),
+  // (fix 1) upright: the quiet part's first two shots looking higher (half the frame was floor), quiet_egill nearer him (Egill was a
+  // speck between Mosi and the edge)
+  quiet_wide: shot(fp(0, -32, 1.2), toSky(fp(0, -32, 1.2), { azimuth: 45, elevation: 26 }), 40),
+  quiet_egill: shot(fp(5.5, -13.5, 0.5), fp(-1.5, -8.5, 3.2), 30),
+  // (fix 1) upright: the same lens looking higher, so the narrow frame's long height is sky over them, not floor under them
+  final_pose: shot(fp(1, -24.5, 1), fp(-0.57, 5.46, 13.7), 43.5),
 };
 /** The upright frame of shot `name`, where one is needed (else null: the wide frame holds upright too). */
 export function tallShot(name) {
@@ -514,6 +535,11 @@ export const BUDGET = {
   wideBars: 4,
   wide: ['party_wide', 'party_high', 'final_pose'],
   limits: { gpuMs: 6, drawCalls: 100, triangles: 250000 },
+  // (Task 17 fix 1) a shot's own levers while the camera holds it (hatid.js theParty): `noShadow` more friends cast no shadow,
+  // `hideGuests` groups of guests not drawn (only ones neither in the frame nor missed)
+  shots: {
+    final_pose: { noShadow: ['uggedla', 'thorsedla'] },
+  },
   measured: {
     '1280x800': { gpuMs: 5.39, drawCalls: 50, triangles: 238029 },
     '800x1280': { gpuMs: 4.66, drawCalls: 50, triangles: 213325 },

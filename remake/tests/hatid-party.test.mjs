@@ -12,9 +12,9 @@ import { FRIENDS } from '../engine/scene/journal-data.js';
 import { FRIENDS8, partyStands, partyPlace, SKY } from '../chapters/hatid-route.js';
 import { BEAT, CAMERA, END_BEAT, TRICK_CUT, callAt, cuesIn, soloAt } from '../chapters/hatid-score.js';
 import { SONG } from '../chapters/hatid-song.js';
-import { floorAt, spotsAt, stageLightAt, skyBurstsAt, auroraAt, breathAt, moonAt, fireworksAt, partyLook, BREATH, SKY_BURSTS, MOON_FINALE, FRIEND_HUES, END_TAIL } from '../chapters/hatid-stage.js';
+import { floorAt, spotsAt, stageLightAt, skyBurstsAt, auroraAt, breathAt, moonAt, fireworksAt, partyLook, BREATH, SKY_BURSTS, MOON_FINALE, FRIEND_HUES, END_TAIL, FIREFLY_QUIET } from '../chapters/hatid-stage.js';
 import { createNightSky, skyDirection, NIGHT } from '../engine/night-sky.js';
-import { createDance, moveOf, grooveOf, grooveSize, moveAt, MOVES, CALL_LINE, HOP } from '../chapters/hatid-dance.js';
+import { createDance, moveOf, grooveOf, grooveSize, moveAt, MOVES, CALL_LINE, HOP, LOOK_UP, lookUpAt } from '../chapters/hatid-dance.js';
 import { createBand, ROLES, roleOf, SOLO_TRICKS, trickOf, lapAt, DECK, joltAt, roarAt, END_POSE } from '../chapters/hatid-band.js';
 import { SHOTS, SHOWS, BUDGET, HEAD, LENGTH, tallShot } from '../chapters/hatid-route.js';
 import { createDirector } from '../engine/camera/director.js';
@@ -638,6 +638,20 @@ test('the quiet part: no spotlight, no stomp, the constellations breathe and the
   assert.ok(eyes.has('shut'), 'it blinks');
 });
 
+test('in the quiet part Egill and Mosi look up as the fireflies gather and rise, and down again by the last chorus (Task 17 fix 1)', async () => {
+  const p = await party();
+  const head = (who, b) => { p.frame(b - 0.05); p.frame(b); return p.bones[who].get('Head').getWorldQuaternion(new THREE.Quaternion()); };
+  // the same place in the bar (the groove sways with it), before the look and in it
+  const pairs = { egill: 15, mosi: 12 };
+  for (const [who, most] of Object.entries(pairs)) {
+    const before = head(who, LOOK_UP.from - 3.5), up = head(who, LOOK_UP.from + 12.5);
+    assert.ok(deg(up.angleTo(before)) >= most, `${who} looks up (${deg(up.angleTo(before)).toFixed(0)} degrees)`);
+  }
+  assert.equal(lookUpAt(LOOK_UP.from + 8), 1, 'up through the gathering and the rise');
+  for (const b of [LOOK_UP.from - 0.01, LOOK_UP.to, LOOK_UP.to + 40, 100]) assert.equal(lookUpAt(b), 0, `not looking up at ${b}`);
+  assert.ok(FIREFLY_QUIET.at.gather >= LOOK_UP.from && FIREFLY_QUIET.at.gather < LOOK_UP.from + 4, 'they look up as the gathering begins');
+});
+
 test('the last chorus is the biggest: more light than any part before it (the stage\'s state summed), every burst on its cue in a friend\'s hue, the northern lights up', () => {
   const mean = id => { const s = sectionOf(id); let sum = 0, n = 0; span(s.startBeat, s.startBeat + s.beats, 0.25, b => { sum += stageLightAt(b); n++; }); return sum / n; };
   const chorus = mean('chorus');
@@ -762,8 +776,16 @@ test('the camera is cut to the song: every cut on a beat, a bar or more but for 
     const cuts = CAMERA.filter(e => e.beat >= startBeat && e.beat < startBeat + beats).map(e => e.cut);
     assert.deepEqual(cuts, [`solo_${who}`, `trick_${who}`], `${who}'s solo is close`);
   }
-  // the quiet part is one shot of the sky
-  assert.deepEqual(CAMERA.filter(e => e.beat >= QUIET.startBeat && e.beat < QUIET.startBeat + QUIET.beats).map(e => e.cut), ['sky_dance']);
+  // the quiet part is a small story (Task 17 fix 1), two bars a shot or more: everyone, Slóeðla's horn to the sky, the moon, Egill and
+  // Mosi as the fireflies gather behind them, the fireflies' rise with the one push
+  const quiet = CAMERA.filter(e => e.beat >= QUIET.startBeat && e.beat < QUIET.startBeat + QUIET.beats);
+  assert.deepEqual(quiet.map(e => e.cut), ['quiet_wide', 'trick_sloedla', 'moon_close', 'quiet_egill', 'sky_dance']);
+  quiet.forEach(e => assert.ok(lastsOf(CAMERA.indexOf(e)) >= 8, `${e.cut} at ${e.beat} holds two bars or more`));
+  const holding = b => CAMERA.filter(e => e.beat <= b).at(-1).cut;
+  assert.equal(holding(cuesIn('horn', QUIET.startBeat, QUIET.startBeat + QUIET.beats)[0].beat), 'trick_sloedla', 'her horn to the sky, close');
+  assert.equal(holding(FIREFLY_QUIET.at.rise - 1), 'quiet_egill', 'the fireflies gather behind Egill and Mosi');
+  assert.equal(holding(FIREFLY_QUIET.at.rise + FIREFLY_QUIET.spread + 1), 'sky_dance', 'and rise in the sky');
+  assert.ok(quiet.filter(e => e.then).length === 1 && quiet.at(-1).then?.push > 0, 'one slow push, on the rise');
   // the sky is in frame for the volleys' bursts: chorus_sky holds each burst cue, with every burst of it in frame at both sizes
   const cues = cuesIn('burst', -Infinity, Infinity).map(c => c.beat);
   for (const cue of cues) assert.equal(CAMERA.filter(e => e.beat <= cue + 0.5).at(-1).cut, 'chorus_sky', `the sky on the burst at ${cue}`);
@@ -843,7 +865,7 @@ test('every move of the camera is slow enough for the style and over before the 
     else if (then.zoom !== undefined) assert.ok(then.zoom >= 24 && then.zoom <= 60 && (Math.abs(then.zoom - shot.fov) / seconds) * PEAK <= 8, `the zoom at ${entry.beat}`);
     else assert.fail(`the move at ${entry.beat} is a push, an orbit or a zoom`);
   });
-  assert.ok(CAMERA.some(e => e.beat === QUIET.startBeat && e.then?.push), 'the quiet part\'s one slow push');
+  assert.ok(CAMERA.some(e => e.beat >= QUIET.startBeat && e.beat < QUIET.startBeat + QUIET.beats && e.cut === 'sky_dance' && e.then?.push), 'the quiet part\'s one slow push, on the rise');
 });
 
 test('reduced: bursts are glows, the northern lights stand, the camera only cuts', () => {

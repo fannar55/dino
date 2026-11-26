@@ -636,7 +636,10 @@ test('in the quiet part the fireflies gather and rise to the seventh star\'s pla
   assert.ok(mid.some(p => p.y > gather[1] + 15) && mid.some(p => p.y < gather[1] + 5), 'a stream between the swarm and the sky');
   // a spiral: one firefly's way up turns round its line
   const way = Array.from({ length: 60 }, (_, k) => firefliesAt(FIREFLY_QUIET.at.rise + k * 0.4, 17, {}));
-  const turns = way.map(p => Math.atan2(p.z - gather[2], p.x - gather[0]));
+  // (Task 17 fix 1: round the line from the swarm to the star's place at its height, not round the swarm: with the quicker rise the
+  // line's own lean outran the spiral's narrowing radius round a fixed point)
+  const lineAt = p => { const s = Math.min(1, Math.max(0, (p.y - gather[1]) / (seventh[1] - gather[1]))); return [0, 2].map(k => gather[k] + (seventh[k] - gather[k]) * s); };
+  const turns = way.map(p => { const [cx, cz] = lineAt(p); return Math.atan2(p.z - cz, p.x - cx); });
   let swept = 0;
   for (let k = 1; k < turns.length; k++) { let t = turns[k] - turns[k - 1]; t = ((t + 3 * Math.PI) % (2 * Math.PI)) - Math.PI; swept += t; }
   assert.ok(Math.abs(swept) > 2 * Math.PI, `it circles as it rises: ${(swept / Math.PI).toFixed(1)} pi`);

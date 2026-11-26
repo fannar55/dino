@@ -745,9 +745,25 @@ function* theParty(s, c) {
       breathing = breath > 0;
     }
   };
+  // (Task 17 fix 1) a shot's own levers (hatid-route.js BUDGET.shots) while the camera holds it, by the shot's label (cut() sets it):
+  // more friends without a shadow, guest groups not drawn; all given back on the next cut
+  let leverShot = null, leverUndo = null;
+  const levers = () => {
+    if (c.shotLabel === leverShot) return;
+    leverUndo?.();
+    leverUndo = null;
+    leverShot = c.shotLabel ?? null;
+    const lever = BUDGET.shots?.[leverShot];
+    if (!lever) return;
+    const dark = noShadows(c, (lever.noShadow ?? []).filter(who => c[who]?.raw && !BUDGET.noShadow.includes(who)));
+    const away = (lever.hideGuests ?? []).filter(group => c.guests?.phaseOf?.(group) === 'there');
+    for (const group of away) c.guests.set(group, 'away');
+    leverUndo = () => { dark.restore(); for (const group of away) c.guests.set(group, 'there'); };
+  };
   const frame = () => {
     const beat = beatAt(s.time - start);
     c.partyBeat = beat;
+    levers();
     c.band.update(beat); // before the dance: the soloist taken or given back
     c.dance.update(beat);
     c.stage.update(beat); // after both: the fireflies on Þórseðla's neck, Flugeðla's wind, the prints
@@ -775,6 +791,7 @@ function* theParty(s, c) {
     c.night?.shoot([]);
     c.night?.aurora(0, 0);
     if (breathing) for (const key of keys) { try { c.figures.set(key, { drawn: 1, level: 1, breath: 0 }); } catch { /* not in the sky */ } }
+    leverUndo?.();
     shadows.restore();
     unshake();
     c.band.dispose();

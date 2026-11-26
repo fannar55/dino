@@ -98,7 +98,7 @@ const at = id => song.sections.find(part => part.id === id).startBeat;
 // dance_egill_b), held four dance beats or more; then the band close (the solos' own lenses on each friend at her stand: Grameðla's
 // drum foot, Kambeðla's lizards on her plates, Flugeðla at her deck, Uggeðla's tail) or the floor from high. In the last chorus each
 // move's third bar is the sky (chorus_sky) on the burst cue, where the volley bursts, Grameðla roars and the moon's hat goes askew,
-// and then Egill again; quick runs of two beats only there. The quiet part is one slow push on the sky. The chord: Egill's end pose
+// and then Egill again; quick runs of two beats only there. The quiet part is a small story (fix 1, below). The chord: Egill's end pose
 // close, then everyone wide while the lights die.
 const CALL_BLOCK = (call, egill, gap) => [
   { beat: call, cut: 'party_wide' },
@@ -123,8 +123,15 @@ export const CAMERA = [
   ...CALL_BLOCK(104, 'dance_egill', [[12, 'solo_flugedla']]), // spin; then Flugeðla at her deck
   ...CALL_BLOCK(120, 'dance_egill_b', [[12, 'party_high']]), // hop; then the floor from high
   ...SOLO_CUTS,
-  // the quiet part: the sky, the drawings breathing, the moon rocking, the fireflies rising, and one slow push
-  { beat: at('quiet'), cut: 'sky_dance', then: { push: 5, beats: 40 } },
+  // the quiet part as a small story (Task 17 fix 1; it was one push on the sky for 44 beats): everyone swaying under the breathing
+  // drawings, the spotlights out; Slóeðla lifting her horn to the sky (her cue at 217) close; the moon rocking and blinking; Egill and
+  // Mosi looking up as the fireflies gather behind them (230-236) and the first go up; the stream spiralling up to the seventh star's
+  // place (236-251) with the one slow push; everything on the chorus's first beat
+  { beat: at('quiet'), cut: 'quiet_wide' },
+  { beat: at('quiet') + 8, cut: 'trick_sloedla' },
+  { beat: at('quiet') + 16, cut: 'moon_close' },
+  { beat: at('quiet') + 24, cut: 'quiet_egill' },
+  { beat: at('quiet') + 32, cut: 'sky_dance', then: { push: 3, beats: 12 } },
   // the last chorus: everything at once
   ...CHORUS_BLOCK(at('chorus'), 'dance_egill_b', 'dance_egill', [[20, 'solo_gramedla', true], [22, 'trick_kambedla', true]]), // up
   ...CHORUS_BLOCK(276, 'dance_egill_b', 'dance_egill', [[20, 'party_high']]), // stomp

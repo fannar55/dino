@@ -280,7 +280,7 @@ const NAMES = [
   'top_empty', ...ARRIVALS.flatMap(a => [`arrive_${a.friend}`, `home_${a.friend}`]), 'lineup_sun', 'sun_faces', 'dark_wait', 'first_star', 'roar_up', 'sea_ring',
   'stars_wide', 'egill_down', 'moon_peek', 'stage_front', 'party_wide', 'party_high', 'floor_low', 'egill_mosi', 'sky_dance',
   ...FRIENDS.map(f => `solo_${f.key}`), ...FRIENDS.map(f => `trick_${f.key}`), 'moon_close', 'final_pose', 'gather', 'seventh_sky', 'lift_side', 'mosi_up', 'rise_down',
-  'dance_egill', 'dance_egill_b', 'chorus_sky', // (Task 17)
+  'dance_egill', 'dance_egill_b', 'chorus_sky', 'quiet_wide', 'quiet_egill', // (Task 17; fix 1)
 ];
 // what of the sky each shot must hold
 const SKY_SHOTS = { lineup_sun: [SKY.sun], sun_faces: [SKY.sun], first_star: [SKY.first], moon_peek: [SKY.moon], moon_close: [SKY.moon], seventh_sky: [SKY.seventh], chorus_sky: [SKY.moon], sky_dance: FRIENDS.map(f => SKY.stars[f.key]) };
@@ -450,6 +450,16 @@ test('BUDGET says what was measured: its three numbers are inside the budget at 
   assert.ok(Array.isArray(BUDGET.levers) && BUDGET.levers.every(l => [1, 2, 3, 4].includes(l)), `levers ${BUDGET.levers}`);
   assert.deepEqual(BUDGET.levers, [...BUDGET.levers].sort(), 'the levers in their order');
   assert.ok(BUDGET.wideBars >= 1 && BUDGET.wideBars <= 4);
+});
+
+test('a shot\'s own levers (Task 17 fix 1) name the party\'s shots, friends whose shadow the party keeps, and groups of guests', () => {
+  assert.ok(Object.keys(BUDGET.shots).length > 0);
+  for (const [name, lever] of Object.entries(BUDGET.shots)) {
+    assert.equal(SCENE[name], 'party', `${name} is the party's`);
+    assert.deepEqual(Object.keys(lever).filter(k => !['noShadow', 'hideGuests'].includes(k)), [], `${name}: only the two kinds`);
+    for (const who of lever.noShadow ?? []) assert.ok(FRIENDS8.includes(who) && !BUDGET.noShadow.includes(who), `${name}: ${who}`);
+    for (const group of lever.hideGuests ?? []) assert.ok(['flyers', 'frogs', 'turtles', 'lizards', 'grazers'].includes(group), `${name}: ${group}`);
+  }
 });
 
 test.after(() => top.dispose());
