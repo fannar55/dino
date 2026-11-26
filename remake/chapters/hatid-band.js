@@ -294,8 +294,11 @@ export function lapAt(b, { reduced = false } = {}) {
 
 // Uggeðla's fish (the Fen's): five leap in arcs out of the sea of cloud behind her (her own side of the top), the fifth into her jaws
 // on b 9, held there and gulped on b 11.3. Each [from b, to b, apex m]; the arcs along the rim, nearer her one after another.
+// (fix 1, the owner's "fun before realism": the leaping fish `length` m long so they read as fish against the sky 50 m off, the one
+// she catches `held` m, longer than her snout, held side on to the lens with its tail flapping `flap` times a beat; 2 m was a pale
+// blob at her lips)
 export const FISH = {
-  length: 2, sea: -6, rim: 58, arcs: [[0.5, 2.5, 10, -9], [1.8, 3.8, 12, 7], [3.1, 5.1, 13, -5], [4.4, 6.4, 14, 3], [6.2, 9, 8, 0]],
+  length: 4.5, held: 3.4, flap: 2, sea: -6, rim: 58, arcs: [[0.5, 2.5, 10, -9], [1.8, 3.8, 12, 7], [3.1, 5.1, 13, -5], [4.4, 6.4, 14, 3], [6.2, 9, 2.5, 8]],
   span: 7, catch: 9, gulp: 11.3, hold: [5, 4.85, 0],
 };
 const UGG_DIR = Math.atan2(STANDS.uggedla.at[1], STANDS.uggedla.at[0]) / deg;
@@ -686,19 +689,28 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
   world.scene?.add(things);
   // the fish
   const fishModel = createModel('fish');
-  const fishMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.1, emissive: new THREE.Color('#5f9fc4'), emissiveIntensity: 0.85 }); // lit, to be seen against the night
+  const fishMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.1, emissive: new THREE.Color('#ffc764'), emissiveIntensity: 0.35 }); // lit gold, to be seen against the night (fix 1: the blue washed it pale)
   fishMaterial.name = 'band fish';
   // the model's swim is a morph (its own Mesh plays it); held still here, without it (an instanced mesh with morphs and no morph
   // texture breaks three's render: the first stills)
   const fishGeometry = fishModel.geometry.clone();
   fishGeometry.morphAttributes = {};
   fishGeometry.morphTargetsRelative = false;
-  const fish = new THREE.InstancedMesh(fishGeometry, fishMaterial, FISH.arcs.length);
+  const fish = new THREE.InstancedMesh(fishGeometry, fishMaterial, FISH.arcs.length - 1);
   fish.name = 'Band fish';
   fish.frustumCulled = false;
   fish.castShadow = false;
   fish.count = 0;
   things.add(fish);
+  // (fix 1) the fifth, the one she catches: its own mesh with the model's `flex`, so its tail flaps in her jaws
+  const held = new THREE.Mesh(fishModel.geometry, fishMaterial);
+  held.name = 'Band fish held';
+  held.frustumCulled = false;
+  held.castShadow = false;
+  held.visible = false;
+  held.updateMorphTargets?.();
+  const flexAt = held.morphTargetDictionary?.flex ?? -1;
+  things.add(held);
   // the berries
   const berryMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, emissive: new THREE.Color('#5a0a10'), emissiveIntensity: 0.8 });
   berryMaterial.name = 'band berries';
@@ -838,6 +850,7 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
     const solo = soloAt(beat);
     // the fish
     let n = 0;
+    held.visible = false;
     if (solo?.who === 'uggedla') {
       const t = trickOf('uggedla', solo.u, {}, { ...o, ground: actors.uggedla ? ground('uggedla') : GROUND });
       const k = FISH.length / 0.3;
@@ -845,15 +858,24 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
         if (!f.shown) continue;
         p4.fromArray(f.at);
         e4.set(0, -f.heading * deg, f.pitch * deg, 'YXZ');
-        if (f.k === 4 && jawBone && f.last > 0) {
-          // the last half beat into her jaws, and in them till she gulps it
+        q4.setFromEuler(e4);
+        if (f.k !== 4) { fish.setMatrixAt(n++, m4.compose(p4, q4, s4.setScalar(k))); continue; }
+        if (jawBone && f.last > 0) {
+          // the last half beat into her jaws, and in them till she gulps it: across them side on to the lens (as a cartoon bear holds
+          // its salmon), whatever the angle
           jawBone.updateWorldMatrix(true, false);
           const jaw = hold.clone().applyMatrix4(jawBone.matrixWorld);
           p4.lerp(jaw, f.last);
-          if (f.caught) e4.set(0, -(STANDS.uggedla.heading + 90) * deg, 0, 'YXZ');
+          const cam = world.camera?.position;
+          const side = cam ? Math.atan2(p4.z - cam.z, p4.x - cam.x) / deg + 90 : STANDS.uggedla.heading + 90;
+          const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -side * deg, 8 * deg, 'YXZ'));
+          q4.slerp(q, f.last);
         }
-        q4.setFromEuler(e4);
-        fish.setMatrixAt(n++, m4.compose(p4, q4, s4.setScalar(k)));
+        held.position.copy(p4);
+        held.quaternion.copy(q4);
+        held.scale.setScalar(FISH.held / 0.3);
+        if (flexAt >= 0) held.morphTargetInfluences[flexAt] = Math.sin(TAU * FISH.flap * beat) * (f.caught ? 1 : 0.6);
+        held.visible = true;
       }
     }
     fish.count = n;
@@ -910,9 +932,9 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
     })() : null,
     jolt: beat => joltAt(beat, { reduced }),
     state() {
-      return { beat: now?.beat ?? null, taken: now?.taken ?? null, fish: fish.count, berries: berries.count, sail: sail?.lit ?? 0, crest: crest?.lit ?? 0 };
+      return { beat: now?.beat ?? null, taken: now?.taken ?? null, fish: fish.count + (held.visible ? 1 : 0), berries: berries.count, sail: sail?.lit ?? 0, crest: crest?.lit ?? 0 };
     },
-    parts: { fish, berries, sail, crest },
+    parts: { fish, held, berries, sail, crest },
     dispose() {
       gone = true;
       unlayer();
@@ -924,7 +946,7 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
       sail?.dispose();
       crest?.dispose();
       things.removeFromParent();
-      fish.dispose(); berries.dispose(); fishGeometry.dispose();
+      fish.dispose(); berries.dispose(); fishGeometry.dispose(); fishModel.geometry.dispose();
       fishMaterial.dispose(); berryMaterial.dispose(); berries.geometry.dispose();
       void effect;
     },

@@ -340,7 +340,7 @@ export const SHOTS = {
     // Task 16, the tricks' own moments: Kambeðla's back from her right, her plates and the lizards on it
     trick_kambedla: shot(fp(5.5, 7.5, 3.4), fp(12, 4.6, 2.6), 44),
     // Uggeðla from in front, low: the fifth fish coming over her head into her jaws
-    trick_uggedla: shot(fp(-5, -7, 1.6), fp(-13, -1, 6.5), 50),
+    trick_uggedla: shot(fp(-6, -7.5, 6.6), fp(-11.2, -2.9, 5.9), 24),
     // Þórseðla's head up in the lights and the berries raining past it, from below on her left
     trick_thorsedla: shot(fp(13, 6, 1.6), fp(20.5, 18, 10), 52),
     // Flugeðla, the hero of her solo: low behind her stand looking up to the front, where the sky is clear of the drawings (they are

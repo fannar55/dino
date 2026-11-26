@@ -415,21 +415,26 @@ test('each trick is seen: Kambeðla\'s plates show six hues or more; a fish is i
   const { startBeat: u0 } = SOLO_OF.uggedla;
   const fish = p.c.band.parts.fish;
   assert.deepEqual(Object.keys(fish.geometry.morphAttributes), [], 'the fish draw: no morph on an instanced mesh (three cannot draw one without its morph texture)');
-  const jawFish = () => {
-    const jaw = at(p, 'uggedla', 'Jaw');
-    const m = new THREE.Matrix4(), v = new THREE.Vector3();
-    let best = Infinity;
-    for (let i = 0; i < fish.count; i++) { fish.getMatrixAt(i, m); best = Math.min(best, v.setFromMatrixPosition(m).distanceTo(jaw)); }
-    return best;
-  };
+  // (fix 1) the one she catches is its own mesh, with the model's flex: big, side on to the lens, its tail flapping
+  const held = p.c.band.parts.held;
+  const jawFish = () => (held.visible ? held.position.distanceTo(at(p, 'uggedla', 'Jaw')) : Infinity);
+  const flex = () => held.morphTargetInfluences[held.morphTargetDictionary.flex];
+  const flaps = [];
   for (const b of [9, 9.5, 10.5]) {
     p.frame(u0 + b - 0.05);
     p.frame(u0 + b);
     assert.ok(jawFish() <= 2.2, `a fish in her jaws at ${b}: across her snout, ${jawFish().toFixed(2)} m from its hinge`);
+    assert.ok(held.scale.x * 0.3 >= 3, `the caught fish ${(held.scale.x * 0.3).toFixed(1)} m long, longer than her snout`);
+    const cam = p.c.world.camera.position, along = new THREE.Vector3(1, 0, 0).applyQuaternion(held.quaternion);
+    const look = held.position.clone().sub(cam).setY(0).normalize();
+    assert.ok(Math.abs(along.setY(0).normalize().dot(look)) < 0.2, `the caught fish side on to the lens at ${b}`);
+    flaps.push(flex(), (p.frame(u0 + b + 0.12), flex()));
   }
+  assert.ok(Math.max(...flaps) - Math.min(...flaps) > 0.9, `its tail flaps: ${flaps.map(v => v.toFixed(2)).join(' ')}`);
   p.frame(u0 + 11.8);
   assert.equal(fish.count, 0, 'gulped');
-  for (const b of [1.5, 3, 5.5, 7.5]) { p.frame(u0 + b); assert.ok(fish.count >= 1, `a fish in the air at ${b}`); }
+  assert.equal(held.visible, false, 'gulped');
+  for (const b of [1.5, 3, 5.5, 7.5]) { p.frame(u0 + b); assert.ok(fish.count + (held.visible ? 1 : 0) >= 1, `a fish in the air at ${b}`); }
   // Þórseðla: berries fall from over her head to under it, close by it
   const { startBeat: t0 } = SOLO_OF.thorsedla;
   const over = new Set(), past = new Set();
@@ -560,6 +565,8 @@ test('the band is a function of the beat, and nothing jumps in a frame', async (
       for (const bone of p.bones[who].values()) out.push(...bone.quaternion.toArray(), ...bone.position.toArray());
     }
     for (const mesh of [p.c.band.parts.fish, p.c.band.parts.berries]) out.push(mesh.count, ...mesh.instanceMatrix.array.slice(0, mesh.count * 16));
+    const held = p.c.band.parts.held;
+    out.push(held.visible ? 1 : 0, ...(held.visible ? [...held.position.toArray(), ...held.quaternion.toArray(), held.scale.x, ...held.morphTargetInfluences] : []));
     out.push(...p.c.plates.levels);
     return out;
   };
