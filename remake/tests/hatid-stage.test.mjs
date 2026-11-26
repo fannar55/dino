@@ -10,7 +10,7 @@ import { createBeams } from '../engine/show/beams.js';
 import { FLOOR, HEAD, STAGE, partyStands } from '../chapters/hatid-route.js';
 import {
   STAGE_PARTS, FIREFLIES, FLOOR_FROM, partsAt, stonesAt, spotsAt, stringsAt, firefliesAt, seaAt, floorAt, partyLook, createStage,
-  stonePlaces, stoneLightsAt, FRIEND_HUES,
+  stonePlaces, stoneLightsAt, FRIEND_HUES, fireworksAt, FIREWORKS,
 } from '../chapters/hatid-stage.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
 import { entered, cuesIn, soloAt, sectionAt, BEAT, END_BEAT } from '../chapters/hatid-score.js';
@@ -484,5 +484,47 @@ test('a flower under a step hops and turns once and settles; with reduced motion
   const stage = createStage(c);
   stage.update(100.3);
   assert.equal(stage.parts.floor.flower(0).hop, 0, 'the reduced stage\'s floor does not hop');
+  stage.dispose();
+});
+
+test('on a hit every lit spotlight throws a burst that is gone a bar later; none in the quiet part', () => {
+  const hits = cuesIn('hit', 0, END_BEAT).map(c => c.beat);
+  assert.equal(hits.length, 16, 'all sixteen of the map');
+  const quiet = SONG.song.sections.find(x => x.id === 'quiet');
+  for (const h of hits) {
+    const spots = spotsAt(h);
+    const lit = spots.map((x, k) => [x, k]).filter(([x]) => x.level > 0);
+    assert.equal(lit.length, 4, `all four spotlights are lit on the hit at ${h}`);
+    assert.equal(fireworksAt(h - 0.01).filter(p => p.hit === h).length, 0, `nothing before the hit at ${h}`);
+    const mid = fireworksAt(h + 0.5).filter(p => p.hit === h);
+    assert.equal(mid.length, lit.length * FIREWORKS.per, `a burst from each lit spotlight at ${h}`);
+    for (const [spot, k] of lit) {
+      const mine = mid.filter(p => p.spot === k);
+      assert.equal(mine.length, FIREWORKS.per);
+      for (const p of mine) {
+        assert.deepEqual(p.colour, spot.colour, `in the hue of the friend spotlight ${k} is on`);
+        assert.ok(p.level > 0);
+      }
+      // up and out from the swarm
+      const from = spot.from;
+      const mean = mine.reduce((a, p) => a + Math.hypot(p.at[0] - from[0], p.at[1] - from[1], p.at[2] - from[2]), 0) / mine.length;
+      assert.ok(mean > 2, `spread ${mean.toFixed(1)} m from the swarm at ${h}`);
+      assert.ok(mine.reduce((a, p) => a + p.at[1], 0) / mine.length > from[1], 'up');
+    }
+    const late = fireworksAt(h + 3).filter(p => p.hit === h);
+    assert.ok(late.every(p => p.level < Math.min(...mid.map(q => q.level))), 'fading');
+    assert.equal(fireworksAt(h + 4).filter(p => p.hit === h).length, 0, `gone a bar after ${h}`);
+    assert.equal(fireworksAt(h + 0.5, { reduced: true }).length, 0, 'reduced: no flying points');
+  }
+  for (const b of beatsOf(quiet.startBeat, quiet.startBeat + quiet.beats)) assert.equal(fireworksAt(b).length, 0, `none at ${b}`);
+  for (const b of beatsOf(-2, END_BEAT + 8, 0.25)) assert.ok(fireworksAt(b).length <= 4 * FIREWORKS.per, 'one burst at a time');
+  // the stage draws them in its light points, under their capacity
+  const c = stageWorld();
+  const stage = createStage(c);
+  stage.update(96.5);
+  assert.equal(stage.state().counts.fireworks, 4 * FIREWORKS.per);
+  assert.ok(stage.state().counts.points <= stage.parts.points.capacity);
+  stage.update(100.5);
+  assert.equal(stage.state().counts.fireworks, 0);
   stage.dispose();
 });

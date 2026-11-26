@@ -231,6 +231,55 @@ export function spotsAt(beat, o = {}) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Fireworks (Task 14b, the owner's fourth: "Flugeldar úr kösturunum á stóru höggunum í laginu"): on each of the song's 16 `hit` cues
+// every lit spotlight's swarm throws FIREWORKS.per light points up and out in the hue of the friend it is on at the hit; they fly out
+// fast, slow in the air, fall and fade, gone a bar after the hit (`life` beats). None in the quiet part (no hit falls in it, and
+// a spotlight is dark there). Reduced: no flying points (createStage flashes the swarm softly instead: burstFlash).
+export const FIREWORKS = { per: 28, life: BAR, speed: [13, 21], drag: 1.3, fall: 5, size: 1.25, flash: 0.9 };
+const BURSTS = cuesIn('hit', -Infinity, Infinity).map(c => c.beat);
+/** The burst points in the air at `beat`: [{ at, colour, level, size, hit, spot }]. */
+export function fireworksAt(beat, o = {}) {
+  const out = [];
+  if (o.reduced) return out;
+  for (const h of BURSTS) {
+    const age = beat - h;
+    if (age < 0 || age >= FIREWORKS.life) continue;
+    if (quietAt(h) > 0 || spotGate(h) < 1) continue;
+    const t = age * BEAT; // seconds in the air
+    const fade = (1 - age / FIREWORKS.life) ** 1.5;
+    spotsAt(h, o).forEach((spot, k) => {
+      if (!(spot.level > 0)) return;
+      for (let j = 0; j < FIREWORKS.per; j++) {
+        const i = k * 100 + j + h * 7;
+        const turn = ((j + rnd(i, 21) * 0.8) / FIREWORKS.per) * Math.PI * 2;
+        const up = (20 + 60 * rnd(i, 22)) * deg;
+        const v = lerp(FIREWORKS.speed[0], FIREWORKS.speed[1], rnd(i, 23));
+        const go = (v * (1 - Math.exp(-FIREWORKS.drag * t))) / FIREWORKS.drag;
+        const [fx, fy, fz] = spot.from;
+        out.push({
+          at: [fx + Math.cos(turn) * Math.cos(up) * go, fy + Math.sin(up) * go - 0.5 * FIREWORKS.fall * t * t, fz + Math.sin(turn) * Math.cos(up) * go],
+          colour: spot.colour,
+          level: fade * (0.75 + 0.25 * Math.sin(beat * 9 + j * 2.1)),
+          size: FIREWORKS.size * (1 + 0.6 * Math.exp(-4 * age)),
+          hit: h, spot: k,
+        });
+      }
+    });
+  }
+  return out;
+}
+/** Reduced motion's burst: how much brighter the swarms are a beat after a hit (0 to FIREWORKS.flash), soft. */
+export function burstFlash(beat) {
+  let f = 0;
+  for (const h of BURSTS) {
+    const age = beat - h;
+    if (age < 0 || age >= FIREWORKS.life || quietAt(h) > 0) continue;
+    f = Math.max(f, FIREWORKS.flash * smooth(age / 0.25) * Math.exp(-1.5 * age));
+  }
+  return f;
+}
+
+// ---------------------------------------------------------------------------------------------
 // The strings of lights (the chunk's ruling 3): six, one from each drawing's feet (her lowest star at her party place) down to a
 // stone, STRINGS.lights on each, hanging a little; a run of light goes down each on the beat. A string's top is that star as seen from
 // party_wide's lens, STRINGS.reach m out (so in the party's wide shot it hangs from the star itself); its colour is its friend's.
@@ -570,7 +619,7 @@ export function createStage(c) {
     // the light points: the spotlights' swarms, the strings, the fireflies
     let swarms = 0;
     spots.forEach((s, k) => {
-      const level = parts.spots * (0.35 + 0.65 * spotGate(beat));
+      const level = parts.spots * (0.35 + 0.65 * spotGate(beat)) * (reduced ? 1 + burstFlash(beat) : 1);
       for (let j = 0; j < SPOTS.swarm; j++) {
         const i = k * SPOTS.swarm + j;
         const a = rnd(i, 11) * Math.PI * 2 + beat * (0.5 + 0.5 * rnd(i, 12));
@@ -579,6 +628,8 @@ export function createStage(c) {
         if (level > 0.003) swarms++;
       }
     });
+    let fireworks = 0;
+    for (const p of fireworksAt(beat, o)) { points.add(...p.at, p.size, ...p.colour, p.level, 0); fireworks++; }
     const lights = stringsAt(beat, { ...o, feet: feetOf() ?? undefined });
     let strings = 0;
     for (const l of lights) { points.add(...l.at, STRINGS.size, ...l.colour, l.level); if (l.level > 0.003) strings++; }
@@ -609,7 +660,7 @@ export function createStage(c) {
       spots: spots.map(s => ({ from: s.from.map(r2), to: s.to.map(r2), colour: hexOf(s.colour), level: r3(s.level) })),
       sea: { glow: sea.glow === null ? null : r3(sea.glow), colour: sea.colour, ripples: sea.ripples.length },
       look: { weights: look.parts.map(([, w]) => r3(w)), lift: r3(look.lift) },
-      counts: { points: points.count, fireflies, strings, swarms, beams: beams.count, rings: rings.count },
+      counts: { points: points.count, fireflies, strings, swarms, fireworks, beams: beams.count, rings: rings.count },
     };
   }
   function restSea() {
