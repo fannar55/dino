@@ -615,8 +615,8 @@ test('the roar: the guests are behind Mosi before it, a ring runs out over the s
     assert.deepEqual(arrived.map(e => e.friend), FRIENDS.map(f => f.key), `${what}: all six on the sky, in the book's order`);
     assert.ok(arrived.every(e => e.at > launch.at + 1.9 && e.at < launch.at + 4), `${what}: each 0.6 s + its gap + 1.4 s after the book swells`);
     // and back in their seats after it
-    const back = logOf(run, 'hide').find(e => e.phase === 'out');
-    assert.ok(back && back.at > roared.at, `${what}: the guests go back to their seats after it`);
+    const home = logOf(run, 'hide').find(e => e.phase === 'out');
+    assert.ok(home && home.at > roared.at, `${what}: the guests go back to their seats after it`);
   }
 });
 

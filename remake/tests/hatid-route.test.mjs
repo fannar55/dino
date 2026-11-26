@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {
   BEARING, floorPoint, FRIENDS8, MODELS, LENGTH, HEAD, standsOf, STAGE, FLOOR, ARRIVALS, arrivalOf, SKY, STAR_TAP, SUN_TAP, starOver,
-  SHOTS, SHOWS, SCENE, tallShot, sunShot, starsShot, BUDGET,
+  SHOTS, SHOWS, SCENE, tallShot, sunShot, starsShot, BUDGET, partyPlace,
 } from '../chapters/hatid-route.js';
 import { loadCharacter } from './characters.mjs';
 import { TOP_END, topEnd } from '../chapters/kafli6-route.js';
@@ -315,6 +315,33 @@ test('every shot keeps the director quiet (LIMITS) and shows who SHOWS names, wi
         assert.ok(s.y >= 0.45 * s.h, `room over Mosi in mosi_up at ${aspect}: his head at ${s.y.toFixed(0)} of ${s.h}`);
       }
       for (const [k, p] of (SKY_SHOTS[name] ?? []).entries()) assert.ok(view.inFrame(view.sky(p), 0.04), `${name}'s sky ${k} at ${aspect}`);
+    }
+  }
+});
+
+test('in the party the six hang lower and closer (SKY.party), each star in party_wide at both sizes, clear of the moon and of each other', () => {
+  assert.deepEqual([SKY.span, SKY.party.lower, SKY.party.gather, SKY.party.span], [9, 16, 0.62, 11]);
+  const [px, , pz] = SHOTS.toppur.party_wide.position, [tx, , tz] = SHOTS.toppur.party_wide.target;
+  const middle = Math.atan2(tz - pz, tx - px) / rad(1);
+  for (const f of FRIENDS) {
+    const { azimuth, elevation } = SKY.stars[f.key];
+    const [da, de] = SKY.party.nudge[f.key] ?? [0, 0];
+    const place = partyPlace(f.key);
+    assert.ok(Math.abs(place.elevation - (elevation - SKY.party.lower + de)) < 1e-9, `${f.key} ${SKY.party.lower} degrees lower`);
+    assert.ok(offOf(place.azimuth, middle + offOf(azimuth, middle) * Math.sign(((azimuth - middle + 540) % 360) - 180) * SKY.party.gather + da) < 0.01, `${f.key} gathered to the middle`);
+    assert.deepEqual(partyPlace(f.key), place, 'pure');
+  }
+  for (const aspect of [1.6, 0.625]) {
+    const view = project(shotFor('party_wide', aspect), aspect, STANDS.party);
+    const moon = view.sky(SKY.moon);
+    const stars = FRIENDS.map(f => [f.key, view.sky(partyPlace(f.key))]);
+    for (const [key, star] of stars) {
+      assert.ok(view.inFrame(star, 0.02), `${key}'s star in party_wide at ${aspect}`);
+      assert.ok(Math.hypot(star.x - moon.x, star.y - moon.y) > 0.05 * star.w, `${key}'s star off the moon at ${aspect}`);
+    }
+    for (let i = 0; i < stars.length; i++) for (let j = i + 1; j < stars.length; j++) {
+      const [a, b] = [stars[i][1], stars[j][1]];
+      assert.ok(Math.hypot(a.x - b.x, a.y - b.y) > 0.05 * a.w, `${stars[i][0]} and ${stars[j][0]} apart at ${aspect}`);
     }
   }
 });

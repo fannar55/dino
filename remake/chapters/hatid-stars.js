@@ -208,7 +208,8 @@ function whiteStar(texture) {
  *   arrive(friend)        her star is there, dim (the journal's star has landed on it)
  *   glow(friend, on)      the help's hint: bigger, breathing and bobbing, until off (a lit star does not)
  *   dim(friend)           back to dim (not a lit star)
- *   light(friend, colour) a Handle: her colour, a burst, her constellation drawn out from it over DRAW_SECONDS; done when whole
+ *   light(friend, colour, { at })  a Handle: her colour, a burst, her constellation drawn out from it over DRAW_SECONDS from `at`
+ *                         (now: -Infinity lights her whole at once, the party alone); done when whole
  *   gather(placeOf, { seconds, span })  every star and drawing eased over `seconds` to `placeOf(friend)` ({ azimuth, elevation }),
  *                         the drawings to `span` degrees (the party's places: hatid-route.js partyPlace)
  *   pointOf(friend)       her tap point, live (out => out), where her star hangs from the camera
@@ -298,13 +299,13 @@ export function createSkyStars(world, { sky = null, constellations, places = SKY
       if (!item || item.lit) return;
       item.glow = false;
     },
-    light(friend, colour) {
+    light(friend, colour, { at = now() } = {}) {
       const item = items.get(friend) ?? make(friend);
       if (item.lit) return item.lit.handle;
       item.glow = false;
       item.sprite.material.color.set(colour);
       const handle = new Handle(`${friend}'s constellation`, () => constellations.set(friend, { drawn: 1, level: 1 }));
-      item.lit = { colour, from: now(), handle };
+      item.lit = { colour, from: at, handle };
       const { azimuth, elevation } = item.place;
       constellations.add(friend, actors[friend], { colour, azimuth, elevation, span: move ? move.span : span, still: true });
       constellations.set(friend, { drawn: 0, level: 1 });

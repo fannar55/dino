@@ -17,7 +17,7 @@
 //                                         blowAway, a Handle) ROAR.blow s into it
 //   her.nod()                             two dips and a snort, a Handle
 //   her.points()                          { root, head, snout, heading } in the world now (Vector3s, degrees)
-//   yield* her.headDown()                 her head down on the ground before them, slowly: an invitation (kafli6-seat.js HEAD_DOWN:
+//   yield* her.headDown({ seconds })      her head down on the ground before them, slowly (HEAD_DOWN.seconds, or `seconds`): an invitation (kafli6-seat.js HEAD_DOWN:
 //                                         her lean, her head tipped and her hips forward, her feet where they are)
 //   yield* her.rise()                     up again, her head level (Egill on it)
 //   her.trampUp(points, { speed, clip })  her stride (STRIDE.speed m/s) along `points` ([x, z]), a Handle; with clip 'walk' her walk
@@ -510,11 +510,11 @@ export function gramedlaLife(s, c) {
   }
 
   /** Her head down on the ground before them (scene 7), slowly: an invitation; a soft breath as her chin comes to rest. */
-  function* headDown() {
+  function* headDown({ seconds = HEAD_DOWN.seconds } = {}) {
     guard = null; // Mosi has stepped aside: her head comes down to the ground before them, not near him
     const down = headDownPose(actor, lean, hips);
     note('headDown', { down });
-    yield s.all(...easeAll({ theta: down.theta, pitch: down.pitch, hips: down.hips, turn: 0, roll: 0 }, HEAD_DOWN.seconds));
+    yield s.all(...easeAll({ theta: down.theta, pitch: down.pitch, hips: down.hips, turn: 0, roll: 0 }, seconds));
     sfx('gramedlaExhale', { level: 0.45 });
     note('headIsDown');
   }

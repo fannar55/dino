@@ -3,16 +3,17 @@
 // roars, the six stars are lit, a party of four and a half minutes plays locked to the festival's song (a show: no tap does anything
 // in it), and a seventh star lifts Egill away into the ride back (hatid-ride.js, a stub until the ride is built).
 //
-// This is the grey build (the plan's Task 5): the whole chapter end to end with stand-ins for its looks, where the brief says grey:
-// the night's light is two flat looks (DARK, NIGHT below), the stars, the moon and the seventh star are pale discs on the sky, the
-// stage is a disc of light under whoever has the solo, and the dance is each friend's idle with a gentle bob on the beat and her
-// `happy` in her solo. The structure, the timing and the rules stay when later tasks put the real pictures in.
+// Built in stages (the plan's tasks): scenes 1 and 2 are real (the night's light hatid-looks.js HATID_LOOKS, the night sky, the
+// constellations, the six stars and the moon: Task 12); still grey are the seventh star (a pale disc on the sky), the stage (a disc
+// of light under whoever has the solo) and the dance (each friend's idle with a gentle bob on the beat and her `happy` in her solo).
+// The structure, the timing and the rules stay when later tasks put the real pictures in.
 //
 // Four scenes (`mark` names them in world.chapterTimeline):
 //   arrival   the top as chapter 6 leaves it; "Hvar eru allir?"; the five come up, 15 s each, with her line; all turn to the sun; the
 //             sun's tap (hatid-stars.js createOneTap), its wave and hug, "Góða nótt, sól!", the light to dark over 12 s, the wind alone
-//   stars     the first star, Grameðla's roar (one tap) and the ring over the sea, the six stars (createStars: any order, tones rising),
-//             "Gleðilega Stjörnuhátíð!", Egill floats down to Mosi, everyone to the party, the moon comes up and blows "Tút!"
+//   stars     the dark, the first star, Grameðla's roar (one tap) and the ring over the sea, the six stars out of the book (createStars:
+//             any order, tones rising; each lit draws her constellation), the hundreds and "Gleðilega Stjörnuhátíð!", Egill floats down
+//             to Mosi, everyone to the party, the moon peeks up, smiles and blows "Tút!"
 //   party     theParty: the song from its first note to its last chord's tail, and everything in it a pure function of its beat
 //   seventh   everyone round Egill, "Takk, Egill", the seventh star, Egill lifted with his and Mosi's four lines, the ride back
 //
@@ -21,9 +22,9 @@
 import * as THREE from 'three';
 import { createTop } from '../world/fjall/index.js';
 import {
-  FRIENDS8, MODELS, LENGTH, standsOf, arrivalOf, ARRIVALS, SKY, STAR_TAP, SUN_TAP, SHOTS, tallShot, BUDGET,
+  FRIENDS8, MODELS, LENGTH, standsOf, arrivalOf, ARRIVALS, SKY, STAR_TAP, SUN_TAP, SHOTS, tallShot, BUDGET, partyPlace,
 } from './hatid-route.js';
-import { createOneTap, createStars, TAP_HELP } from './hatid-stars.js';
+import { createOneTap, createStars, createSkyStars, starTone, TAP_HELP } from './hatid-stars.js';
 import { BEAT, END_BEAT, beatAt, secondsAt, sectionAt, soloAt, energyAt, pulseAt, CAMERA } from './hatid-score.js';
 import { SONG } from './hatid-song.js';
 import { gramedlaLife } from './kafli6-gramedla.js';
@@ -43,7 +44,11 @@ import { endCard, playStart } from '../engine/book/show-cards.js';
 import { arrive, seatedWave, hornOf } from './hatid-arrival.js';
 import { createGuests } from './hatid-guests.js';
 import { loadCritters } from '../world/ardalur/animals.js';
-import { SUNSET, lookAt } from './hatid-looks.js';
+import { SUNSET, lookAt, HATID_LOOKS } from './hatid-looks.js';
+import { createNightSky, skyDirection as skyWay, SKY_DISTANCE } from '../engine/night-sky.js';
+import { createConstellations } from '../engine/constellations.js';
+import { createMoonFace, moonPose, MOON_ACTS } from '../engine/moon-face.js';
+import { LAUNCH } from '../engine/scene/journal.js';
 import { FJALL } from '../world/fjall/ground.js';
 import { leaveShow } from '../engine/book/show-player.js';
 
@@ -78,10 +83,22 @@ const OPEN = { before: 1.4, between: 0.4 }; // scene 1: the empty top before Egi
 // under); the wind alone after it has gone
 const SUN = { faces: 0.4, goodnight: 2, wind: 4 };
 const DUSK = { evening: 5, dark: 7, theme: 8 }; // the light to LOOKS.evening, on to DARK; the theme to nothing (spec: the one silent moment)
-const STARS = { wait: 2, first: 1.2, rise: 2, after: 0.6 }; // scene 2: the dark before Mosi whispers; the first star's fade; the six's rise
-const ROAR = { ring: 1.2, sea: 5, hold: 3.2 }; // the ring sets out this far into her roar, runs out over `sea` s; the shot holds
-const DOWN = { float: 3, walk: 9, most: 4.5 }; // Egill's float down; everyone's walk to the party (s), at most this fast (m/s)
-const MOON = { rise: 3, from: -4 }; // the moon comes up over `rise` s from `from` degrees
+// scene 2: the dark before Mosi whispers (the night sky's dark eased in over it); the first star's light eased in; after the six have
+// landed on the sky, before Mosi asks; after the sixth tone, before his wish; the hundreds come out over `many` s
+const STARS = { wait: 2, first: 1.2, settle: 0.4, after: 0.6, many: 5 };
+const FIRST = { rate: 1.75, line: 3.6 }; // Þórseðla's liftUp at `rate` (as she came up out of the sea), her line once it is high
+const HIDE = { seconds: 3 }; // the guests run behind Mosi (and back) in this
+// her roar: the camera's tremble; the ring sets out this far into it, `strength`, runs out over `sea` s; the shot holds `hold` s more
+const ROAR = { shake: 0.5, ring: 1.2, strength: 4, sea: 6, hold: 3.2 };
+// Kambeðla's plates in the dark: 50 beats a minute from `low` to full; a flare of `flare` s with a fast bright pulse when her star lights
+const PLATES = { bpm: 50, low: 0.45, flare: 1.6, flarePulse: { hz: 3, swing: 1.6 } };
+// Egill rides her head down over `head` s (chapter 6's 4.2 s took his feet down at 1.2 m/s at the quickest), then floats down to
+// `beside` m from Mosi: at least `float` s and `perMetre` s a metre he comes down (floatDown's quickest moment is some 3.5 times its
+// mean: so under 1 m/s); everyone's walk to the party (s), at most this fast (m/s); the stars gather over the party in `gather` s
+const DOWN = { head: 6, float: 3, perMetre: 4.2, beside: 3, walk: 9, most: 4.5, gather: 3 };
+const MOON = { light: 3, smile: 1.5 }; // the party's light comes over `light` s from its peek; its smile, before it blows
+/** The moon's "Tút!" to the song's first sound (s). */
+export const TOOT_GAP = 1.2;
 const GATHER = { walk: 7, most: 4, after: 0.6 }; // scene 4: everyone round Egill
 const LIFT = { seconds: 6, up: 9, star: 1 }; // Egill floats `up` m over `seconds`; the seventh star shows this long before
 const BOB = 0.05; // m: the party's bob on the beat (gentle: the owner's calm night, the chunk's ruling 5)
@@ -92,25 +109,6 @@ export const partyTime = beat => ALONE.toot + secondsAt(beat);
 /** The song's whole file, from beat 0's offset to its last chord's tail (s). */
 const SONG_LENGTH = secondsAt(END_BEAT) + SONG.song.tail;
 const SONG_BASE = new URL('../assets/audio/hatid/song/', import.meta.url).href;
-
-// The night's grey looks (Task 8 paints the real ones): the flat dark blue the dusk ends in, and the party's night, bright and warm
-// enough that everyone reads. The sun's place stays (engine/light-blend.js).
-const DARK = {
-  ...LOOKS.sunset,
-  sun: { ...LOOKS.sunset.sun, color: '#56649a', intensity: 0.25 },
-  hemi: { sky: '#1f2c58', ground: '#0e1324', intensity: 0.4 },
-  sky: { ...LOOKS.sunset.sky, zenith: '#070c22', horizon: '#18264f', glow: '#22305c', cloud: '#1c2848', cloudShade: '#0f172e' },
-  fog: { ...LOOKS.sunset.fog, color: '#18234a', sunColor: '#26345f' },
-  exposure: 1,
-};
-const NIGHT = {
-  ...DARK,
-  sun: { ...DARK.sun, color: '#93a3e4', intensity: 0.8 },
-  hemi: { sky: '#6a78bf', ground: '#45375a', intensity: 1 },
-  sky: { ...DARK.sky, zenith: '#0b1330', horizon: '#3a3f7c', glow: '#6c5aa4' },
-  fog: { ...DARK.fog, color: '#2a3264', sunColor: '#4a4a8a' },
-  exposure: 1.1,
-};
 
 // ---------------------------------------------------------------------------------------------
 
@@ -262,60 +260,114 @@ function cheer(s, c, who, seconds = 2.4) {
   s.after(seconds, () => { if (!c.inParty) actor.play('idle', { fade: 0.5 }); return null; });
 }
 
-// 2. The dark, the roar and the stars.
+// 2. The dark, the roar and the stars (spec scene 2, "Myrkrið, öskrið og stjörnurnar"): the dark, Kambeðla's plates beating the only
+// light; Mosi's whisper and Þórseðla, highest of them all, sees the first star; Grameðla glitters, the tap, and she breathes in as
+// the guests run behind Mosi, roars up at the sky and a ring rolls out over the sea of cloud; six stars fly out of the book onto the
+// sky; the child lights them in any order, tones rising, each friend glad, her constellation drawing itself out of her star; the
+// hundreds come out and Mosi wishes a glad festival; Egill floats down to Mosi and everyone goes to the party; the moon peeks up
+// over the sea of cloud, smiles and blows its blower, and the party starts TOOT_GAP s after.
 function* theStars(s, c) {
   mark(c, 'stars');
   const { world, stands, top } = c;
+  nightOf(s, c);
+  lightTo(world, HATID_LOOKS.dark);
+  easeNight(s, c, 'dark', STARS.wait);
+  platesBeat(s, c);
   cut(s, c, 'dark_wait');
   yield s.wait(STARS.wait);
   yield* say(s, c, 'mosi', 'h_mosi_first');
-  // Þórseðla stretches highest: the first star
+  // Þórseðla stretches her neck to its full height, highest of them all, and sees the first star
   cut(s, c, 'first_star');
-  c.sky.show('first', SKY.first, { colour: '#e8ecf6', size: 9, fade: STARS.first });
-  c.thorsedla.raw.lookAt(c.sky.point('first'), { weight: 0.8, maxPitch: 60 });
+  const thor = c.thorsedla.raw;
+  thor.play('liftUp', { fade: 0.6, timeScale: FIRST.rate, once: true });
+  const first = out => skyWay(SKY.first.azimuth, SKY.first.elevation, out).multiplyScalar(SKY_DISTANCE).add(world.camera.position);
+  thor.lookAt(first, { weight: 0.8, maxPitch: 60 });
+  yield s.wait(FIRST.line);
+  if (c.lines.queue.speaking) yield s.until(() => !c.lines.queue.speaking);
+  c.log({ type: 'firstStar' });
+  easeNight(s, c, 'first', STARS.first);
   yield* say(s, c, 'thorsedla', 'h_thorsedla_there');
-  c.thorsedla.raw.lookAt(null);
-  // the roar: Egill still on her head, nearest the sky
+  thor.lookAt(null);
+  thor.play('idle', { fade: 1.2 });
+  // the roar: Egill still on her head, nearest the sky; the guests run behind Mosi while she waits for the tap
   cut(s, c, 'roar_up');
+  const hidden = hideGuests(s, c, 'in');
   yield* say(s, c, 'mosi', 'h_mosi_now');
   yield* oneTap(s, c, 'roar', TAP_HELP.roar, {
     aims: [['gramedla', HER_HEAD, 3.5], ['egill', EGILL_HEAD, 1.2]],
     glitter: BECKON.head,
     hint: () => c.lines.say('mosi', 'h_mosi_now'),
   });
-  const roared = c.her.roar();
-  sound(s, c, 'gramedlaRoar', { level: 1 });
+  yield s.until(() => hidden.done);
   const shake = !c.reduced;
-  if (shake) {
-    s.camera.handheld(0.5, { duration: 0.3 });
-    s.after(1.6, () => s.camera.handheld(0, { duration: 1 }));
-  }
-  c.log({ type: 'roared', handheld: shake });
-  s.after(ROAR.ring, () => {
-    cut(s, c, 'sea_ring');
-    const { x, z } = c.gramedla.raw.root.position;
-    top.sea?.wave?.({ from: [x, z], strength: 3, seconds: ROAR.sea });
-    return null;
+  let roaredAt = null;
+  yield* c.her.roarYes({
+    roared: () => {
+      roaredAt = s.time;
+      c.log({ type: 'roared', handheld: shake });
+      if (shake) {
+        s.camera.handheld(ROAR.shake, { duration: 0.3 });
+        s.after(1.6, () => s.camera.handheld(0, { duration: 1 }));
+      }
+      s.after(ROAR.ring, () => {
+        cut(s, c, 'sea_ring');
+        const { x, z } = c.gramedla.raw.root.position;
+        const ring = { from: [x, z], strength: ROAR.strength, seconds: ROAR.sea };
+        c.log({ type: 'ring', ...ring });
+        top.sea?.wave?.(ring);
+        return null;
+      });
+    },
   });
-  yield s.all(roared, s.wait(ROAR.ring + ROAR.hold));
-  // the six stars come up and hang faint on the sky, each over her friend
+  yield s.until(() => s.time >= roaredAt + ROAR.ring + ROAR.hold - 1e-9);
+  hideGuests(s, c, 'out');
+  // the six stars fly out of the book onto the sky, each over her friend; the stars' taps are heard from now (none counts in the air)
   cut(s, c, 'stars_wide');
-  for (const { key } of FRIENDS) c.sky.show(key, SKY.stars[key], { colour: '#8d94a6', size: 10, rise: STARS.rise });
-  yield s.wait(STARS.rise + 0.2);
+  const task = createStars({ help: TAP_HELP.stars });
+  c.starTask = task;
+  const keys = FRIENDS.map(f => f.key);
+  const offs = keys.map(key => s.onTap(`star-${key}`, () => {
+    const { counted } = task.tap(key, s.time);
+    c.log({ type: 'tap', task: 'stars', friend: key, counted });
+  }));
+  offs.push(s.onTap(null, () => { task.tap(null, s.time); c.log({ type: 'tap', task: 'stars', friend: null, counted: false }); }));
+  let landed = 0;
+  const land = k => {
+    if (k >= keys.length || c.skyStars.state(keys[k]).phase !== 'away') return;
+    c.skyStars.arrive(keys[k]);
+    c.log({ type: 'arrived', friend: keys[k] });
+    sound(s, c, 'starBell', { frequency: SONG.motif[0] * 2, level: 0.25 });
+    landed++;
+    if (landed === keys.length) c.launching = false;
+  };
+  c.launching = true;
+  c.log({ type: 'launch' });
+  const points = keys.map(key => c.skyStars.pointOf(key));
+  const launch = typeof s.journal?.launchStars === 'function' ? s.journal.launchStars(points, { onLand: land }) : null;
+  if (!launch) keys.forEach((key, k) => s.after(LAUNCH_AT(k), () => { land(k); return null; })); // no journal on this page
+  yield s.until(() => landed === keys.length);
+  yield s.wait(STARS.settle);
   yield* say(s, c, 'mosi', 'h_mosi_light');
-  const all = yield* starsTask(s, c);
-  c.stars = c.sky.stars; // the six, lit: kept for the tests and probes after the sky is gone
-  yield s.until(() => s.time >= all - 1e-9);
-  yield s.wait(STARS.after);
+  const all = yield* starsTask(s, c, task, offs);
+  c.stars = c.skyStars.stars; // the six, lit: kept for the tests and probes
+  yield s.until(() => s.time >= all + STARS.after - 1e-9);
   yield* say(s, c, 'mosi', 'h_mosi_summer');
-  // Egill floats down to Mosi's side, so they can dance together
+  yield s.until(() => keys.every(key => c.drawn?.[key]));
+  // Egill floats down beside Mosi, so they can dance together; the stars gather over the party as he does
   cut(s, c, 'egill_down');
-  yield* c.her.headDown();
+  c.skyStars.gather(partyPlace, { seconds: DOWN.gather, span: SKY.party.span });
+  yield* c.her.headDown({ seconds: DOWN.head }); // slower than chapter 6's: Egill rides it down, his feet under 1 m/s
   sound(s, c, 'float');
   const egill = c.egill.raw;
-  const down = floatDown(egill, c.seat, stands.party.egill.at, { duration: DOWN.float, heading: stands.party.egill.heading });
+  const spot = besideMosi(c);
+  const drop = Math.max(0, c.seat.update().y - world.heightAt(spot[0], spot[1]));
+  const duration = Math.max(DOWN.float, DOWN.perMetre * drop);
+  c.log({ type: 'floatDown', drop, duration });
+  c.floating = true;
+  const down = floatDown(egill, c.seat, spot, { duration, heading: headingTo(spot, [c.mosi.raw.root.position.x, c.mosi.raw.root.position.z]) });
   c.riding = null;
   yield down;
+  c.floating = false;
   yield* c.her.rise();
   // everyone to the party
   cut(s, c, 'party_high');
@@ -329,55 +381,203 @@ function* theStars(s, c) {
     });
   });
   yield s.all(...walks);
-  // the half moon peeks up behind the top with a party hat (grey: a pale disc), and the party's light comes
+  // the half moon peeks up over the sea of cloud behind the top in its party hat, smiles, and blows its blower; the party's light comes
   cut(s, c, 'moon_peek');
-  c.sky.show('moon', { azimuth: SKY.moon.azimuth, elevation: MOON.from }, { colour: '#f4efd8', size: 34 });
-  c.sky.move('moon', SKY.moon, MOON.rise);
-  easeLight(world, NIGHT, MOON.rise);
-  yield s.wait(MOON.rise);
+  easeLight(world, HATID_LOOKS.night, MOON.light);
+  moonAct(s, c, 'peek');
+  yield s.wait(MOON_ACTS.peek);
+  moonAct(s, c, 'smile', { seconds: MOON.smile });
+  yield s.wait(MOON.smile);
   toTheParty(c);
-  toot(s, c);
-  yield s.wait(ALONE.toot);
+  toot(s, c, 'blower');
+  yield s.wait(TOOT_GAP);
 }
 
-/** The moon's party blower: the sign (grey: the horn sound). */
-function toot(s, c) {
-  sound(s, c, 'horn');
+/** The moon's party blower: the sign the party starts on (`sound`: the chapter's blower, the tile's horn). */
+function toot(s, c, name = 'horn') {
+  if (c.moon) moonAct(s, c, 'toot');
+  sound(s, c, name);
   c.log({ type: 'toot' });
 }
 
-/** The six stars (hatid-stars.js createStars): when the sixth tone sounds (s, the game clock's). */
-function* starsTask(s, c) {
-  const task = createStars({ help: TAP_HELP.stars });
-  c.starTask = task;
+/** The moon does `kind` (engine/moon-face.js moonPose's acts) from now, noted in the chapter's log. */
+function moonAct(s, c, kind, extra = {}) {
+  const moon = moonOf(s, c);
+  moon.acts.push({ kind, at: s.time, ...extra });
+  moon.update(s.time);
+  c.log({ type: 'moon', act: kind });
+}
+
+/** A star's place k lands (s after the launch) where there is no journal to fly it: as the journal's flight would. */
+const LAUNCH_AT = k => LAUNCH.swell + k * LAUNCH.gap + LAUNCH.seconds;
+
+/** Where Egill comes down: on the ground beside Mosi, DOWN.beside m from him toward her (they dance together from there). */
+function besideMosi(c) {
+  const m = c.mosi.raw.root.position, h = c.gramedla.raw.root.position;
+  const d = Math.hypot(h.x - m.x, h.z - m.z) || 1;
+  return [m.x + ((h.x - m.x) / d) * DOWN.beside, m.z + ((h.z - m.z) / d) * DOWN.beside];
+}
+
+/**
+ * The guests to their spots behind Mosi's back (`way` 'in': before her roar, so he stands between them and it) or back to their seats
+ * ('out'), over HIDE.seconds, each step in the chapter's log; { done } once they are there.
+ */
+function hideGuests(s, c, way) {
+  const handle = { done: false };
+  const g = c.guests;
+  c.log({ type: 'hide', phase: way });
+  if (!g) { handle.done = true; return handle; }
+  if (way === 'in') {
+    const mosi = c.mosi.raw;
+    const p = mosi.root.position, her = c.gramedla.raw.root.position;
+    const h = mosi.heading * deg;
+    g.setHide({ at: [p.x, p.z], back: [-Math.cos(h), -Math.sin(h)], face: [her.x, her.z] });
+  }
+  const groups = Object.keys(g.counts).filter(group => g.counts[group]);
+  const from = s.time;
+  s.after(0, function* scurry() {
+    for (;;) {
+      const u = Math.min(1, (s.time - from) / HIDE.seconds);
+      for (const group of groups) g.set(group, 'hiding', way === 'in' ? u : 1 - u);
+      if (u >= 1) break;
+      yield;
+    }
+    if (way === 'out') for (const group of groups) g.set(group, 'there');
+    handle.done = true;
+  });
+  return handle;
+}
+
+/**
+ * Kambeðla's plates in the dark (engine/plate-glow.js): beating slowly, PLATES.bpm a minute between PLATES.low and 1 (their own pulse
+ * stilled), the only light on the top, until the party; flared bright as her star is lit (c.plateFlare). c.plateLevel is the level.
+ */
+function platesBeat(s, c) {
+  const plates = c.plates;
+  if (!plates) return;
+  plates.setPulse({ swing: 0 });
+  const from = s.time;
+  s.after(0, function* beat() {
+    while (!c.ended && !c.inParty) {
+      const k = 0.5 + 0.5 * Math.sin(2 * Math.PI * (PLATES.bpm / 60) * (s.time - from));
+      let level = PLATES.low + (1 - PLATES.low) * k;
+      const flare = c.plateFlare != null && s.time - c.plateFlare < PLATES.flare;
+      if (flare) level = 1;
+      plates.setPulse(flare ? PLATES.flarePulse : { swing: 0 });
+      c.plateLevel = level;
+      plates.setAll(level, { duration: 0 });
+      yield;
+    }
+    c.plateLevel = null;
+    plates.setPulse();
+    plates.setAll(1, { duration: 0.5 });
+  });
+}
+
+/** The night sky's `what` ('dark', 'first' or 'many') eased 0 to 1 over `seconds`; c.many follows 'many'. */
+function easeNight(s, c, what, seconds) {
+  const from = s.time;
+  s.after(0, function* ease() {
+    for (;;) {
+      const u = seconds > 0 ? Math.min(1, (s.time - from) / seconds) : 1;
+      const v = what === 'dark' ? u : smooth(u);
+      c.night.set({ [what]: v });
+      if (what === 'many') c.many = v;
+      if (u >= 1) break;
+      yield;
+    }
+  });
+}
+
+/**
+ * The night's sky as the festival has it, made once (scene 2, or the party alone): the night sky (engine/night-sky.js, its first
+ * star SKY.first, cleared round the six's places in scene 2 and in the party and round the moon), the six constellations
+ * (engine/constellations.js), the six stars (hatid-stars.js createSkyStars) and, when it first peeks, the moon (moonOf). Each frame
+ * the scene's clock goes into them; each is hung from the camera that draws it just before the render.
+ */
+function nightOf(s, c) {
+  if (c.night) return;
+  const { world } = c;
   const keys = FRIENDS.map(f => f.key);
-  const offs = keys.map(key => s.onTap(`star-${key}`, () => {
-    const { counted } = task.tap(key, s.time);
-    c.log({ type: 'tap', task: 'stars', friend: key, counted });
-  }));
-  offs.push(s.onTap(null, () => { task.tap(null, s.time); c.log({ type: 'tap', task: 'stars', friend: null, counted: false }); }));
+  const clear = [
+    ...keys.map(key => ({ ...SKY.stars[key], degrees: STAR_TAP + 1 })),
+    ...keys.map(key => ({ ...partyPlace(key), degrees: STAR_TAP })),
+    { ...SKY.moon, degrees: 6 },
+  ];
+  c.night = createNightSky(world, { clear, first: SKY.first, reduced: c.reduced });
+  c.many = 0;
+  c.figures = createConstellations(world, { capacity: 6 });
+  c.skyStars = createSkyStars(world, { sky: c.night, constellations: c.figures, actors: Object.fromEntries(keys.map(key => [key, c[key].raw])) });
+  c.drawn = {};
+  const before = world.scene.onBeforeRender;
+  c.unhang = () => { world.scene.onBeforeRender = before; };
+  world.scene.onBeforeRender = function hang(renderer, scene, camera, target) {
+    c.night?.update(camera);
+    c.figures?.update(camera);
+    c.moon?.face.update(camera);
+    before?.call(this, renderer, scene, camera, target);
+  };
+  s.after(0, function* skyFrames() {
+    while (!c.ended) {
+      c.skyStars.update(world.camera, s.time);
+      c.night.set({ time: s.time });
+      c.moon?.update(s.time);
+      yield;
+    }
+  });
+}
+
+/** The moon (engine/moon-face.js) at SKY.moon, made as it first peeks: { face, acts, pose, update(time) } (pose: moonPose's now). */
+function moonOf(s, c) {
+  if (c.moon) return c.moon;
+  const face = createMoonFace({ scene: c.world.scene, ...SKY.moon });
+  const moon = {
+    face, acts: [], pose: null,
+    update(time) {
+      moon.pose = moonPose(moon.acts, time);
+      face.set(moon.pose);
+    },
+  };
+  c.moon = moon;
+  return moon;
+}
+
+/** The six stars (hatid-stars.js createStars, its taps heard since `offs`): when the sixth tone sounds (s, the game clock's). */
+function* starsTask(s, c, task, offs) {
+  const keys = FRIENDS.map(f => f.key);
   let all = s.time;
+  const bell = { sfx: (name, detail) => sound(s, c, name, detail) };
   const onStar = event => {
     c.task('stars', event);
     switch (event.type) {
       case 'want': {
         const unlit = keys.filter(k => !task.state().lit.includes(k));
-        for (const k of unlit) aim(s, c, `star-${k}`, c.sky.point(k), c.sky.distance * Math.tan(STAR_TAP * deg));
+        for (const k of unlit) aim(s, c, `star-${k}`, c.skyStars.pointOf(k), SKY_DISTANCE * Math.tan(STAR_TAP * deg));
         wait(s, c, 'stars', unlit.map(k => `star-${k}`));
         break;
       }
       case 'help':
-        c.sky.hint(event.friend);
+        c.skyStars.glow(event.friend, true);
         break;
       case 'light': {
         const { friend, n, at } = event;
         aim(s, c, `star-${friend}`, null);
-        c.sky.light(friend, FRIENDS.find(f => f.key === friend).colour);
-        if (friend === 'gramedla') c.her.nod();
+        const { colour } = FRIENDS.find(f => f.key === friend);
+        const drawing = c.skyStars.light(friend, colour);
+        c.log({ type: 'lit', friend, colour });
+        s.after(0, function* whole() {
+          yield s.until(() => drawing.done);
+          c.drawn[friend] = true;
+          c.log({ type: 'drawn', friend });
+        });
+        let how = 'happy';
+        if (friend === 'gramedla') { c.her.nod(); how = 'nod'; }
+        else if (friend === 'kambedla') { c.plateFlare = s.time; cheer(s, c, friend); how = 'plates'; }
         else cheer(s, c, friend);
+        c.log({ type: 'glad', friend, how });
         const rate = SONG.motif[n] / SONG.motif[0];
         s.after(Math.max(0, at - s.time), () => {
-          sound(s, c, 'star', { rate });
+          starTone(bell, n);
           c.log({ type: 'tone', n, rate, friend });
           return null;
         });
@@ -385,6 +585,12 @@ function* starsTask(s, c) {
       }
       case 'all':
         all = event.at;
+        // the hundreds come out as the sixth tone sounds
+        s.after(Math.max(0, event.at - s.time), () => {
+          c.log({ type: 'many' });
+          easeNight(s, c, 'many', STARS.many);
+          return null;
+        });
         break;
       default:
         break;
@@ -679,7 +885,7 @@ function* seventh(s, c) {
   yield* say(s, c, 'mosi', 'h_mosi_find');
   yield up;
   const hand = {
-    egill, moth: null, mosi: c.mosi.raw, top: c.top, sky: null, constellations: null, moon: null,
+    egill, moth: null, mosi: c.mosi.raw, top: c.top, sky: c.night ?? null, constellations: c.figures ?? null, moon: c.moon?.face ?? null,
     seventh: { ...SKY.seventh, colour: '#c8b6ff' }, lifted: { at: from.toArray(), time: s.time },
   };
   yield* rideBack(s, c, hand);
@@ -949,6 +1155,11 @@ function setUp(s) {
       for (const off of releases.values()) off();
       releases.clear();
       c.sky.dispose();
+      c.unhang?.();
+      c.skyStars?.dispose();
+      c.figures?.dispose();
+      c.moon?.face.dispose();
+      c.night?.dispose();
       showSun(c);
       try { s.sun?.drop?.(0); } catch { /* no sun on this page */ } // the sun back where every other chapter has it
       c.plates?.dispose?.();
@@ -989,6 +1200,7 @@ function guestsOf(s, c) {
   return {
     counts: core.counts,
     set: (group, phase, u) => core.set(group, phase, u),
+    setHide: place => core.setHide(place),
     where: () => core.where(),
     come(which, seconds) {
       const groups = which === 'hoppers' ? ['frogs', 'turtles', 'lizards'] : [which];
@@ -1087,19 +1299,24 @@ export const chapter = {
 // chord, as chapter 5's music show is on its tile (kafli5.js `show`). No story, no star, no line but Slóeðla's four calls, nothing
 // the save keeps; then the end card ("Aftur" plays it again with a new song, "Hætta" leaves).
 
-/** Everyone where the chapter has them as the song starts, behind the black: the party's light, the six stars lit, the moon up. */
+/** Everyone where the chapter has them as the song starts, behind the black: the party's light, the six lit at their party places with their constellations, the hundreds out, the moon up. */
 function asParty(s, c) {
   const { world } = c;
-  lightTo(world, NIGHT);
+  lightTo(world, HATID_LOOKS.night);
   s.sun.cap(1);
   hideSun(c);
   world.music?.setLevel?.(0, 0);
-  for (const { key, colour } of FRIENDS) {
-    if (!c.sky.stars[key]) c.sky.show(key, SKY.stars[key], { colour, size: 10 });
-    c.sky.light(key, colour);
-  }
-  c.sky.show('moon', SKY.moon, { colour: '#f4efd8', size: 34 });
-  c.stars = c.sky.stars;
+  nightOf(s, c);
+  c.night.set({ dark: 1, first: 1, many: 1 });
+  c.many = 1;
+  for (const { key } of FRIENDS) c.skyStars.arrive(key);
+  c.skyStars.gather(partyPlace, { seconds: 0, span: SKY.party.span });
+  c.skyStars.update(world.camera, s.time);
+  for (const { key, colour } of FRIENDS) c.skyStars.light(key, colour, { at: -Infinity });
+  c.skyStars.update(world.camera, s.time);
+  moonOf(s, c);
+  c.moon.update(s.time);
+  c.stars = c.skyStars.stars;
   toTheParty(c);
 }
 
