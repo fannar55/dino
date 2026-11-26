@@ -457,9 +457,6 @@ const TALL = {
   dance_egill_b: shot(fp(5.8, -13.1, 0.6), fp(-1, -9.4, 2.1), 25),
   // upright: the same place, looking higher and tighter (at its own lens the bottom two fifths were empty floor and the bursts small)
   chorus_sky: shot(fp(0, -40, 3), toSky(fp(0, -40, 3), { azimuth: 40, elevation: 32 }), 44),
-  // (Task 17) upright: the quiet part's one shot, tighter on the drawings and the moon (at its own lens the six were small over half
-  // a frame of dark floor, 31 s long)
-  sky_dance: shot(fp(0, -30, 1.2), toSky(fp(0, -30, 1.2), { azimuth: 38, elevation: 24 }), 46),
 };
 /** The upright frame of shot `name`, where one is needed (else null: the wide frame holds upright too). */
 export function tallShot(name) {
