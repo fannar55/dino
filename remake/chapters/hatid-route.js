@@ -327,6 +327,7 @@ export const SHOTS = {
     floor_low: shot(fp(4, -18, 0.5), fp(0, -9, 1.4), 46),
     egill_mosi: shot(fp(5, -19, 1.1), fp(0, -10, 1.6), 42),
     sky_dance: shot(fp(0, -30, 1.2), toSky(fp(0, -30, 1.2), { azimuth: 33, elevation: 30 }), 58),
+    // (Task 16: on 32 a little left of her, so Þórseðla's body is out of it: on 40 it was 270k triangles)
     solo_kambedla: shot(fp(16, -6, 1.2), fp(10.2, 6, 1.6), 32),
     // (Task 16: each solo's first shot holds the start of her trick, its second, `trick_<who>` from her solo's seventh beat, the
     // trick's own moment: hatid-band.js SOLO_TRICKS) the fish leaping over the rim behind her
@@ -342,11 +343,11 @@ export const SHOTS = {
     trick_uggedla: shot(fp(-5, -7, 1.6), fp(-13, -1, 6.5), 50),
     // Þórseðla's head up in the lights and the berries raining past it, from below on her left
     trick_thorsedla: shot(fp(13, 6, 1.6), fp(20.5, 18, 10), 52),
-    // Flugeðla's lap in the sky over the floor, high on the front's left looking up across it to her stand: Þórseðla's head the
-    // only other in it (.tools/hatid-16/lapsearch.mjs: inside the stones, the director's LIMITS)
-    trick_flugedla: shot(fp(-24, -18, 7.3), fp(8, 24, 16), 40),
-    // Slóeðla's head and crest side on, from her left
-    trick_sloedla: shot(fp(6, 26.5, 3.4), fp(0, 27.5, 3.9), 42),
+    // Flugeðla's lap in the sky over the floor among the constellations, high on the front's right looking up across it to her
+    // stand (from the front's left Uggeðla stood big in front of the lens: 264k triangles; .tools/hatid-16/body-flug.txt)
+    trick_flugedla: shot(fp(24, -18, 7.3), fp(9, 28, 12.5), 42),
+    // Slóeðla's head and crest from her right front (from her side the lens stood 3 m from Flugeðla, drawn whole out of the frame)
+    trick_sloedla: shot(fp(5, 23, 3.4), fp(0, 27.5, 3.9), 42),
     // Grameðla's roar at the end of her three prints, which run toward the lens: from the floor's front left, low, 20 m off,
     // Uggeðla (by the third print) on the lens's right, out of it (from the floor's middle her tail filled half the first stills;
     // from 7 m her roaring head was cut; looking down from her front left, and from the front, her tail and legs again:
