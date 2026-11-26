@@ -637,10 +637,13 @@ function waveHand(s) {
   return out;
 }
 
-/** The hat's brim point and angle for a pose (unswayed local): lifted and turned while the hand tips it. */
+/** The most a pose's `hatLift` raises the hat off its head (radii): a bob, never off it. */
+export const MOON_HAT_LIFT = 0.12;
+/** The hat's brim point and angle for a pose (unswayed local): lifted and turned while the hand tips it, and lifted a little by a pose's `hatLift` (radii, 0 to MOON_HAT_LIFT; the festival's dance bobs it on the beat). */
 function hatFrame(pose) {
   const tip = pose.hand?.kind === 'tip' ? clamp(pose.hand.u, 0, 1) : 0;
-  return { x: HAT_AT[0], y: HAT_AT[1] + TIP.lift * tip, angle: HAT_TILT - (Number(pose.hat) || 0) + TIP.tilt * tip };
+  const bob = clamp(Number(pose.hatLift) || 0, 0, MOON_HAT_LIFT);
+  return { x: HAT_AT[0], y: HAT_AT[1] + TIP.lift * tip + bob, angle: HAT_TILT - (Number(pose.hat) || 0) + TIP.tilt * tip };
 }
 /** A place in the hat's square (from its top left, a side being 1) as unswayed local. */
 function onHat(frame, sx, sy) {

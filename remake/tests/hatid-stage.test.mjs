@@ -10,8 +10,9 @@ import { createBeams } from '../engine/show/beams.js';
 import { FLOOR, HEAD, STAGE, partyStands } from '../chapters/hatid-route.js';
 import {
   STAGE_PARTS, FIREFLIES, FLOOR_FROM, partsAt, stonesAt, spotsAt, stringsAt, firefliesAt, seaAt, floorAt, partyLook, createStage,
-  stonePlaces, stoneLightsAt, FRIEND_HUES, fireworksAt, FIREWORKS,
+  stonePlaces, stoneLightsAt, FRIEND_HUES, fireworksAt, FIREWORKS, moonAt, MOON_MOVES,
 } from '../chapters/hatid-stage.js';
+import { moonPose, MOON_HAT_LIFT } from '../engine/moon-face.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
 import { entered, cuesIn, soloAt, sectionAt, BEAT, END_BEAT } from '../chapters/hatid-score.js';
 import { SONG } from '../chapters/hatid-song.js';
@@ -527,4 +528,41 @@ test('on a hit every lit spotlight throws a burst that is gone a bar later; none
   stage.update(100.5);
   assert.equal(stage.state().counts.fireworks, 0);
   stage.dispose();
+});
+
+test('the moon bobs its hat on the beat and opens its mouth only while the choir sings', () => {
+  // its hat: up and tipped on the beat, down between, never off its head
+  for (let n = 80; n < 120; n++) {
+    const on = moonAt(n + 0.15), off = moonAt(n + 0.6);
+    assert.ok(on.hatLift > off.hatLift + 0.03, `the hat up on beat ${n}: ${on.hatLift} against ${off.hatLift}`);
+    assert.ok(on.hat > off.hat, `and tipped on beat ${n}`);
+  }
+  const quiet = SONG.song.sections.find(x => x.id === 'quiet');
+  const choir = entry('choir');
+  const opens = new Set();
+  let blinks = 0;
+  for (const b of beatsOf(-2, END_BEAT + 4, 0.05)) {
+    const pose = moonAt(b);
+    assert.ok(pose.hatLift >= 0 && pose.hatLift <= MOON_HAT_LIFT, `on its head at ${b}`);
+    assert.ok(Math.abs(pose.hat) < 15 && Math.abs(pose.sway) < 8, `a little at ${b}`);
+    const sings = b >= choir && !(b >= quiet.startBeat && b < quiet.startBeat + quiet.beats) && b < END_BEAT;
+    if (pose.mouth === 'oh') {
+      assert.ok(sings, `the mouth open at ${b} only while the choir sings`);
+      opens.add(sectionAt(b).id);
+      assert.ok(b - Math.floor(b) < 0.5, `open on the beat, shut between: ${b}`);
+    }
+    if (sings && b - Math.floor(b) > 0.1 && b - Math.floor(b) < 0.35) assert.equal(pose.mouth, 'oh', `singing on the beat at ${b}`);
+    if (pose.eye === 'shut') blinks++;
+  }
+  assert.deepEqual([...opens].sort(), ['chord', 'chorus', 'dance', 'solos'], 'with the choir in every part it sings');
+  assert.ok(blinks > 10, `it blinks now and then: ${blinks} samples shut`);
+  // it rocks a little with the bar
+  assert.ok(moonAt(101).sway * moonAt(103).sway < 0, 'one way and the other in a bar');
+  // what scene 2 and the party's start gave it stays: the toot's blower, the smile
+  assert.equal(moonAt(100.2, moonPose([{ kind: 'toot', at: 0 }], 0.5)).mouth, 'blow');
+  assert.equal(moonAt(100.2, moonPose([{ kind: 'smile', at: 0 }], 0.5)).mouth, 'grin');
+  assert.ok(moonAt(100.2, moonPose([{ kind: 'toot', at: 0 }], 0.5)).blower > 0);
+  // a function of the beat; its moves are one list, where chunk 6 adds the roar's knock, the fix and the slow rock
+  assert.deepEqual(moonAt(130.37), moonAt(130.37));
+  assert.ok(Array.isArray(MOON_MOVES) && MOON_MOVES.length >= 3);
 });

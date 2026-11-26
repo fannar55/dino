@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BEAT, entered, sectionAt, soloAt, energyAt, pulseAt, cuesIn } from './hatid-score.js';
+import { BEAT, END_BEAT, entered, sectionAt, soloAt, energyAt, pulseAt, cuesIn } from './hatid-score.js';
 import { SONG } from './hatid-song.js';
 import { BEARING, BUDGET, FLOOR, HEAD, SHOTS, STAGE, floorPoint, partyPlace, partyStands } from './hatid-route.js';
 import { PARTY_LOOKS } from './hatid-looks.js';
@@ -10,6 +10,7 @@ import { createLightPoints } from '../engine/show/lights.js';
 import { createRings } from '../engine/show/rings.js';
 import { createGlowFloor, FLOOR_LOOK } from '../world/props/glow-floor.js';
 import { createSpeciesLibrary } from '../world/forest/species.js';
+import { moonPose, MOON_HAT_LIFT } from '../engine/moon-face.js';
 
 // The festival's stage (spec 6, "Sviðið": "Sviðið birtist með ljósum", fireflies as lamps; the owner's rule for the party: fun before
 // realism). It lights up part by part as each friend comes into the song's intro (STAGE_PARTS), all of it at full when the choir
@@ -488,6 +489,46 @@ export function partyLook(beat, { reduced = false } = {}) {
     parts: [[PARTY_LOOKS.night, 1 - tint - dark], [PARTY_LOOKS.tint(hue), tint], [PARTY_LOOKS.dark, dark]],
     lift: reduced ? 0 : liftAt(beat),
   };
+}
+
+// ---------------------------------------------------------------------------------------------
+// The moon dances (Task 14b, the owner's fifth: "Tunglið dansar: vaggar hattinum í takt og opnar munninn með kórnum"). moonAt(beat,
+// base) is the moon's pose in the party: `base` is what the festival's acts make of it (engine/moon-face.js moonPose: the peek, the
+// smile, the toot, which stay), and MOON_MOVES, in order, each (beat, pose) -> pose, put the dance over it: the hat bobs on every
+// beat (tipped forward MOON_DANCE.bob degrees and lifted `lift` radii, at once on the beat and down by the next), it rocks a little
+// with the bar (`rock` degrees one way on the bar's second beat, the other on its fourth), it opens its mouth on the beat ("o") and
+// shuts it between while the choir sings (from its entry, beat 76, but not in the quiet part), unless an act has the mouth, and it
+// blinks every 3 to 6 seconds of the song. All of it calm (`quiet` of itself) in the quiet part. Chunk 6 adds its moves to
+// MOON_MOVES (after these): the roar knocking the hat askew and the hand fixing it (as moonPose's 'askew' and 'fixHat' do, from the
+// roar cues' beats), and the slow rock in the quiet part (a move that scales `rock` by quietAt); nothing else changes.
+export const MOON_DANCE = { bob: 7, lift: 0.08, rock: 3, open: 0.4, quiet: 0.3 };
+const QUIET_END = QUIET.startBeat + QUIET.beats;
+const choirSings = beat => entered('choir', beat) > 0 && !(beat >= QUIET.startBeat && beat < QUIET_END) && beat < END_BEAT;
+const danceOn = beat => smooth(beat / BAR) * (beat < END_BEAT ? 1 : 0) * lerp(1, MOON_DANCE.quiet, quietAt(beat));
+/** On the beat, eased up over its first tenth, down by its middle and still till the next. */
+const onBeat = beat => { const u = fract(beat); return u < 0.1 ? smooth(u / 0.1) : Math.max(0, 1 - smooth((u - 0.1) / 0.4)); };
+export const MOON_MOVES = [
+  function hatBob(beat, pose) {
+    const k = onBeat(beat) * danceOn(beat);
+    return { ...pose, hat: (Number(pose.hat) || 0) + MOON_DANCE.bob * k, hatLift: Math.min(MOON_HAT_LIFT, (Number(pose.hatLift) || 0) + MOON_DANCE.lift * k) };
+  },
+  function barRock(beat, pose) {
+    return { ...pose, sway: (Number(pose.sway) || 0) + MOON_DANCE.rock * danceOn(beat) * Math.sin((Math.PI * 2 * beat) / BAR) };
+  },
+  function choirMouth(beat, pose) {
+    if (!choirSings(beat) || pose.mouth !== 'smile') return pose; // an act's mouth (a grin, the blower) stays
+    const u = fract(beat);
+    const mouth = u < 0.06 ? 'mid' : u < MOON_DANCE.open ? 'oh' : u < MOON_DANCE.open + 0.08 ? 'mid' : 'smile';
+    return { ...pose, mouth };
+  },
+  function blink(beat, pose) {
+    return { ...pose, eye: moonPose([], beat * BEAT).eye }; // the song's own blinks, so the same beat blinks the same
+  },
+];
+export function moonAt(beat, base = moonPose([], beat * BEAT)) {
+  let pose = { ...base, hand: { ...(base.hand ?? { kind: 'rest', u: 0 }) } };
+  for (const move of MOON_MOVES) pose = move(beat, pose);
+  return pose;
 }
 
 // ---------------------------------------------------------------------------------------------

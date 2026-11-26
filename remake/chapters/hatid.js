@@ -37,7 +37,7 @@ import { demoAsked, startDemoChild } from './hatid-demo.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
 import { createSeat, ride, floatTo, floatDown } from '../engine/riding.js';
 import { createSong } from '../engine/audio/song.js';
-import { createStage } from './hatid-stage.js';
+import { createStage, moonAt } from './hatid-stage.js';
 import { LOOKS } from '../engine/looks.js';
 import { easeLight, lightTo } from '../engine/light-blend.js';
 import { SUN_DISTANCE } from '../engine/sun-face.js';
@@ -563,7 +563,9 @@ function moonOf(s, c) {
   const moon = {
     face, heaps, acts: [], pose: null,
     update(time) {
-      moon.pose = moonPose(moon.acts, time);
+      const pose = moonPose(moon.acts, time);
+      // in the party it dances (hatid-stage.js moonAt: its hat on the beat, a rock with the bar, its mouth with the choir) over its acts
+      moon.pose = c.inParty && Number.isFinite(c.partyBeat) ? moonAt(c.partyBeat, pose) : pose;
       face.set(moon.pose);
       heaps.update(0, time);
     },
@@ -728,6 +730,7 @@ function* theParty(s, c) {
     const beat = beatAt(s.time - start);
     c.partyBeat = beat;
     c.stage.update(beat);
+    c.moon?.update(s.time);
     c.band.update(beat);
     c.dance.update(beat);
   };
