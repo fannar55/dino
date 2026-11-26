@@ -347,9 +347,11 @@ export const SHOTS = {
     trick_flugedla: shot(fp(-24, -18, 7.3), fp(8, 24, 16), 40),
     // Slóeðla's head and crest side on, from her left
     trick_sloedla: shot(fp(6, 26.5, 3.4), fp(0, 27.5, 3.9), 42),
-    // Grameðla's roar and her three prints running down the floor ahead of her, from her front right, along them (Uggeðla, by the
-    // third print, out of it: from the floor's middle her tail filled half the first stills; .tools/hatid-16/gramsearch.mjs)
-    trick_gramedla: shot(fp(-10, 16, 3.5), fp(-18, 12, 1.5), 58),
+    // Grameðla's roar at the end of her three prints, which run toward the lens: from the floor's front left, low, 20 m off,
+    // Uggeðla (by the third print) on the lens's right, out of it (from the floor's middle her tail filled half the first stills;
+    // from 7 m her roaring head was cut; looking down from her front left, and from the front, her tail and legs again:
+    // .tools/hatid-16/gramsearch.mjs)
+    trick_gramedla: shot(fp(-18, -4, 2.5), fp(-22, 10, 1.5), 46),
     // the moon alone over the sea of cloud, from behind the stage, everyone behind the lens (Task 6: from the floor its long lens drew
     // Mosi, Uggeðla and Þórseðla at full detail, 309k triangles, over the budget)
     moon_close: shot(fp(0, 41, 1.4), toSky(fp(0, 41, 1.4), { azimuth: 45, elevation: 7 }), 28),

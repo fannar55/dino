@@ -411,7 +411,7 @@ const FLY = rgbOf(FIREFLIES.colour);
 /** (Task 16) Flugeðla's wake: every `every`th firefly, `behind` beats behind her on her lap, scattered `spread` m. */
 export const FIREFLY_WAKE = { every: 3, behind: [0.2, 1.6], spread: 1.6 };
 /** (Task 16) Grameðla's giant prints in the floor: each disc of a print a ring in her hue, and a step for the flowers under it. */
-export const PRINT_LIGHT = { ring: 0.9, step: 1.2, up: 0.18 }; // (up 0.07: the floor's rise cut the discs in the first stills)
+export const PRINT_LIGHT = { ring: 0.9, step: 1.2, up: 0.4 }; // (up 0.07 and 0.18: the floor's rise cut the discs in the stills)
 const THOR = rgbOf(hueOf('thorsedla'));
 const GRAM = rgbOf(hueOf('gramedla'));
 const PRINTS_STEP_RADIUS = 3.2; // m: a step's pool round a giant print (its discs are 4.2 m long)
