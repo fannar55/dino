@@ -10,7 +10,8 @@ import { bodyMesh } from './clip-probe.js';
 // measured on the model's own skin (chapters/hatid-himinn.js, ?measure=1), joined to that bone.
 //
 // It hangs from the camera as the night sky does (engine/night-sky.js: update(camera)) and is drawn at the far plane's depth
-// (farPlaneDepth), so whatever stands in front of the sky hides it. Two draw calls for all of them: the stars (points) and the lines.
+// (farPlaneDepth), so whatever stands in front of the sky hides it. Two draw calls for all of them: the stars (points) and the lines
+// (quads facing the camera, `lineWidth` CSS pixels wide on any screen: a GL line is one device pixel, too thin on a tablet).
 // None is fogged or tone mapped.
 //
 //   STAR_BONE                    'Head': the brightest star, twice the size, the tap star; the lines are drawn out from it
@@ -31,6 +32,7 @@ const ROOT_BONE = 'root';
 const SLOT = 40; // stars (and lines) a constellation may have: the models have 22 to 32 joints, the tips at most 4 more
 const SIZE = { star: 0.34, head: 0.68 }; // degrees across at span 16 (they grow with the square root of the span)
 const LIGHT = { star: 0.78, head: 1, line: 0.42 };
+const LINE_WIDTH = 1.8; // CSS pixels (the controller's first value)
 const BREATH = 0.35; // how much larger the stars are at breath 1
 const TILT = 10; // degrees the view is lifted over her side: her far legs a little above her near ones, not on top of them
 const TURN = 18; // and turned toward her front: her far legs a little ahead of her near ones
@@ -154,21 +156,69 @@ void main() {
   gl_FragColor = vec4(vColor.rgb, a);
   #include <colorspace_fragment>
 }`;
+// Lines: each a quad facing the camera, `uWidth` device pixels wide (the line width in CSS pixels times the renderer's pixel ratio)
+// and FEATHER more each side for a soft edge, a little brighter toward its two stars. `position` is this corner's end, `aOther` the
+// line's other end, `aCorner` (end: 0 the near star's end, 1 the far; side: -1 or 1). screenCorner below is this shader's twin.
 const linesVertex = /* glsl */`
+attribute vec3 aOther;
+attribute vec2 aCorner;
 attribute vec4 aColor;
+uniform vec2 uViewport;
+uniform float uWidth;
+uniform float uFeather;
 varying vec4 vColor;
+varying float vAcross;
+varying float vAlong;
 void main() {
+  vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  vec4 q = projectionMatrix * modelViewMatrix * vec4(aOther, 1.0);
+  vec2 halfView = 0.5 * uViewport;
+  vec2 way = q.xy / q.w * halfView - p.xy / p.w * halfView;
+  float len = length(way);
+  way = len > 1e-6 ? way / len : vec2(1.0, 0.0);
+  if (aCorner.x > 0.5) way = -way; // from the far end the other end lies back toward the near star: the same line either way
+  vec2 across = vec2(-way.y, way.x);
+  float outward = (0.5 * uWidth + uFeather) * aCorner.y;
+  p.xy += across * outward / halfView * p.w;
+  gl_Position = p;
   vColor = aColor;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  if (!(aColor.a > 0.0)) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+  vAcross = outward;
+  vAlong = aCorner.x;
+  if (!(aColor.a > 0.0) || p.w <= 0.0 || q.w <= 0.0) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
 }`;
 const linesFragment = /* glsl */`
+uniform float uWidth;
+uniform float uFeather;
 varying vec4 vColor;
+varying float vAcross;
+varying float vAlong;
 void main() {
-  if (vColor.a < 0.002) discard;
-  gl_FragColor = vColor;
+  float edge = 1.0 - smoothstep(0.5 * uWidth - 0.5, 0.5 * uWidth + uFeather, abs(vAcross));
+  float ends = 1.0 + 0.3 * pow(abs(2.0 * vAlong - 1.0), 3.0);
+  float a = vColor.a * edge * ends;
+  if (a < 0.002) discard;
+  gl_FragColor = vec4(vColor.rgb, a);
   #include <colorspace_fragment>
 }`;
+const FEATHER = 1; // device pixels of soft edge each side of a line
+
+/**
+ * The lines' vertex shader in JavaScript (for the tests): where a corner of a line's quad lands on the screen, in device pixels from
+ * the middle, for a line from `a` to `b` (world points) seen by `camera` on a drawing buffer `viewport` [w, h] pixels, `width`
+ * device pixels wide; `end` 0 at a, 1 at b; `side` -1 or 1.
+ */
+export function screenCorner(a, b, end, side, camera, viewport, width) {
+  const toScreen = p => { const v = p.clone().project(camera); return [v.x * viewport[0] / 2, v.y * viewport[1] / 2]; };
+  const [p, q] = end ? [toScreen(b), toScreen(a)] : [toScreen(a), toScreen(b)];
+  let wx = q[0] - p[0];
+  let wy = q[1] - p[1];
+  const len = Math.hypot(wx, wy);
+  [wx, wy] = len > 1e-6 ? [wx / len, wy / len] : [1, 0];
+  if (end) { wx = -wx; wy = -wy; }
+  const out = (0.5 * width + FEATHER) * side;
+  return [p[0] - wy * out, p[1] + wx * out];
+}
+export const LINE_FEATHER = FEATHER;
 function material(key, vertexShader, fragmentShader, uniforms = {}) {
   return farPlaneDepth(new THREE.ShaderMaterial({
     uniforms, vertexShader, fragmentShader,
@@ -193,8 +243,10 @@ function material(key, vertexShader, fragmentShader, uniforms = {}) {
  *   linesOf(key) her lines in `order`, each { near, far, shown } (shown 0 to 1: how much of it is drawn)
  *   update(camera)  her pose this frame into the picture, hung from the camera: after the actors' update, before the render
  *   dispose()
+ * `lineWidth`: the lines' width in CSS pixels (times the renderer's pixel ratio as it draws), plus a soft edge of LINE_FEATHER
+ * device pixels each side.
  */
-export function createConstellations(world, { capacity = 6 } = {}) {
+export function createConstellations(world, { capacity = 6, lineWidth = LINE_WIDTH } = {}) {
   const group = new THREE.Group();
   group.name = 'Constellations';
   world.scene.add(group);
@@ -213,7 +265,29 @@ export function createConstellations(world, { capacity = 6 } = {}) {
   stars.name = 'ConstellationStars';
   stars.renderOrder = -2.8; // over the night sky's stars (-3.5) and shooting stars (-3), under the sun's face (-2)
   stars.onBeforeRender = measure;
-  const lines = new THREE.LineSegments(geometry(capacity * SLOT, 2), material('constellation-lines-far', linesVertex, linesFragment));
+  // the lines: one mesh of quads, four corners and two triangles a line, its index made once
+  const lineUniforms = { uViewport: { value: new THREE.Vector2(1280, 800) }, uWidth: { value: lineWidth }, uFeather: { value: FEATHER } };
+  const quads = capacity * SLOT;
+  const lineGeometry = new THREE.BufferGeometry();
+  const attr = k => new THREE.BufferAttribute(new Float32Array(quads * 4 * k), k);
+  lineGeometry.setAttribute('position', attr(3));
+  lineGeometry.setAttribute('aOther', attr(3));
+  lineGeometry.setAttribute('aColor', attr(4));
+  const corner = attr(2);
+  const index = [];
+  for (let i = 0; i < quads; i++) {
+    const o = 4 * i;
+    corner.setXY(o, 0, -1); corner.setXY(o + 1, 0, 1); corner.setXY(o + 2, 1, -1); corner.setXY(o + 3, 1, 1);
+    index.push(o, o + 2, o + 1, o + 1, o + 2, o + 3);
+  }
+  lineGeometry.setAttribute('aCorner', corner);
+  lineGeometry.setIndex(index);
+  const lines = new THREE.Mesh(lineGeometry, material('constellation-lines-far', linesVertex, linesFragment, lineUniforms));
+  lines.material.side = THREE.DoubleSide;
+  lines.onBeforeRender = renderer => {
+    renderer.getDrawingBufferSize(lineUniforms.uViewport.value);
+    lineUniforms.uWidth.value = lineWidth * renderer.getPixelRatio();
+  };
   lines.name = 'ConstellationLines';
   lines.renderOrder = -2.9;
   for (const o of [stars, lines]) { o.frustumCulled = false; o.visible = false; group.add(o); }
@@ -353,7 +427,7 @@ export function createConstellations(world, { capacity = 6 } = {}) {
     const base = slot * SLOT;
     const sc = stars.geometry.getAttribute('aColor');
     const lc = lines.geometry.getAttribute('aColor');
-    for (let i = 0; i < SLOT; i++) { sc.setW(base + i, 0); lc.setW(2 * (base + i), 0); lc.setW(2 * (base + i) + 1, 0); }
+    for (let i = 0; i < SLOT; i++) { sc.setW(base + i, 0); for (let k = 0; k < 4; k++) lc.setW(4 * (base + i) + k, 0); }
     sc.needsUpdate = lc.needsUpdate = true;
   }
 
@@ -364,6 +438,7 @@ export function createConstellations(world, { capacity = 6 } = {}) {
     const sc = stars.geometry.getAttribute('aColor');
     const ss = stars.geometry.getAttribute('aSize');
     const lp = lines.geometry.getAttribute('position');
+    const lo = lines.geometry.getAttribute('aOther');
     const lc = lines.geometry.getAttribute('aColor');
     const swell = 1 + BREATH * clamp(c.state.breath, 0, 1);
     for (let i = 0; i < SLOT; i++) {
@@ -373,20 +448,22 @@ export function createConstellations(world, { capacity = 6 } = {}) {
         sc.setXYZW(base + i, c.starColour.r, c.starColour.g, c.starColour.b, c.light[i]);
         ss.setX(base + i, Math.tan(rad(sizeOf(c, i) * swell)));
       } else sc.setW(base + i, 0);
-      const k = 2 * (base + i);
+      const k = 4 * (base + i);
       if (i < c.order.length && c.shown[i] > 0) {
         const [near, far] = c.order[i];
         const a = c.dirs[c.index.get(near)];
         const b = c.dirs[c.index.get(far)];
-        v.copy(a).lerp(b, c.shown[i]).normalize();
-        lp.setXYZ(k, a.x * DISTANCE, a.y * DISTANCE, a.z * DISTANCE);
-        lp.setXYZ(k + 1, v.x * DISTANCE, v.y * DISTANCE, v.z * DISTANCE);
+        v.copy(a).lerp(b, c.shown[i]).normalize(); // grown from the near star's side
         const alpha = LIGHT.line * c.state.level;
-        lc.setXYZW(k, c.colour.r, c.colour.g, c.colour.b, alpha);
-        lc.setXYZW(k + 1, c.colour.r, c.colour.g, c.colour.b, alpha);
-      } else { lc.setW(k, 0); lc.setW(k + 1, 0); }
+        for (let j = 0; j < 4; j++) {
+          const [here, there] = j < 2 ? [a, v] : [v, a];
+          lp.setXYZ(k + j, here.x * DISTANCE, here.y * DISTANCE, here.z * DISTANCE);
+          lo.setXYZ(k + j, there.x * DISTANCE, there.y * DISTANCE, there.z * DISTANCE);
+          lc.setXYZW(k + j, c.colour.r, c.colour.g, c.colour.b, alpha);
+        }
+      } else for (let j = 0; j < 4; j++) lc.setW(k + j, 0);
     }
-    sp.needsUpdate = sc.needsUpdate = ss.needsUpdate = lp.needsUpdate = lc.needsUpdate = true;
+    sp.needsUpdate = sc.needsUpdate = ss.needsUpdate = lp.needsUpdate = lo.needsUpdate = lc.needsUpdate = true;
   }
   const sizeOf = (c, i) => (i === c.head ? SIZE.head : SIZE.star) * c.sizeScale;
 

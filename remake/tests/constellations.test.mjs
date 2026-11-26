@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createActor, rotateBoneWorld } from '../engine/actor.js';
 import { bodyMesh } from '../engine/clip-probe.js';
-import { createConstellations, skeletonLines, STAR_BONE, TIPS } from '../engine/constellations.js';
+import { createConstellations, skeletonLines, screenCorner, LINE_FEATHER, STAR_BONE, TIPS } from '../engine/constellations.js';
 import { skyDirection } from '../engine/night-sky.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
 import { SKY } from '../chapters/hatid-route.js';
@@ -255,7 +255,7 @@ test('six constellations are two draw calls', async () => {
   const drawn = [];
   sky.group.traverse(o => { if ((o.isMesh || o.isPoints || o.isLine) && o.visible) drawn.push(o); });
   assert.equal(drawn.length, 2, 'the stars and the lines');
-  assert.deepEqual(drawn.map(o => o.type).sort(), ['LineSegments', 'Points']);
+  assert.deepEqual(drawn.map(o => o.type).sort(), ['Mesh', 'Points'], 'the lines are one mesh of quads');
   for (const o of drawn) {
     assert.equal(o.material.fog, false);
     assert.equal(o.material.toneMapped, false);
@@ -278,4 +278,56 @@ test('six constellations are two draw calls', async () => {
   assert.equal(still.length, 2);
   sky.dispose();
   assert.equal(sky.group.parent, null);
+});
+
+test('a line is lineWidth CSS pixels wide on the screen at pixel ratio 1 and 2, and grows from the star\'s side', async () => {
+  const world = emptyWorld();
+  const actor = await actorOf(world, 'thorsedla');
+  const sky = createConstellations(world, { lineWidth: 2.5 });
+  const at = SKY.stars.thorsedla;
+  sky.add('thorsedla', actor, { colour: '#e9b14d', ...at });
+  sky.set('thorsedla', { drawn: 0.5 });
+  const cam = new THREE.PerspectiveCamera(50, 1.6, 0.1, 1200);
+  cam.position.set(0, 2, 0);
+  cam.lookAt(skyDirection(at.azimuth, at.elevation).multiplyScalar(100).add(cam.position));
+  cam.updateMatrixWorld();
+  sky.update(cam);
+  let lines = null;
+  sky.group.traverse(o => { if (o.name === 'ConstellationLines') lines = o; });
+  const css = [1280, 800];
+  for (const ratio of [1, 2]) {
+    const renderer = { getPixelRatio: () => ratio, getDrawingBufferSize: out => out.set(css[0] * ratio, css[1] * ratio) };
+    lines.onBeforeRender(renderer);
+    const u = lines.material.uniforms;
+    assert.equal(u.uWidth.value, 2.5 * ratio, `ratio ${ratio}: device pixels`);
+    assert.deepEqual(u.uViewport.value.toArray(), [css[0] * ratio, css[1] * ratio]);
+    // the quad of the first line as the shader lays it: its two sides apart by the width and the soft edges, across the line
+    const pos = lines.geometry.getAttribute('position');
+    const other = lines.geometry.getAttribute('aOther');
+    const a = new THREE.Vector3().fromBufferAttribute(pos, 0).add(sky.group.position);
+    const b = new THREE.Vector3().fromBufferAttribute(other, 0).add(sky.group.position);
+    const view = u.uViewport.value.toArray();
+    for (const end of [0, 1]) {
+      const l = screenCorner(a, b, end, -1, cam, view, u.uWidth.value);
+      const r = screenCorner(a, b, end, 1, cam, view, u.uWidth.value);
+      const wide = Math.hypot(r[0] - l[0], r[1] - l[1]);
+      assert.ok(Math.abs(wide - (u.uWidth.value + 2 * LINE_FEATHER)) < 1e-6, `ratio ${ratio}: ${wide} device px across`);
+      assert.ok(Math.abs(wide / ratio - (2.5 + 2 * LINE_FEATHER / ratio)) < 1e-6, 'the same CSS width but for the soft edge');
+      const p = a.clone().project(cam), q = b.clone().project(cam);
+      const along = [(q.x - p.x) * view[0], (q.y - p.y) * view[1]];
+      assert.ok(Math.abs(along[0] * (r[0] - l[0]) + along[1] * (r[1] - l[1])) / Math.hypot(...along) < 1e-6, 'straight across the line');
+    }
+  }
+  // a half-drawn line: its far end part way, from its near star; the near end is that star
+  const shown = sky.linesOf('thorsedla');
+  const part = shown.findIndex(l => l.shown > 0 && l.shown < 1);
+  if (part >= 0) {
+    const stars = Object.fromEntries(sky.pointsOf('thorsedla').map(p => [p.name, p.direction]));
+    const pos = lines.geometry.getAttribute('position');
+    const near = new THREE.Vector3().fromBufferAttribute(pos, 4 * part).normalize();
+    const tip = new THREE.Vector3().fromBufferAttribute(pos, 4 * part + 2).normalize();
+    assert.ok(near.angleTo(stars[shown[part].near]) < 1e-5, 'it starts at its near star');
+    const whole = stars[shown[part].near].angleTo(stars[shown[part].far]);
+    assert.ok(Math.abs(near.angleTo(tip) / whole - shown[part].shown) < 0.02, 'and reaches as far as it is shown');
+  }
 });
