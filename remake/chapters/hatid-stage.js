@@ -374,6 +374,9 @@ export function seaAt(beat) {
 // a wave from her feet that has crossed the whole floor a bar later; a common light beating with the pulse in a friend's hue a bar
 // (not the sea's: FLOOR's own turn of the six), and a pool of light under each friend on the floor on every beat (a step, STEP.radius
 // m), bigger under her on each stomp. The blooms are FLOOR_STYLE.size of the glow flower's (Task 13's 1.7 read as specks).
+// Task 14b (the owner's third, "Blóm sem hoppa og snúast þegar stigið er á þau"): each step carries its age in beats (a fifth
+// number: the beat's steps are as old as the beat, the stomp's as old as the stomp), and the floor (made with `hop` unless reduced)
+// makes a flower under it jump and turn once round over the step's first FLOOR_LOOK.hop.length beat, then settle.
 // Task 14b (the owner's second, "Gólfið í blönduðum litum: hvert blóm í lit vinarins sem er næstur því"): each flower takes the hue
 // of the one of the eight nearest it (`friends`: their places and hues, the glow floor's uniforms), `mix` of it over the section's
 // hue a bar (`colour`, which stays as a tint, so the floor still beats with the song), blended over `border` m where two meet; in a
@@ -392,10 +395,10 @@ export function floorAt(beat) {
   if (lit > 0) {
     for (const who of STEP.on) {
       const [x, z] = STANDS[who].at;
-      steps.push([x, z, who === 'egill' ? STEP.radius * 0.6 : STEP.radius, lit * STEP.level * pulseAt(beat) * dim]);
+      steps.push([x, z, who === 'egill' ? STEP.radius * 0.6 : STEP.radius, lit * STEP.level * pulseAt(beat) * dim, fract(beat)]);
     }
     const last = STOMPS.findLast(b => b <= beat);
-    if (last !== undefined && beat - last < 1) steps.push([FLOOR_FROM[0], FLOOR_FROM[1], STEP.stomp.radius, lit * STEP.stomp.level * Math.exp(-STEP.stomp.fade * (beat - last))]);
+    if (last !== undefined && beat - last < 1) steps.push([FLOOR_FROM[0], FLOOR_FROM[1], STEP.stomp.radius, lit * STEP.stomp.level * Math.exp(-STEP.stomp.fade * (beat - last)), beat - last]);
   }
   const friends = Object.entries(STANDS).map(([who, { at }]) => [at[0], at[1], FLOOR_HUES[who]]);
   return { open, pulse, colour: hueAt(beat), steps, friends, mix: soloAt(beat) ? FLOOR_STYLE.soloMix : FLOOR_STYLE.mix, border: FLOOR_STYLE.border };
@@ -502,7 +505,7 @@ export function createStage(c) {
   const heightAt = top?.heightAt ?? world.heightAt ?? (() => GROUND);
   const o = { reduced, heightAt };
   const stones = stoneMesh(world);
-  const floor = createGlowFloor(world, { heightAt, keep: [{ at: STAGE.centre, r: STAGE.radius + 1.5 }], from: FLOOR_FROM, size: FLOOR_STYLE.size, rest: FLOOR_STYLE.rest, own: FLOOR_STYLE.own });
+  const floor = createGlowFloor(world, { heightAt, keep: [{ at: STAGE.centre, r: STAGE.radius + 1.5 }], from: FLOOR_FROM, size: FLOOR_STYLE.size, rest: FLOOR_STYLE.rest, own: FLOOR_STYLE.own, hop: !reduced });
   floor.mesh.name = 'Stage floor';
   const beams = createBeams(world, { capacity: 1 + SPOT_FROM.length, name: 'Stage beams' });
   const points = createLightPoints(world, { capacity: BUDGET.lights, name: 'Stage lights' });

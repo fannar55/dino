@@ -441,3 +441,48 @@ test('a flower takes the hue of the friend nearest it', () => {
   assert.equal((floor.mesh.geometry.index.count / 3) * floor.mesh.geometry.instanceCount < 12000, true);
   floor.dispose();
 });
+
+test('a flower under a step hops and turns once and settles; with reduced motion it only lights', () => {
+  // the stage's steps carry their age in beats: on the beat under each one on the floor, on a stomp under Grameðla
+  for (const b of [100, 100.3, 100.9]) for (const st of floorAt(b).steps) {
+    assert.equal(st.length, 5, 'x, z, radius, level, age');
+    assert.ok(st[4] >= 0 && st[4] < 1 + 1e-9, `a step's age at ${b}: ${st[4]}`);
+  }
+  assert.ok(Math.abs(floorAt(100.3).steps[0][4] - 0.3) < 1e-9, 'the beat\'s steps are as old as the beat');
+  const at = hop => {
+    const floor = createGlowFloor(world(), { heightAt, hop });
+    floor.set({ open: 40, pulse: 0.3, colour: '#ff5fd2' });
+    return floor;
+  };
+  const floor = at(true);
+  const [x, , z] = floor.spots[7];
+  const far = floor.spots.findIndex(([sx, , sz]) => Math.hypot(sx - x, sz - z) > 4);
+  const base = floor.flower(7).light;
+  const seen = [];
+  for (let age = 0; age <= 1.0001; age += 0.05) {
+    floor.set({ steps: [[x, z, 2, 1, age]] });
+    const f = floor.flower(7);
+    seen.push({ age, hop: f.hop, turn: f.turn });
+    assert.ok(f.light > base, 'and it lights');
+    assert.equal(floor.flower(far).hop, 0, 'a flower off the step stays down');
+    assert.equal(floor.flower(far).turn, 0);
+  }
+  assert.equal(seen[0].hop, 0, 'on the ground as the foot lands');
+  assert.ok(Math.max(...seen.map(s => s.hop)) > 0.15, `it jumps: ${Math.max(...seen.map(s => s.hop)).toFixed(2)} m`);
+  for (let k = 1; k < seen.length; k++) assert.ok(seen[k].turn >= seen[k - 1].turn - 1e-9, 'it turns one way');
+  const settled = seen.filter(s => s.age >= 0.7);
+  assert.ok(settled.length > 3 && settled.every(s => s.hop === 0 && Math.abs(s.turn - Math.PI * 2) < 1e-9), 'once round, and down again, well inside the beat');
+  floor.dispose();
+  // reduced: it only lights
+  const still = at(false);
+  still.set({ steps: [[x, z, 2, 1, 0.3]] });
+  assert.ok(still.flower(7).light > base);
+  assert.equal(still.flower(7).hop, 0);
+  assert.equal(still.flower(7).turn, 0);
+  still.dispose();
+  const c = stageWorld({ reduced: true });
+  const stage = createStage(c);
+  stage.update(100.3);
+  assert.equal(stage.parts.floor.flower(0).hop, 0, 'the reduced stage\'s floor does not hop');
+  stage.dispose();
+});

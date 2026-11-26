@@ -14,7 +14,9 @@ import { FLOOR } from '../../chapters/hatid-route.js';
 //   floor.set({ open: 12, pulse: 0.6, colour: '#ff5fd2', steps: [[x, z, radius, level], ...] });
 //   floor.set({ friends: [[x, z, '#hex'], ...], mix: 0.7, border: 3 }); (each flower in the hue of the friend nearest it, `mix` of
 //                 it over `colour`, blended over `border` m where two meet; mix 0 as made)
-//   floor.flower(i) -> { at: [x, y, z], open: 0..1, light, hue, tint }   (what the shader draws for flower i: for a test)
+//   createGlowFloor(world, { ..., hop: true }) and steps of five numbers ([x, z, radius, level, age]): a flower under a step jumps
+//                 and turns once round as the step's age goes from 0 to FLOOR_LOOK.hop.length, and settles (without hop it only lights)
+//   floor.flower(i) -> { at: [x, y, z], open: 0..1, light, hue, tint, hop, turn }   (what the shader draws for flower i: for a test)
 //   floor.spots     -> [[x, y, z], ...]                       (where each stands)
 //   floor.dispose();
 //
@@ -33,6 +35,7 @@ export const FLOOR_LOOK = {
   lift: 0.03, // metres over the ground
   friends: 8, // places whose hues the flowers can take (set's friends: each flower the hue of the nearest)
   border: 3, // metres over which two friends' hues blend where their parts of the floor meet
+  hop: { height: 0.4, length: 0.6 }, // a flower under a step (with `hop`): jumps this high (m) and turns once round over this much of a step's age
 };
 
 const VERT = /* glsl */`
@@ -46,6 +49,8 @@ uniform float uBand;
 uniform float uPulse;
 uniform float uBudShare;
 uniform vec4 uSteps[${FLOOR_LOOK.steps}]; // x, z, radius, level
+uniform float uStepAge[${FLOOR_LOOK.steps}]; // each step's age (a fifth number a step may carry)
+uniform vec2 uHop; // height (0: no hop, as made), length in a step's age
 uniform vec4 uFriends[${FLOOR_LOOK.friends}]; // x, z, on (1 or 0)
 uniform vec3 uHues[${FLOOR_LOOK.friends}];
 uniform vec3 uColour;
@@ -64,13 +69,22 @@ void main() {
   float k = o - 1.0;
   float spring = 1.0 + 2.70158 * k * k * k + 1.70158 * k * k;
   vec3 p = mix( aBud, position, spring ) * aSize;
-  float c = cos( aSpot.w ), s = sin( aSpot.w );
-  vec3 w = vec3( p.x * c - p.z * s, p.y, p.x * s + p.z * c ) + aSpot.xyz;
   float steps = 0.0;
+  // a hop under a step: the strongest step over it says how far into its jump and turn the flower is
+  float best = 0.0, hop = 0.0, turn = 0.0;
   for ( int i = 0; i < ${FLOOR_LOOK.steps}; i++ ) {
     vec4 st = uSteps[ i ];
-    steps += st.w * ( 1.0 - smoothstep( 0.5 * st.z, st.z, distance( aSpot.xz, st.xy ) ) );
+    float under = 1.0 - smoothstep( 0.5 * st.z, st.z, distance( aSpot.xz, st.xy ) );
+    steps += st.w * under;
+    if ( uHop.x > 0.0 && st.w > 0.0 && under > best ) {
+      best = under;
+      float u = clamp( uStepAge[ i ] / uHop.y, 0.0, 1.0 );
+      hop = under * sin( 3.14159265 * u );
+      turn = 6.28318531 * u * u * ( 3.0 - 2.0 * u );
+    }
   }
+  float c = cos( aSpot.w + turn * o ), s = sin( aSpot.w + turn * o );
+  vec3 w = vec3( p.x * c - p.z * s, p.y + hop * o * uHop.x, p.x * s + p.z * c ) + aSpot.xyz;
   vLight = ( uPulse + steps ) * mix( uBudShare, 1.0, o );
   // the hue of the nearest friend, blended with the next nearest's over uBorder metres where their parts meet
   float d1 = 1e9, d2 = 1e9;
@@ -155,7 +169,7 @@ const smooth = (a, b, x) => {
  * The floor: `count` flowers within `radius` m of the top's middle ([0, 0]), each on `heightAt(x, z)`, none inside a `keep` disc
  * ({ at: [x, z], r } or [x, z, r]: the stage's stones). In world.scene. As made: all buds, no light, `colour` white.
  */
-export function createGlowFloor(world, { count = FLOOR.count, radius = FLOOR.radius, heightAt, keep = [], seed = 6, from = [0, 0], size: bloomSize = FLOOR_LOOK.size, rest = FLOOR_LOOK.rest, own = FLOOR_LOOK.own } = {}) {
+export function createGlowFloor(world, { count = FLOOR.count, radius = FLOOR.radius, heightAt, keep = [], seed = 6, from = [0, 0], size: bloomSize = FLOOR_LOOK.size, rest = FLOOR_LOOK.rest, own = FLOOR_LOOK.own, hop: hops = false } = {}) {
   const groundAt = heightAt ?? world.heightAt ?? world.forest?.heightAt ?? (() => 0);
   if (!(count > 0) || !(radius > 0)) throw new TypeError(`A glow floor needs flowers and room: ${count} in ${radius} m`);
   const random = seeded(seed);
@@ -188,6 +202,8 @@ export function createGlowFloor(world, { count = FLOOR.count, radius = FLOOR.rad
     uRest: { value: rest },
     uOwn: { value: own },
     uSteps: { value: Array.from({ length: FLOOR_LOOK.steps }, () => new THREE.Vector4(0, 0, 1, 0)) },
+    uStepAge: { value: new Array(FLOOR_LOOK.steps).fill(0) },
+    uHop: { value: new THREE.Vector2(hops ? FLOOR_LOOK.hop.height : 0, FLOOR_LOOK.hop.length) },
     uFriends: { value: Array.from({ length: FLOOR_LOOK.friends }, () => new THREE.Vector4(0, 0, 0, 0)) },
     uHues: { value: Array.from({ length: FLOOR_LOOK.friends }, () => new THREE.Color(1, 1, 1)) },
     uMix: { value: 0 },
@@ -210,6 +226,7 @@ export function createGlowFloor(world, { count = FLOOR.count, radius = FLOOR.rad
         const st = steps[k];
         if (st) v.set(st[0], st[1], Math.max(0.05, st[2]), Math.max(0, st[3]));
         else v.set(0, 0, 1, 0);
+        uniforms.uStepAge.value[k] = Math.max(0, st?.[4] ?? 0);
       });
     }
     if (friends !== undefined) {
@@ -241,10 +258,22 @@ export function createGlowFloor(world, { count = FLOOR.count, radius = FLOOR.rad
     const d = Math.hypot(x - uniforms.uFrom.value.x, z - uniforms.uFrom.value.y);
     const open = Math.min(1, Math.max(0, (uniforms.uOpen.value - d) / uniforms.uBand.value));
     let steps = 0;
-    for (const st of uniforms.uSteps.value) steps += st.w * (1 - smooth(0.5 * st.z, st.z, Math.hypot(x - st.x, z - st.y)));
+    let best = 0, hop = 0, turn = 0;
+    uniforms.uSteps.value.forEach((st, k) => {
+      const under = 1 - smooth(0.5 * st.z, st.z, Math.hypot(x - st.x, z - st.y));
+      steps += st.w * under;
+      if (uniforms.uHop.value.x > 0 && st.w > 0 && under > best) {
+        best = under;
+        const u = Math.min(1, Math.max(0, uniforms.uStepAge.value[k] / uniforms.uHop.value.y));
+        hop = u >= 1 ? 0 : under * Math.sin(Math.PI * u);
+        turn = Math.PI * 2 * u * u * (3 - 2 * u);
+      }
+    });
+    hop *= open * uniforms.uHop.value.x;
+    turn *= open;
     const light = (uniforms.uPulse.value + steps) * (FLOOR_LOOK.bud + (1 - FLOOR_LOOK.bud) * open);
     const { hue, tint } = hueAt(x, z);
-    return { at: [x, y, z], open, light, hue: `#${hue.getHexString()}`, tint: `#${tint.getHexString()}` };
+    return { at: [x, y, z], open, light, hue: `#${hue.getHexString()}`, tint: `#${tint.getHexString()}`, hop, turn };
   }
 
   return {
