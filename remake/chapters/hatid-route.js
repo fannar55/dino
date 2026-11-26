@@ -339,7 +339,8 @@ export const SHOTS = {
     solo_gramedla: shot(fp(-6, 11, 1.6), fp(-16, 17, 3), 50),
     // Task 16, the tricks' own moments: Kambeðla's back from her right, her plates and the lizards on it
     trick_kambedla: shot(fp(5.5, 7.5, 3.4), fp(12, 4.6, 2.6), 44),
-    // Uggeðla from in front, low: the fifth fish coming over her head into her jaws
+    // Uggeðla's catch as the picture: her head a third of the frame from her right front at its height, the fifth fish coming in
+    // from the sea behind her, then across her jaws (fix 1: from low in front she was cut and the fish a blob at her lips)
     trick_uggedla: shot(fp(-6, -7.5, 6.6), fp(-11.2, -2.9, 5.9), 24),
     // Þórseðla's head up in the lights and the berries raining past it, from below on her left
     trick_thorsedla: shot(fp(13, 6, 1.6), fp(20.5, 18, 10), 52),
@@ -349,11 +350,10 @@ export const SHOTS = {
     trick_flugedla: shot(fp(8, 31, 1.5), fp(14, 24, 15), 50),
     // Slóeðla's head and crest from her right front (from her side the lens stood 3 m from Flugeðla, drawn whole out of the frame)
     trick_sloedla: shot(fp(5, 23, 3.4), fp(0, 27.5, 3.9), 42),
-    // Grameðla's roar at the end of her three prints, which run toward the lens: from the floor's front left, low, 20 m off,
-    // Uggeðla (by the third print) on the lens's right, out of it (from the floor's middle her tail filled half the first stills;
-    // from 7 m her roaring head was cut; looking down from her front left, and from the front, her tail and legs again:
-    // .tools/hatid-16/gramsearch.mjs)
-    trick_gramedla: shot(fp(-18, -4, 2.5), fp(-22, 10, 1.5), 46),
+    // Grameðla's roar at the end of her three prints, which run toward the lens: high on her right, looking down along them so each
+    // shows its heel and three toes, and the moon (low over the rim behind her) is out over the frame's top (fix 1: from low it sat
+    // behind her head and the prints were ovals); Uggeðla at the right edge
+    trick_gramedla: shot(fp(-28, -4, 7.3), fp(-21, 10, 1.2), 46),
     // the moon alone over the sea of cloud, from behind the stage, everyone behind the lens (Task 6: from the floor its long lens drew
     // Mosi, Uggeðla and Þórseðla at full detail, 309k triangles, over the budget)
     moon_close: shot(fp(0, 41, 1.4), toSky(fp(0, 41, 1.4), { azimuth: 45, elevation: 7 }), 28),
@@ -437,6 +437,8 @@ const TALL = {
   stars_wide: starsShot(0.625),
   // upright: the same lens, tighter, so her wings are a quarter of the frame or more
   trick_flugedla: shot(fp(8, 31, 1.5), fp(14, 24, 15.5), 42),
+  // (fix 1) upright: her and her three prints without the empty floor under them
+  trick_gramedla: shot(fp(-28, -4, 7.3), fp(-20.5, 10, 0.4), 36),
 };
 /** The upright frame of shot `name`, where one is needed (else null: the wide frame holds upright too). */
 export function tallShot(name) {

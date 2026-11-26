@@ -651,7 +651,9 @@ test('in the quiet part the fireflies gather and rise to the seventh star\'s pla
   const c = stageWorld();
   const stage = createStage(c);
   stage.update(FIREFLY_QUIET.at.rise + 10);
-  assert.deepEqual(c.world.scene.children.map(o => o.name).sort(), ['Stage floor', 'Stage beams', 'Stage lights', 'Stage rings', 'Stage stones'].sort());
+  // (Task 16 fix 1: and Grameðla's prints' light, hidden while no print is lit)
+  assert.deepEqual(c.world.scene.children.map(o => o.name).sort(), ['Stage floor', 'Stage beams', 'Stage lights', 'Stage prints', 'Stage rings', 'Stage stones'].sort());
+  assert.equal(c.world.scene.getObjectByName('Stage prints').visible, false);
   assert.ok(stage.state().counts.fireflies > 0);
   stage.dispose();
 });

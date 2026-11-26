@@ -410,11 +410,109 @@ const NECK_AXIS = (() => {
 const FLY = rgbOf(FIREFLIES.colour);
 /** (Task 16) Flugeðla's wake: every `every`th firefly, `behind` beats behind her on her lap, scattered `spread` m. */
 export const FIREFLY_WAKE = { every: 3, behind: [0.2, 1.6], spread: 1.6 };
-/** (Task 16) Grameðla's giant prints in the floor: each disc of a print a ring in her hue, and a step for the flowers under it. */
-export const PRINT_LIGHT = { ring: 0.9, step: 1.2, up: 0.4 }; // (up 0.07 and 0.18: the floor's rise cut the discs in the stills)
+/** (Task 16) Grameðla's giant prints in the floor: each a foot of light in her hue (FOOT), and a step for the flowers under it. */
+export const PRINT_LIGHT = { ring: 0.9, step: 1.2, up: 0.4, fill: 0.85, rim: 1.4 }; // (up 0.07 and 0.18: the floor's rise cut the discs in the stills)
+// (fix 1) A giant three-toed print, in the print's own size (1 = PRINTS.size m), its heel's middle at 0 and its toes along +x: a heel
+// pad, then three toes apart from it and from each other, the middle one longest, each a capsule thinning to a round tip.
+export const FOOT = { heel: [0.38, 0.32], toes: [[-32, 0.52, 1.3, 0.17, 0.11], [0, 0.54, 1.5, 0.18, 0.12], [32, 0.52, 1.3, 0.17, 0.11]], rim: 0.05, reach: [-0.5, 1.7, 0.95] };
 const THOR = rgbOf(hueOf('thorsedla'));
 const GRAM = rgbOf(hueOf('gramedla'));
-const PRINTS_STEP_RADIUS = 3.2; // m: a step's pool round a giant print (its discs are 4.2 m long)
+const PRINTS_STEP_RADIUS = 3.2; // m: a step's pool round a giant print's heel
+// (fix 1) The prints' light: a flat square a print, its fragment drawing FOOT (a signed distance: the pads filled, their edge bright),
+// added to the picture as the rings are; one draw call, drawn only while a print is lit.
+const FOOT_VERTEX = /* glsl */`
+attribute vec3 aCentre;
+attribute vec3 aFoot; // cos, sin of its heading, its size (m)
+attribute vec4 aColour;
+varying vec2 vAt;
+varying vec4 vColour;
+uniform vec3 uReach; // back, front, side (in sizes)
+void main() {
+  vec2 local = vec2(mix(uReach.x, uReach.y, position.x * 0.5 + 0.5), position.z * uReach.z);
+  vAt = local;
+  vColour = aColour;
+  vec2 along = vec2(aFoot.x, aFoot.y), across = vec2(-aFoot.y, aFoot.x);
+  vec2 xz = (along * local.x + across * local.y) * aFoot.z;
+  gl_Position = projectionMatrix * viewMatrix * vec4(aCentre + vec3(xz.x, 0.0, xz.y), 1.0);
+}`;
+const FOOT_FRAGMENT = /* glsl */`
+varying vec2 vAt;
+varying vec4 vColour;
+uniform vec2 uHeel;
+uniform vec4 uToes[3]; // angle (rad), from, to, base radius
+uniform float uTips[3];
+uniform float uRim, uFill, uGlow;
+float capsule(vec2 p, vec2 a, vec2 b, float ra, float rb) {
+  vec2 pa = p - a, ba = b - a;
+  float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+  return length(pa - ba * h) - mix(ra, rb, h);
+}
+void main() {
+  vec2 q = vAt / uHeel;
+  float d = (length(q) - 1.0) * min(uHeel.x, uHeel.y);
+  for (int i = 0; i < 3; i++) {
+    vec2 dir = vec2(cos(uToes[i].x), sin(uToes[i].x));
+    d = min(d, capsule(vAt, dir * uToes[i].y, dir * uToes[i].z, uToes[i].w, uTips[i]));
+  }
+  float fill = 1.0 - smoothstep(-uRim * 0.5, uRim * 0.5, d);
+  float rim = exp(-(d / uRim) * (d / uRim));
+  float light = (uFill * fill + uGlow * rim) * vColour.a;
+  if (light < 0.004) discard;
+  gl_FragColor = vec4(vColour.rgb * light, 0.0);
+}`;
+function createPrintLight(world, capacity = 3) {
+  const square = new THREE.BufferGeometry();
+  square.setAttribute('position', new THREE.Float32BufferAttribute([-1, 0, -1, -1, 0, 1, 1, 0, 1, 1, 0, -1], 3));
+  square.setIndex([0, 1, 2, 0, 2, 3]);
+  const geometry = new THREE.InstancedBufferGeometry();
+  geometry.index = square.index;
+  geometry.setAttribute('position', square.getAttribute('position'));
+  const arrays = { aCentre: new Float32Array(capacity * 3), aFoot: new Float32Array(capacity * 3), aColour: new Float32Array(capacity * 4) };
+  const attributes = Object.entries(arrays).map(([key, array]) => {
+    const a = new THREE.InstancedBufferAttribute(array, key === 'aColour' ? 4 : 3);
+    a.setUsage(THREE.DynamicDrawUsage);
+    geometry.setAttribute(key, a);
+    return a;
+  });
+  geometry.instanceCount = 0;
+  const material = new THREE.ShaderMaterial({
+    vertexShader: FOOT_VERTEX, fragmentShader: FOOT_FRAGMENT, transparent: true, depthWrite: false, fog: false, toneMapped: false, side: THREE.DoubleSide,
+    blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
+    uniforms: {
+      uReach: { value: new THREE.Vector3(...FOOT.reach) },
+      uHeel: { value: new THREE.Vector2(...FOOT.heel) },
+      uToes: { value: FOOT.toes.map(([a, from, to, r]) => new THREE.Vector4(a * Math.PI / 180, from, to, r)) },
+      uTips: { value: FOOT.toes.map(t => t[4]) },
+      uRim: { value: FOOT.rim }, uFill: { value: PRINT_LIGHT.fill }, uGlow: { value: PRINT_LIGHT.rim },
+    },
+  });
+  material.name = 'Stage prints';
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = 'Stage prints';
+  mesh.frustumCulled = false;
+  mesh.castShadow = false;
+  mesh.receiveShadow = false;
+  mesh.renderOrder = 5;
+  mesh.visible = false;
+  world.scene?.add(mesh);
+  let count = 0;
+  return {
+    mesh,
+    begin() { count = 0; },
+    /** A print: its heel's middle, its heading (degrees, as the stands'), its size (m), colour (sRGB) and level. */
+    foot(x, y, z, heading, size, r, g, b, level) {
+      if (count >= capacity || !(level > 0.004)) return;
+      const a = heading * Math.PI / 180;
+      arrays.aCentre.set([x, y, z], count * 3);
+      arrays.aFoot.set([Math.cos(a), Math.sin(a), size], count * 3);
+      arrays.aColour.set([r, g, b, Math.min(1, level)], count * 4);
+      count++;
+    },
+    end() { for (const a of attributes) a.needsUpdate = true; geometry.instanceCount = count; mesh.visible = count > 0; },
+    get count() { return count; },
+    dispose() { mesh.removeFromParent(); geometry.dispose(); square.dispose(); material.dispose(); },
+  };
+}
 export function firefliesAt(beat, i, out = {}, o = {}) {
   const heightAt = groundOf(o);
   const s = i % FIREFLIES.swarms;
@@ -716,6 +814,7 @@ export function createStage(c) {
   const beams = createBeams(world, { capacity: 1 + SPOT_FROM.length, name: 'Stage beams' });
   const points = createLightPoints(world, { capacity: BUDGET.lights, name: 'Stage lights' });
   const rings = createRings(world, { capacity: RINGS.capacity, name: 'Stage rings' });
+  const feet = createPrintLight(world); // (fix 1) Grameðla's giant prints
   const dusk = createDusk(world);
   const flies = reduced ? FIREFLIES.count / 2 : FIREFLIES.count;
   const matrix = new THREE.Matrix4(), quaternion = new THREE.Quaternion(), position = new THREE.Vector3(), scale = new THREE.Vector3();
@@ -786,10 +885,13 @@ export function createStage(c) {
     }
     const floorRgb = rgbOf(f.colour);
     for (const [x, z, radius, level] of f.steps) rings.disc(x, heightAt(x, z) + 0.06, z, radius * 0.75, ...floorRgb, level * RINGS.step);
+    feet.begin();
     for (const p of band?.prints ?? []) {
       if (!(p.level > 0.003)) continue;
-      for (const [x, z, r] of p.discs) rings.disc(x, heightAt(x, z) + PRINT_LIGHT.up, z, r, ...GRAM, p.level * PRINT_LIGHT.ring);
+      const [x, z] = p.at;
+      feet.foot(x, heightAt(x, z) + PRINT_LIGHT.up, z, p.heading, p.size, ...GRAM, p.level * PRINT_LIGHT.ring);
     }
+    feet.end();
     rings.end();
     beams.end();
     // the light points: the spotlights' swarms, the strings, the fireflies
@@ -866,6 +968,7 @@ export function createStage(c) {
       beams.dispose();
       points.dispose();
       rings.dispose();
+      feet.dispose();
     },
   };
 }

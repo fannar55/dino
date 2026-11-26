@@ -376,14 +376,15 @@ function berriesOf(b, ground) {
 }
 
 // Grameðla's giant prints: her three giant stomps (landing on the stomp cues at b 2, 4 and 6) each send a giant print of her foot onto
-// the floor ahead of her (left, right, left, `ahead` m out, a heel and three toes each `size` across), lit as it lands and lit until
-// her solo's end.
-export const PRINTS = { at: [2, 4, 6], ahead: [6.5, 10.5, 14.5], side: 1.6, size: 4.2, giant: 1.35, roar: [6.4, 11.4] };
+// the floor ahead of her (left, right, left, `ahead` m out to its heel, `side` m off her line), lit as it lands and lit until her
+// solo's end. A print is `size` m from its heel's middle to its middle toe's tip less its pads (the stage draws the foot: a heel pad
+// and three long toes splayed apart, hatid-stage.js FOOT); fix 1: 4.2 m of four soft discs read as blobs, so bigger and apart.
+export const PRINTS = { at: [2, 4, 6], ahead: [4.5, 9.8, 15.1], line: 2.2, side: 1.7, size: 2.9, giant: 1.35, roar: [6.4, 11.4] };
 function printsOf(b) {
   const h = STANDS.gramedla.heading;
   return PRINTS.at.map((land, k) => {
-    const side = k % 2 ? 1 : -1;
-    const [x, z] = onStand('gramedla', PRINTS.ahead[k], side * PRINTS.side);
+    const side = k % 2 ? -1 : 1; // right, left, right: the feet that stamp them (fix 1: the third on the left lay under Uggeðla)
+    const [x, z] = onStand('gramedla', PRINTS.ahead[k], PRINTS.line + side * PRINTS.side); // (fix 1: `line` m to her right, off Uggeðla's tail)
     const level = b >= land ? smooth((b - land) / 0.12) * (0.75 + 0.25 * Math.exp(-3 * (b - land))) * (1 - smooth((b - 11.2) / 0.8)) : 0;
     // a heel and three toes (as a Grameðla's three-toed foot), facing her way
     const discs = [[0, 0, 0.42], [0.62, -0.32, 0.22], [0.75, 0, 0.24], [0.62, 0.32, 0.22]].map(([a, r, s]) => {
@@ -391,7 +392,7 @@ function printsOf(b) {
       const ax = a * PRINTS.size, rx = r * PRINTS.size;
       return [x + fx * ax - fz * rx, z + fz * ax + fx * rx, s * PRINTS.size];
     });
-    return { at: [x, z], level, discs, age: b - land };
+    return { at: [x, z], heading: h, size: PRINTS.size, level, discs, age: b - land };
   });
 }
 
