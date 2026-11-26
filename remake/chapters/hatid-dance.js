@@ -487,6 +487,7 @@ function lay(rig, pose) {
  *                     the dance's; take(who, null) gives her back. Her clip is then the taker's to set too (fn may play its own).
  *   layer(fn)         fn(who, beat, out) after the dance's pose of each, before it is laid (the band's parts, Task 16)
  *   state()           { beat, move, weight, poses: { who: { lift, spin, dip, feet } } }
+ *   setOn(on)         the dance off (her clip alone) or on again, for the benches' pairs
  *   dispose()         the overlays off, her bones and plates back, the drawings held still again
  */
 export function createDance(c, { reduced = Boolean(c.reduced) } = {}) {
@@ -556,7 +557,9 @@ export function createDance(c, { reduced = Boolean(c.reduced) } = {}) {
     return w;
   }
 
+  let on = true;
   function update(beat) {
+    if (!on) { for (const who of who8) { clipFor(who, beat); clear(poses.get(who)); } now = { beat, move: null, weight: 0 }; return; }
     const m = moveAt(beat);
     for (const who of who8) {
       const actor = c[who].raw;
@@ -653,6 +656,8 @@ export function createDance(c, { reduced = Boolean(c.reduced) } = {}) {
     places: () => Object.fromEntries(who8.map(who => [who, [...c.stands.party[who].at]])),
     take(who, fn) { if (fn) takers.set(who, fn); else { takers.delete(who); held.delete(who); } },
     layer(fn) { layers.push(fn); return () => { const i = layers.indexOf(fn); if (i >= 0) layers.splice(i, 1); }; },
+    /** The dance off (everyone in her clip alone, a still drawing) or on again: the benches' pairs. */
+    setOn(value) { on = Boolean(value); },
     state() {
       return {
         beat: now?.beat ?? null, move: now?.move ?? null, weight: now?.weight ?? 0,
