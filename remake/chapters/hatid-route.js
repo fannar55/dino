@@ -457,6 +457,9 @@ const TALL = {
   dance_egill_b: shot(fp(5.8, -13.1, 0.6), fp(-1, -9.4, 2.1), 25),
   // upright: the same place, looking higher and tighter (at its own lens the bottom two fifths were empty floor and the bursts small)
   chorus_sky: shot(fp(0, -40, 3), toSky(fp(0, -40, 3), { azimuth: 40, elevation: 32 }), 44),
+  // (Task 17) upright: the quiet part's one shot, tighter on the drawings and the moon (at its own lens the six were small over half
+  // a frame of dark floor, 31 s long)
+  sky_dance: shot(fp(0, -30, 1.2), toSky(fp(0, -30, 1.2), { azimuth: 38, elevation: 24 }), 46),
 };
 /** The upright frame of shot `name`, where one is needed (else null: the wide frame holds upright too). */
 export function tallShot(name) {
@@ -493,6 +496,15 @@ export function tallShot(name) {
  * 6.98, sky_dance 6.44, party_high 6.40) and 3.7-4.4 in the other run and a third: the laptop's spread, no lever applied. What chunk
  * 6 has left in party_wide: about 1.2 ms, 53 calls and 18k triangles wide, 1.5 ms, 53 calls and 43k triangles upright; party_high
  * still 9k triangles wide; and 8 light points.
+ * Task 17 measured it with all of chunk 6 (the dance, the band and its solos, the finale's sky: shooting stars, northern lights), the
+ * median of three runs (qa/remake/hatid/butur6/bench17-*.txt, .tools/hatid-17/bench.mjs, the shot cut to by hand at 76.5 as before),
+ * against the laptop's drift (chunk 4's stars_wide, 4.38 wide and 4.13 upright then, 4.58 and 4.19 by the median of six runs that
+ * day): party_wide 5.39 ms wide (5.10 less the drift), 4.66 upright, 50 calls, 238k and 213k triangles. Every shot of CAMERA at its
+ * busiest beat, three runs a size (six for the four that read over in the first three): all under 6 ms by the median less the drift
+ * but trick_gramedla wide (6.45 over nine runs, 6.25 less the drift: Task 16's carried); the busiest of the chorus, party_high,
+ * 5.82 wide, 243k triangles. Lever 3 tried on trick_gramedla only (14 guests: 4.26 / 5.13 in three runs, against 6.12 / 6.19 at 23
+ * in three runs between them; 18 guests: 5.77 / 6.55) and not applied: 14 takes away the lizards Kambeðla's trick rides on and the
+ * grazers; the controller's to decide.
  */
 export const BUDGET = {
   shot: 'party_wide',
@@ -506,8 +518,8 @@ export const BUDGET = {
   wide: ['party_wide', 'party_high', 'final_pose'],
   limits: { gpuMs: 6, drawCalls: 100, triangles: 250000 },
   measured: {
-    '1280x800': { gpuMs: 4.74, drawCalls: 47, triangles: 231415 },
-    '800x1280': { gpuMs: 4.44, drawCalls: 47, triangles: 206711 },
+    '1280x800': { gpuMs: 5.39, drawCalls: 50, triangles: 238029 },
+    '800x1280': { gpuMs: 4.66, drawCalls: 50, triangles: 213325 },
   },
 };
 
