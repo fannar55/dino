@@ -68,8 +68,8 @@ function onStand(who, ahead, right = 0) {
   return [at[0] + fx * ahead - fz * right, at[1] + fz * ahead + fx * right];
 }
 const bearing = (from, to) => Math.atan2(to[1] - from[1], to[0] - from[0]) / deg;
-/** How far she plays: 0 a beat before her entry, 1 on it (Grameðla's first stomp lands on her entry). */
-const playing = (who, beat) => (ENTRY[who] === undefined ? 1 : smooth(beat - ENTRY[who] + 1)) * (beat < END_BEAT ? 1 : 0);
+/** How far she plays: 0 a beat before her entry, 1 on it (Grameðla's first stomp lands on her entry), 0 again by the song's end. */
+const playing = (who, beat) => (ENTRY[who] === undefined ? 1 : smooth(beat - ENTRY[who] + 1)) * (1 - smooth(beat - (END_BEAT - 1))); // out over the last beat
 
 // ---------------------------------------------------------------------------------------------
 // The parts (spec 6): Grameðla the bass drum, Kambeðla the light show, Uggeðla's tail beats time and her sail changes hue a bar,
