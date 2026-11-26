@@ -25,8 +25,20 @@
 //   figur    a try's drawings instead of the game's (DRAWINGS below)
 //   lens     show=tungl: close (default: the moon large), party_wide or moon_peek; show=merki&friend=all: stars_wide (default) or
 //            party_wide. With party_wide everyone stands where the party has them, else where the dark has them
+//
+//   ?chapter=hatid-himinn&lens=party_wide&tol=golf&opid=15&t=2
+//
+//   tol      the stage's tools (Task 13), still, with show=merki: golf (the floor of glow flowers, world/props/glow-floor.js, open
+//            to `opid` m, default all, at `puls`, default 0.7, in `litur`, a light under each friend's feet), keilur (ten cones of
+//            light, engine/show/beams.js, from over the stage down onto the floor in the friends' colours), haf (the sea of cloud
+//            glowing in `litur`, default ff4fd8, a light of `litur2`, default 3fd0ff, in it 110 m out where the lens looks, and
+//            `garur` ripples, default 2, 0 to 4, out from the middle), allt (all three); several with commas. With tol, lens may be
+//            any of the top's shots (lens=sea_ring sees the sea over the rim)
+//   opid, puls, litur, litur2, garur   as above (colours as six hex digits, no #)
 import { createTop } from '../world/fjall/index.js';
-import { FRIENDS8, MODELS, LENGTH, SHOTS, SKY, STAR_TAP, standsOf, tallShot, floorPoint } from './hatid-route.js';
+import { FRIENDS8, MODELS, LENGTH, SHOTS, SKY, STAR_TAP, STAGE, FLOOR, standsOf, tallShot, floorPoint } from './hatid-route.js';
+import { createGlowFloor, FLOOR_LOOK } from '../world/props/glow-floor.js';
+import { createBeams } from '../engine/show/beams.js';
 import { HATID_LOOKS } from './hatid-looks.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
 import { lightTo } from '../engine/light-blend.js';
@@ -82,6 +94,48 @@ function moonShot(world, face, upright) {
   const target = [x + Math.cos(a) * Math.cos(e) * 40, y + Math.sin(e) * 40, z + Math.sin(a) * Math.cos(e) * 40];
   return { position: [x, y, z], target, fov: upright ? 10 : 16, label: `moon_${face}` };
 }
+const TOOLS = new Set((params.get('tol') || '').split(',').flatMap(t => (t === 'allt' ? ['golf', 'keilur', 'haf'] : [t])));
+const hexParam = (key, fallback) => `#${/^[0-9a-f]{6}$/i.test(params.get(key) ?? '') ? params.get(key) : fallback}`;
+/** The stage's tools as tol= asks, still: what Task 14's stage is made of, to be seen and measured alone in the party's shot. */
+function stageTools(world, top, stands, shot) {
+  const made = {};
+  const friendsHere = FRIENDS8.filter(who => stands[who] && !stands[who].on);
+  if (TOOLS.has('golf')) {
+    const floor = createGlowFloor(world, { heightAt: top.heightAt, keep: [{ at: STAGE.centre, r: STAGE.radius + 1.5 }] });
+    const open = params.has('opid') ? Number(params.get('opid')) : FLOOR.radius + 2 * FLOOR_LOOK.band;
+    const pulse = params.has('puls') ? Number(params.get('puls')) : 0.7;
+    floor.set({ open, pulse, colour: hexParam('litur', 'ff5fd2'), steps: friendsHere.map(who => [...stands[who].at, 2.5, 1]) });
+    made.floor = floor;
+  }
+  if (TOOLS.has('keilur')) {
+    const beams = createBeams(world);
+    const rgb = hex => { const n = parseInt(hex.slice(1), 16); return [(n >> 16) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
+    const hues = [...FRIENDS.map(f => f.colour), '#ffe9a8', '#ffffff', '#ff8ad8', '#8ae0ff'];
+    const lands = [...friendsHere.map(who => stands[who].at), floorPoint(-8, 6), floorPoint(8, 6), floorPoint(0, -4), floorPoint(0, 22)];
+    beams.begin();
+    for (let k = 0; k < 10; k++) {
+      const [sx, sz] = floorPoint(-22 + (44 * k) / 9, 40);
+      const [lx, lz] = lands[k % lands.length];
+      beams.beam([sx, 18, sz], [lx, top.heightAt(lx, lz), lz], 3, ...rgb(hues[k % hues.length]), 0.8);
+    }
+    beams.end();
+    made.beams = beams;
+  }
+  if (TOOLS.has('haf')) {
+    top.sea.setGlow(0.9, hexParam('litur', 'ff4fd8'));
+    // the second colour: a light in the sea 110 m out from the lens, where it looks
+    const [px, , pz] = shot.position, [tx, , tz] = shot.target;
+    const look = Math.hypot(tx - px, tz - pz) || 1;
+    const spotAt = [px + ((tx - px) / look) * 110, pz + ((tz - pz) / look) * 110];
+    top.sea.light(2, { at: spotAt, radius: 60, colour: hexParam('litur2', '3fd0ff') });
+    const count = Math.min(4, Math.max(0, params.has('garur') ? Number(params.get('garur')) : 2));
+    const list = Array.from({ length: count }, (_, k) => ({ from: [0, 0], front: 70 + 55 * k, strength: 2.5 }));
+    top.sea.ripples(list);
+    made.ripples = list;
+  }
+  return made;
+}
+
 const SIX = FRIENDS.map(f => f.key);
 const HUE = Object.fromEntries(FRIENDS.map(f => [f.key, f.colour]));
 
@@ -144,7 +198,7 @@ export const chapter = {
   *script(s) {
     const world = s.actor('mosi').raw.world;
     const top = world.forest;
-    lightTo(world, HATID_LOOKS.dark);
+    lightTo(world, TOOLS.size ? HATID_LOOKS.night : HATID_LOOKS.dark); // the tools in the party's own light
     for (const name of ['SunFace', 'SunHandsAndMouth', 'SunNightcap']) {
       const o = world.scene.getObjectByName(name);
       if (o) o.visible = false;
@@ -188,7 +242,8 @@ export const chapter = {
         shot = close.shot;
         placed[FRIEND] = addLarge(sky, FRIEND, actors[FRIEND], close.sky, SPAN);
       } else {
-        const wide = LENS === 'party_wide' ? 'party_wide' : 'stars_wide';
+        // with tol= any of the top's shots (sea_ring: the sea's colours seen over the rim); else party_wide or stars_wide
+        const wide = LENS === 'party_wide' || (TOOLS.size && SHOTS.toppur[LENS]) ? LENS : 'stars_wide';
         shot = { ...((upright && tallShot(wide)) || SHOTS.toppur[wide]), label: wide };
         for (const who of SIX) {
           const at = placeFor(who, shot);
@@ -213,7 +268,8 @@ export const chapter = {
       moon?.update(camera);
       before?.call(this, renderer, scene, camera, target);
     };
-    world.chapterState = { night, sky, moon, placed, actors, show: SHOW, friend: FRIEND, face: FACE, starBone: STAR_BONE };
+    const tools = TOOLS.size ? stageTools(world, top, stands, shot) : {};
+    world.chapterState = { night, sky, moon, placed, actors, show: SHOW, friend: FRIEND, face: FACE, starBone: STAR_BONE, tools };
     yield s.camera.cut(shot, { check: false });
     yield s.ready();
     yield s.fade(0, 0.3);

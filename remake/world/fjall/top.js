@@ -45,8 +45,9 @@ const VEIL = { at: [-27, 37], cards: 6 }; // by the south-west rim, where Grame√
 const WAVE = { speed: 160, width: 70 };
 // The party's ripples (sea.ripples): at most `most` a frame, each a swell `width` m wide unless it says; the crest lights up in the
 // sea's glow, `light` of it for each metre it is lifted
-export const RIPPLE = { most: 4, width: 16, light: 0.35 };
+export const RIPPLE = { most: 4, width: 12, light: 0.5 };
 const GLOW = '#ffb46b'; // the cards' own warm glow (look.js setGlow's)
+const WHITE = new THREE.Color(1, 1, 1);
 
 /** Where each of the six friends stands on the top: [{ friend, at: [x, z], r }] (createTop's top.room). */
 export function topRooms() {
@@ -185,20 +186,18 @@ export function createTop(world, { grey = false, seed = 6, radius = FJALL.top.ra
   // each card's height: its rest, the wave's lift and the ripples' (a card is four vertices)
   const cardCount = centres ? centres.count / 4 : 0;
   const waveLift = new Float32Array(cardCount), rippleLift = new Float32Array(cardCount);
-  const liftAttr = seaCards?.lift;
   function writeHeights() {
     for (let k = 0; k < cardCount; k++) {
       const lift = waveLift[k] + rippleLift[k];
-      for (let i = k * 4; i < k * 4 + 4; i++) {
-        centres.array[i * 3 + 1] = rest[i * 3 + 1] + lift;
-        liftAttr.array[i] = rippleLift[k];
-      }
+      for (let i = k * 4; i < k * 4 + 4; i++) centres.array[i * 3 + 1] = rest[i * 3 + 1] + lift;
     }
     centres.needsUpdate = true;
-    liftAttr.needsUpdate = true;
   }
+  // the ripples' crests take the sea's glow, half way to white (foam on it), RIPPLE.light of it a metre of swell
   const glowNow = { level: 0, colour: GLOW };
-  const rippleLight = () => seaCards?.setLiftLight(glowNow.level * RIPPLE.light, glowNow.colour);
+  let rippling = [];
+  const crest = new THREE.Color();
+  const rippleLight = () => seaCards?.setRipples(rippling, glowNow.level * RIPPLE.light, crest.set(glowNow.colour).lerp(WHITE, 0.5));
   function swell(dt) {
     if (!wave || !centres) return;
     wave.age += dt;
@@ -239,7 +238,8 @@ export function createTop(world, { grey = false, seed = 6, radius = FJALL.top.ra
       ripples(list = []) {
         if (!centres) return;
         rippleLift.fill(0);
-        for (const { from = [0, 0], front = 0, strength = 0, width = RIPPLE.width } of list.slice(0, RIPPLE.most)) {
+        rippling = list.slice(0, RIPPLE.most).map(({ from = [0, 0], front = 0, strength = 0, width = RIPPLE.width }) => ({ from, front, strength, width }));
+        for (const { from, front, strength, width } of rippling) {
           if (!(strength !== 0) || !(width > 0)) continue;
           for (let k = 0; k < cardCount; k++) {
             const along = (Math.hypot(rest[k * 12] - from[0], rest[k * 12 + 2] - from[1]) - front) / width;

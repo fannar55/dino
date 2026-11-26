@@ -10,7 +10,7 @@
 //                                    the game's own plants and rocks (world/forest/species.js), each at its place, merged into two
 //                                    static meshes (their solid and their thin parts) as the forest's batcher bakes them: they sway in
 //                                    the wind, take the sun's shadow and the fog as the forest's do; one draw call each
-//   createCloudCards(world, cards, { name, renderOrder, fogShare }) -> { mesh, cards, setOpacity(v), setGlow(v), setSpot(v, colour, at, radius), setRing(v, colour, at, radius, width), lift, setLiftLight(v, colour), update(), dispose() }
+//   createCloudCards(world, cards, { name, renderOrder, fogShare }) -> { mesh, cards, setOpacity(v), setGlow(v), setSpot(v, colour, at, radius), setRing(v, colour, at, radius, width), setRipples(list, v, colour), update(), dispose() }
 //                                    soft cloud cards in one mesh: upright ones turned to the camera about the vertical (a bank, a
 //                                    wisp) and flat ones lying level (the sea of cloud, a cloud's underside), white and lit by the
 //                                    scene's own sun and sky each frame (update), the light through them toward the sun; nothing of
@@ -124,11 +124,9 @@ attribute vec3 aCentre;
 attribute vec2 aCorner;
 attribute vec4 aCard; // x: width (m), y: height (m), z: opacity, w: seed
 attribute vec2 aKind; // x: 1 flat (lying level), 0 upright (turned to the camera about the vertical); y: a flat card's turn (radians)
-attribute float aLift; // metres a ripple has lifted it (0 as made): it takes uLift's light for each
 uniform float uOpacity;
 varying vec2 vUv;
 varying float vOpacity;
-varying float vLift;
 varying float vSeed;
 varying float vFlat;
 varying vec3 vWorld;
@@ -150,7 +148,6 @@ void main() {
   vOpacity = aCard.z * uOpacity;
   vSeed = aCard.w;
   vFlat = aKind.x;
-  vLift = aLift;
   vec4 mvPosition = viewMatrix * vec4( w, 1.0 );
   gl_Position = projectionMatrix * mvPosition;
   #include <fog_vertex>
@@ -166,13 +163,14 @@ uniform vec3 uSpot;
 uniform vec4 uSpotAt;
 uniform vec3 uRing;
 uniform vec4 uRingAt;
-uniform vec3 uLift;
+uniform vec3 uRipple; // the ripples' crest light (0 none: as made)
+uniform vec4 uRipples[ 4 ]; // x, z, front (m out), width (m)
+uniform vec4 uRippleStrength; // each one's strength (m)
 uniform float uTime;
 uniform float uFogShare;
 uniform sampler2D uNoise;
 varying vec2 vUv;
 varying float vOpacity;
-varying float vLift;
 varying float vSeed;
 varying float vFlat;
 varying vec3 vWorld;
@@ -211,8 +209,15 @@ void main() {
   // a ring of light running out over it (the festival's roar): brightest uRingAt.z metres out from uRingAt.xy, uRingAt.w wide
   float ringK = ( distance( vWorld.xz, uRingAt.xy ) - uRingAt.z ) / uRingAt.w;
   colour += uRing * ( 0.5 + 0.5 * thick ) * exp( -ringK * ringK );
-  // a ripple's crest (the festival's party): a light for each metre a ripple has lifted the card (none as made)
-  colour += uLift * ( 0.5 + 0.5 * thick ) * vLift;
+  // the party's ripples: up to four crests of light running out over it, each as strong as its swell (none as made)
+  if ( uRippleStrength.x + uRippleStrength.y + uRippleStrength.z + uRippleStrength.w > 0.0 ) {
+    float crest = 0.0;
+    for ( int i = 0; i < 4; i++ ) {
+      float k = ( distance( vWorld.xz, uRipples[ i ].xy ) - uRipples[ i ].z ) / uRipples[ i ].w;
+      crest += uRippleStrength[ i ] * exp( -k * k );
+    }
+    colour += uRipple * ( 0.5 + 0.5 * thick ) * crest;
+  }
   // its underside, seen from below: the sky's light and the low sun under it, soft and pale (the ground's brown made it dirty)
   if ( vFlat > 0.5 && cameraPosition.y < vWorld.y ) colour = albedo * RECIPROCAL_PI * ( mix( uGround, uSky, 0.8 ) * 1.3 + uSun * ( 0.45 + 0.25 * fold + through ) );
   gl_FragColor = vec4( colour, a );
@@ -249,8 +254,6 @@ export function createCloudCards(world, cards, { name = 'Cloud cards', renderOrd
   const cardAttr = new THREE.BufferAttribute(data, 4);
   geometry.setAttribute('aCard', cardAttr);
   geometry.setAttribute('aKind', new THREE.BufferAttribute(kinds, 2));
-  const liftAttr = new THREE.BufferAttribute(new Float32Array(count * 4), 1);
-  geometry.setAttribute('aLift', liftAttr);
   geometry.setIndex(index);
   // its bounds: every card's centre and reach (the corners are placed in the shader)
   const box = new THREE.Box3();
@@ -273,7 +276,9 @@ export function createCloudCards(world, cards, { name = 'Cloud cards', renderOrd
     uSpotAt: { value: new THREE.Vector4(0, 0, 0, 1) },
     uRing: { value: new THREE.Color(0, 0, 0) },
     uRingAt: { value: new THREE.Vector4(0, 0, 0, 1) },
-    uLift: { value: new THREE.Color(0, 0, 0) },
+    uRipple: { value: new THREE.Color(0, 0, 0) },
+    uRipples: { value: Array.from({ length: 4 }, () => new THREE.Vector4(0, 0, 0, 1)) },
+    uRippleStrength: { value: new THREE.Vector4(0, 0, 0, 0) },
     uOpacity: { value: 1 },
     uTime: { value: 0 },
     uFogShare: { value: fogShare },
@@ -315,9 +320,16 @@ export function createCloudCards(world, cards, { name = 'Cloud cards', renderOrd
       uniforms.uRing.value.set(colour).multiplyScalar(Math.max(0, v) * 0.6);
       uniforms.uRingAt.value.set(at[0], at[1], Math.max(0, radius), Math.max(0.1, width));
     },
-    /** The light a lifted card takes, for each metre (a ripple's crest; `lift` the per-vertex metres, written by the caller): 0 none, as made. */
-    lift: liftAttr,
-    setLiftLight(v, colour = '#ffffff') { uniforms.uLift.value.set(colour).multiplyScalar(Math.max(0, v) * 0.6); },
+    /** Up to four crests of light in them ([{ from: [x, z], front, strength, width }]), `v` of `colour` for each metre of strength,
+     * on top of the rest; [] none (as made). Only the light: the cards' heights are their owner's (fjall/top.js sea.ripples). */
+    setRipples(list, v = 1, colour = '#ffffff') {
+      uniforms.uRipple.value.set(colour).multiplyScalar(Math.max(0, v) * 0.6);
+      const strength = uniforms.uRippleStrength.value.set(0, 0, 0, 0);
+      list.slice(0, 4).forEach(({ from = [0, 0], front = 0, strength: s = 0, width = 10 }, i) => {
+        uniforms.uRipples.value[i].set(from[0], from[1], Math.max(0, front), Math.max(0.1, width));
+        strength.setComponent(i, Math.max(0, s));
+      });
+    },
     /** One card's opacity (k its index), as made times `v`. */
     cardOpacity(k, v) {
       for (let i = 0; i < 4; i++) data[(k * 4 + i) * 4 + 2] = (cards[k].opacity ?? 1) * v;
