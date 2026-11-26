@@ -414,6 +414,7 @@ test('each trick is seen: Kambeðla\'s plates show six hues or more; a fish is i
   // Uggeðla: the fifth fish in her jaws on the solo's ninth beat (the brief's beat 12 of 16), held there, then gulped
   const { startBeat: u0 } = SOLO_OF.uggedla;
   const fish = p.c.band.parts.fish;
+  assert.deepEqual(Object.keys(fish.geometry.morphAttributes), [], 'the fish draw: no morph on an instanced mesh (three cannot draw one without its morph texture)');
   const jawFish = () => {
     const jaw = at(p, 'uggedla', 'Jaw');
     const m = new THREE.Matrix4(), v = new THREE.Vector3();

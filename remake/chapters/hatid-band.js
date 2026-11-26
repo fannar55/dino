@@ -688,7 +688,12 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
   const fishModel = createModel('fish');
   const fishMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.1, emissive: new THREE.Color('#3a5a70'), emissiveIntensity: 0.6 });
   fishMaterial.name = 'band fish';
-  const fish = new THREE.InstancedMesh(fishModel.geometry, fishMaterial, FISH.arcs.length);
+  // the model's swim is a morph (its own Mesh plays it); held still here, without it (an instanced mesh with morphs and no morph
+  // texture breaks three's render: the first stills)
+  const fishGeometry = fishModel.geometry.clone();
+  fishGeometry.morphAttributes = {};
+  fishGeometry.morphTargetsRelative = false;
+  const fish = new THREE.InstancedMesh(fishGeometry, fishMaterial, FISH.arcs.length);
   fish.name = 'Band fish';
   fish.frustumCulled = false;
   fish.castShadow = false;
@@ -908,7 +913,7 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
       sail?.dispose();
       crest?.dispose();
       things.removeFromParent();
-      fish.dispose(); berries.dispose();
+      fish.dispose(); berries.dispose(); fishGeometry.dispose();
       fishMaterial.dispose(); berryMaterial.dispose(); berries.geometry.dispose();
       void effect;
     },
