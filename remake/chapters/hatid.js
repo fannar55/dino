@@ -4,9 +4,9 @@
 // in it), and a seventh star lifts Egill away into the ride back (hatid-ride.js, a stub until the ride is built).
 //
 // Built in stages (the plan's tasks): scenes 1 and 2 are real (the night's light hatid-looks.js HATID_LOOKS, the night sky, the
-// constellations, the six stars and the moon: Task 12), and the party's stage and lights (hatid-stage.js createStage: Task 14); still
-// grey are the seventh star (a pale disc on the sky) and the dance (each friend's idle with a gentle bob on the beat and her `happy`
-// in her solo).
+// constellations, the six stars and the moon: Task 12), the party's stage and lights (hatid-stage.js createStage: Task 14) and the
+// called dance with its groove (hatid-dance.js createDance: Task 15); still grey are the seventh star (a pale disc on the sky), the
+// band's parts and the solos (each friend's `happy` in her solo: Task 16).
 // The structure, the timing and the rules stay when later tasks put the real pictures in.
 //
 // Four scenes (`mark` names them in world.chapterTimeline):
@@ -26,7 +26,7 @@ import {
   FRIENDS8, MODELS, standsOf, arrivalOf, ARRIVALS, SKY, STAR_TAP, SUN_TAP, SHOTS, tallShot, BUDGET, partyPlace,
 } from './hatid-route.js';
 import { createOneTap, createStars, createSkyStars, starTone, TAP_HELP } from './hatid-stars.js';
-import { BEAT, END_BEAT, beatAt, secondsAt, soloAt, pulseAt, CAMERA } from './hatid-score.js';
+import { BEAT, END_BEAT, beatAt, secondsAt, CAMERA } from './hatid-score.js';
 import { SONG } from './hatid-song.js';
 import { gramedlaLife } from './kafli6-gramedla.js';
 import { HEAD_SEAT } from './kafli6-seat.js';
@@ -38,6 +38,7 @@ import { FRIENDS } from '../engine/scene/journal-data.js';
 import { createSeat, ride, floatTo, floatDown } from '../engine/riding.js';
 import { createSong } from '../engine/audio/song.js';
 import { createStage, moonAt } from './hatid-stage.js';
+import { createDance, CALL_LINE } from './hatid-dance.js';
 import { LOOKS } from '../engine/looks.js';
 import { easeLight, lightTo } from '../engine/light-blend.js';
 import { SUN_DISTANCE } from '../engine/sun-face.js';
@@ -66,7 +67,7 @@ export const WORDS = {
   h_egill_fly: 'Mosi, sjáðu! Ég flýg!', h_mosi_where: 'Egill! Hvert ertu að fara?', h_egill_bye: 'Ég veit það ekki! Sjáumst!', h_mosi_find: 'Ég finn þig, Egill!',
 };
 /** Slóeðla's four calls in the dance (SONG.song.calls' moves), said on the call's beat. */
-const CALL_LINES = { up: 'h_sloedla_up', stomp: 'h_sloedla_stomp', spin: 'h_sloedla_spin', hop: 'h_sloedla_hop' };
+const CALL_LINES = CALL_LINE; // hatid-dance.js: Slóeðla's four calls (captions only until chunk 8)
 const LINES = Object.fromEntries(Object.entries(WORDS).map(([id, text]) => [id, { text, audio: id }]));
 
 const EGILL_HEAD = { actor: 'egill', part: 'head' };
@@ -111,7 +112,6 @@ const MOON_HEAPS = [[42, 175, 34, 70], [48, 195, 36, 76], [45, 225, 40, 64]];
 export const TOOT_GAP = 1.2;
 const GATHER = { walk: 7, most: 4, after: 0.6 }; // scene 4: everyone round Egill
 const LIFT = { seconds: 6, up: 9, star: 1 }; // Egill floats `up` m over `seconds`; the seventh star shows this long before
-const BOB = 0.05; // m: the party's bob on the beat (gentle: the owner's calm night, the chunk's ruling 5)
 /** The party alone: the black lifts over `fadeIn` s with the moon's "Tút!", and the song starts `toot` s after it. */
 export const ALONE = { fadeIn: 0.8, toot: 2 };
 /** The tile's second (from its start) of the party's beat `beat`: for `?chapter=veisla&t=`. */
@@ -724,7 +724,7 @@ function* theParty(s, c) {
   c.log({ type: 'party' });
   c.stage = createStage(c); // the stage lights up with the intro and follows the song: its light, the sea, the floor, the lamps
   c.band = greyBand(c);
-  c.dance = greyDance(c);
+  c.dance = createDance(c); // Task 15: the called dance, the groove, the drawings dancing with them, the feet under the floor
   const shadows = noShadows(c, BUDGET.noShadow);
   const frame = () => {
     const beat = beatAt(s.time - start);
@@ -753,6 +753,7 @@ function* theParty(s, c) {
     over = true;
     c.inParty = false;
     shadows.restore();
+    c.dance.dispose();
     c.stage.dispose();
   }
 }
@@ -802,38 +803,10 @@ function noShadows(c, who) {
   };
 }
 
-/** Grey band: nothing of its own yet (Task 15 gives each friend her part). */
+/** Grey band: nothing of its own yet (Task 16 gives each friend her part). */
 function greyBand() {
   return { update() {}, state: () => ({}) };
 }
-/**
- * Grey dance: each friend in her idle with a gentle bob on the beat, and her happy in her solo (Grameðla her roar). The clip's time
- * is set from the beat every frame, so the pose is the beat's, wherever the party was started from.
- */
-function greyDance(c) {
-  const held = new Map(); // who -> { clip, action, from }
-  return {
-    update(beat) {
-      const solo = soloAt(beat);
-      for (const who of FRIENDS8) {
-        const actor = c[who].raw;
-        const mine = solo?.who === who;
-        const clip = mine ? (actor.clips.has('happy') ? 'happy' : 'roar') : 'idle';
-        let state = held.get(who);
-        if (state?.clip !== clip) {
-          const action = actor.play(clip, { fade: 0.3, once: false });
-          state = { clip, action, from: mine ? soloStart(beat) : 0 };
-          held.set(who, state);
-        }
-        const duration = state.action?.getClip().duration ?? 0;
-        if (duration > 0) state.action.time = ((((beat - state.from) * BEAT) % duration) + duration) % duration;
-        const { at } = c.stands.party[who];
-        actor.root.position.y = c.world.heightAt(at[0], at[1]) + BOB * pulseAt(beat);
-      }
-    },
-  };
-}
-const soloStart = beat => SONG.song.solos.find(slot => beat >= slot.startBeat && beat < slot.startBeat + slot.beats)?.startBeat ?? beat;
 
 /**
  * What the tests and probes compare of a party frame: each actor's root and heading and the turn of her Head, Neck and Tail1 bones,
