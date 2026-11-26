@@ -84,7 +84,7 @@ export const HATID_LOOKS = { sunset, red, blue, dark, night };
 // HATID_LOOKS in the party's terms: `night` itself (every share 1), `dark` (its strengths over the night's), and `tint(hex)`: the
 // sun and the sky's fill toward a friend's hue and a little stronger, the footlights (the fill from below), the sky and the haze
 // left as they are, so the friends keep their own colours (chunk 5's ruling 6).
-export const PARTY_TINT = { sun: 1.3, hemi: 1.15, white: 0.35 }; // the tint's strengths (shares) and how far its hue is toward white
+export const PARTY_TINT = { sun: 1.3, hemi: 1.15, white: 0.6 }; // the tint's strengths (shares) and how far its hue is toward white
 function asShare(look, of = night, name = look.name) {
   const share = (a, b) => (Number.isFinite(a) && b > 0 ? a / b : 1);
   return {

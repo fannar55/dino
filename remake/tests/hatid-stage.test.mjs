@@ -404,3 +404,40 @@ test('each stone lights in its friend\'s hue when she comes into the song, and t
   }
   assert.deepEqual(stoneLightsAt(130.3), stoneLightsAt(130.3), 'a function of the beat');
 });
+
+test('a flower takes the hue of the friend nearest it', () => {
+  const w = world();
+  const floor = createGlowFloor(w, { heightAt, keep: KEEP, from: FLOOR_FROM });
+  const versions = Object.values(floor.mesh.geometry.attributes).map(a => a.version);
+  const f = floorAt(100.4);
+  assert.equal(f.friends.length, 8, 'all eight on the top');
+  floor.set(f);
+  const stands = Object.entries(STANDS).map(([who, s]) => ({ who, at: s.at }));
+  const hex = c => `#${c.getHexString()}`;
+  // each one's hue on the floor: hers (FRIEND_HUES' hue), deeper so the petals keep it under the beat's light
+  const theirs = who => f.friends[stands.findIndex(s => s.who === who)][2];
+  const hslOf = h => new THREE.Color(h).getHSL({}, THREE.SRGBColorSpace);
+  for (const { who } of stands) assert.ok(Math.abs(hslOf(theirs(who)).h - hslOf(FRIEND_HUES[who]).h) < 0.01, `${who}'s own hue on the floor`);
+  let clear = 0, border = 0;
+  floor.spots.forEach(([x, , z], i) => {
+    const by = stands.map(s => ({ ...s, d: Math.hypot(x - s.at[0], z - s.at[1]) })).sort((a, b) => a.d - b.d);
+    const { hue, tint } = floor.flower(i);
+    if (by[1].d - by[0].d > f.border) {
+      clear++;
+      assert.equal(hue, theirs(by[0].who), `flower ${i} in ${by[0].who}'s hue`);
+      // the section's hue is a tint over it: the flower is nearer its friend's hue than the section's
+      const t = new THREE.Color(tint), mine = new THREE.Color(theirs(by[0].who)), section = new THREE.Color(f.colour);
+      const far = (a, b) => Math.hypot(a.r - b.r, a.g - b.g, a.b - b.b);
+      if (far(mine, section) > 0.2) assert.ok(far(t, mine) < far(t, section), `flower ${i}: ${hex(t)} nearer ${theirs(by[0].who)} than ${f.colour}`);
+    } else if (by[1].d - by[0].d < 0.2) {
+      border++;
+      assert.notEqual(hue, theirs(by[0].who), `flower ${i} on a border is a blend`);
+    }
+  });
+  assert.ok(clear > 200, `${clear} flowers clear of a border`);
+  assert.ok(border >= 1, 'and some on one, softly');
+  assert.equal(new Set(floor.spots.map((_, i) => floor.flower(i).hue)).size > 8, true, 'more than eight hues: the borders are soft');
+  assert.deepEqual(Object.values(floor.mesh.geometry.attributes).map(a => a.version), versions, 'nothing written a flower at a time');
+  assert.equal((floor.mesh.geometry.index.count / 3) * floor.mesh.geometry.instanceCount < 12000, true);
+  floor.dispose();
+});

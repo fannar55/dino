@@ -56,14 +56,18 @@ const LIGHT_HUE = { saturation: 0.85, lightness: 0.6 };
 const hsl = {};
 // Mosi's and Egill's (who have no constellation, so no colour in the book): Mosi moss green, Egill red; the choir's a white light
 const OTHER_COLOURS = { mosi: '#5fae5a', egill: '#e2574c' };
-const lightHue = colour => {
+const lightHue = (colour, { saturation, lightness } = LIGHT_HUE) => {
   const c = new THREE.Color().setStyle(colour, THREE.SRGBColorSpace);
   c.getHSL(hsl, THREE.SRGBColorSpace);
-  c.setHSL(hsl.h, LIGHT_HUE.saturation, LIGHT_HUE.lightness, THREE.SRGBColorSpace);
+  c.setHSL(hsl.h, saturation, lightness, THREE.SRGBColorSpace);
   return `#${c.getHexString(THREE.SRGBColorSpace)}`;
 };
 const HUES = Object.fromEntries([...FRIENDS, ...Object.entries(OTHER_COLOURS).map(([key, colour]) => ({ key, colour }))].map(({ key, colour }) => [key, lightHue(colour)]));
 HUES.choir = '#f4f0ff';
+// the floor's: the same hues deeper, so a flower's petals keep their colour under the beat's light (at 0.6 lightness they read
+// white near the lens on the beat)
+const FLOOR_HUE = { saturation: 0.95, lightness: 0.48 };
+const FLOOR_HUES = Object.fromEntries([...FRIENDS, ...Object.entries(OTHER_COLOURS).map(([key, colour]) => ({ key, colour }))].map(({ key, colour }) => [key, lightHue(colour, FLOOR_HUE)]));
 /** Each one's hue as the stage's light: the six friends', Mosi's, Egill's and the choir's white (sRGB hex). */
 export const FRIEND_HUES = Object.freeze({ ...HUES });
 const ORDER = FRIENDS.map(f => f.key);
@@ -370,7 +374,11 @@ export function seaAt(beat) {
 // a wave from her feet that has crossed the whole floor a bar later; a common light beating with the pulse in a friend's hue a bar
 // (not the sea's: FLOOR's own turn of the six), and a pool of light under each friend on the floor on every beat (a step, STEP.radius
 // m), bigger under her on each stomp. The blooms are FLOOR_STYLE.size of the glow flower's (Task 13's 1.7 read as specks).
-export const FLOOR_STYLE = { size: 2.6, rest: 0.07, own: 0.1, base: 0.38, beat: 0.6, quiet: 0.35 };
+// Task 14b (the owner's second, "Gólfið í blönduðum litum: hvert blóm í lit vinarins sem er næstur því"): each flower takes the hue
+// of the one of the eight nearest it (`friends`: their places and hues, the glow floor's uniforms), `mix` of it over the section's
+// hue a bar (`colour`, which stays as a tint, so the floor still beats with the song), blended over `border` m where two meet; in a
+// solo the soloist's hue takes more of the floor (`soloMix`).
+export const FLOOR_STYLE = { size: 2.6, rest: 0.07, own: 0.1, base: 0.38, beat: 0.6, quiet: 0.35, mix: 0.65, soloMix: 0.35, border: 3 };
 export const STEP = { radius: 4.5, level: 0.6, stomp: { radius: 6, level: 1.3, fade: 3 }, on: ['mosi', 'egill', 'kambedla', 'uggedla', 'gramedla', 'thorsedla'] };
 const FIRST_STOMP = STOMPS[0];
 const OPEN_MAX = Math.hypot(...FLOOR_FROM) + FLOOR.radius + FLOOR_LOOK.band + 0.5;
@@ -389,7 +397,8 @@ export function floorAt(beat) {
     const last = STOMPS.findLast(b => b <= beat);
     if (last !== undefined && beat - last < 1) steps.push([FLOOR_FROM[0], FLOOR_FROM[1], STEP.stomp.radius, lit * STEP.stomp.level * Math.exp(-STEP.stomp.fade * (beat - last))]);
   }
-  return { open, pulse, colour: hueAt(beat), steps };
+  const friends = Object.entries(STANDS).map(([who, { at }]) => [at[0], at[1], FLOOR_HUES[who]]);
+  return { open, pulse, colour: hueAt(beat), steps, friends, mix: soloAt(beat) ? FLOOR_STYLE.soloMix : FLOOR_STYLE.mix, border: FLOOR_STYLE.border };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -398,7 +407,9 @@ export function floorAt(beat) {
 // of the way back to the dark through the quiet part (over its first and last bar), and a soft lift on a hit, never two starting
 // inside a second. Reduced: no lift.
 export const PARTY_LIGHT = { tint: 0.45, quiet: 2 / 3, lift: 0.7, rise: 0.15, fall: 2.2, lasts: 2.5 };
-const SECTION_HUE = { intro: 'flugedla', dance: 'thorsedla', quiet: 'sloedla', chorus: 'gramedla', chord: 'thorsedla' };
+// (Task 14b: the dance and the last chorus warm toward Flugeðla's pink, not Þórseðla's gold and Grameðla's orange: a yellow light on
+// the green top turned the grass olive on Task 14's stills)
+const SECTION_HUE = { intro: 'flugedla', dance: 'flugedla', quiet: 'sloedla', chorus: 'flugedla', chord: 'thorsedla' };
 const HITS = (() => {
   const kept = [];
   for (const { beat } of cuesIn('hit', -Infinity, Infinity)) if (!kept.length || (beat - kept.at(-1)) * BEAT >= 1) kept.push(beat);

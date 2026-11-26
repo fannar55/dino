@@ -12,7 +12,9 @@ import { FLOOR } from '../../chapters/hatid-route.js';
 //                 (from: where the wave of `open` starts, [0, 0] the middle as made; size: the blooms' size, rest and own: how much of
 //                 their own colours they show under no light and a light of 1 brings; FLOOR_LOOK's as made)
 //   floor.set({ open: 12, pulse: 0.6, colour: '#ff5fd2', steps: [[x, z, radius, level], ...] });
-//   floor.flower(i) -> { at: [x, y, z], open: 0..1, light }   (what the shader draws for flower i: for a test)
+//   floor.set({ friends: [[x, z, '#hex'], ...], mix: 0.7, border: 3 }); (each flower in the hue of the friend nearest it, `mix` of
+//                 it over `colour`, blended over `border` m where two meet; mix 0 as made)
+//   floor.flower(i) -> { at: [x, y, z], open: 0..1, light, hue, tint }   (what the shader draws for flower i: for a test)
 //   floor.spots     -> [[x, y, z], ...]                       (where each stands)
 //   floor.dispose();
 //
@@ -29,6 +31,8 @@ export const FLOOR_LOOK = {
   bud: 0.3, // the share of the light a bud gives
   steps: 16,
   lift: 0.03, // metres over the ground
+  friends: 8, // places whose hues the flowers can take (set's friends: each flower the hue of the nearest)
+  border: 3, // metres over which two friends' hues blend where their parts of the floor meet
 };
 
 const VERT = /* glsl */`
@@ -42,6 +46,12 @@ uniform float uBand;
 uniform float uPulse;
 uniform float uBudShare;
 uniform vec4 uSteps[${FLOOR_LOOK.steps}]; // x, z, radius, level
+uniform vec4 uFriends[${FLOOR_LOOK.friends}]; // x, z, on (1 or 0)
+uniform vec3 uHues[${FLOOR_LOOK.friends}];
+uniform vec3 uColour;
+uniform float uMix; // how much of the nearest friend's hue over uColour (0: uColour alone, as made)
+uniform float uBorder;
+varying vec3 vTint;
 varying vec3 vColour;
 varying float vLight;
 varying float vPart;
@@ -62,6 +72,17 @@ void main() {
     steps += st.w * ( 1.0 - smoothstep( 0.5 * st.z, st.z, distance( aSpot.xz, st.xy ) ) );
   }
   vLight = ( uPulse + steps ) * mix( uBudShare, 1.0, o );
+  // the hue of the nearest friend, blended with the next nearest's over uBorder metres where their parts meet
+  float d1 = 1e9, d2 = 1e9;
+  vec3 h1 = uColour, h2 = uColour;
+  for ( int i = 0; i < ${FLOOR_LOOK.friends}; i++ ) {
+    if ( uFriends[ i ].z < 0.5 ) continue;
+    float d = distance( aSpot.xz, uFriends[ i ].xy );
+    if ( d < d1 ) { d2 = d1; h2 = h1; d1 = d; h1 = uHues[ i ]; }
+    else if ( d < d2 ) { d2 = d; h2 = uHues[ i ]; }
+  }
+  vec3 hue = mix( h2, h1, 0.5 + 0.5 * smoothstep( 0.0, uBorder, d2 - d1 ) );
+  vTint = mix( uColour, hue, uMix );
   vColour = color;
   vPart = aPart;
   vec4 mvPosition = viewMatrix * vec4( w, 1.0 );
@@ -70,7 +91,7 @@ void main() {
 }`;
 
 const FRAG = /* glsl */`
-uniform vec3 uColour;
+varying vec3 vTint; // uColour, or the nearest friend's hue over it (uMix)
 uniform float uRest; // FLOOR_LOOK.rest as made
 uniform float uOwn; // FLOOR_LOOK.own as made
 varying vec3 vColour;
@@ -79,7 +100,7 @@ varying float vPart;
 #include <common>
 #include <fog_pars_fragment>
 void main() {
-  vec3 rgb = vColour * ( uRest + uOwn * vLight ) + uColour * ( vLight * vPart * ${FLOOR_LOOK.tint.toFixed(3)} );
+  vec3 rgb = vColour * ( uRest + uOwn * vLight ) + vTint * ( vLight * vPart * ${FLOOR_LOOK.tint.toFixed(3)} );
   gl_FragColor = vec4( rgb, 1.0 );
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -167,6 +188,10 @@ export function createGlowFloor(world, { count = FLOOR.count, radius = FLOOR.rad
     uRest: { value: rest },
     uOwn: { value: own },
     uSteps: { value: Array.from({ length: FLOOR_LOOK.steps }, () => new THREE.Vector4(0, 0, 1, 0)) },
+    uFriends: { value: Array.from({ length: FLOOR_LOOK.friends }, () => new THREE.Vector4(0, 0, 0, 0)) },
+    uHues: { value: Array.from({ length: FLOOR_LOOK.friends }, () => new THREE.Color(1, 1, 1)) },
+    uMix: { value: 0 },
+    uBorder: { value: FLOOR_LOOK.border },
   };
   const material = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms, vertexColors: true, fog: true, side: THREE.DoubleSide });
   material.name = 'glow floor';
@@ -176,7 +201,7 @@ export function createGlowFloor(world, { count = FLOOR.count, radius = FLOOR.rad
   mesh.receiveShadow = false;
   world.scene?.add(mesh);
 
-  function set({ open, pulse, colour, steps } = {}) {
+  function set({ open, pulse, colour, steps, friends, mix, border } = {}) {
     if (open !== undefined) uniforms.uOpen.value = Math.max(0, open);
     if (pulse !== undefined) uniforms.uPulse.value = Math.max(0, pulse);
     if (colour !== undefined) uniforms.uColour.value.set(colour);
@@ -187,6 +212,27 @@ export function createGlowFloor(world, { count = FLOOR.count, radius = FLOOR.rad
         else v.set(0, 0, 1, 0);
       });
     }
+    if (friends !== undefined) {
+      uniforms.uFriends.value.forEach((v, k) => {
+        const f = friends[k];
+        if (f) { v.set(f[0], f[1], 1, 0); uniforms.uHues.value[k].set(f[2]); } else v.set(0, 0, 0, 0);
+      });
+    }
+    if (mix !== undefined) uniforms.uMix.value = Math.min(1, Math.max(0, mix));
+    if (border !== undefined) uniforms.uBorder.value = Math.max(0.01, border);
+  }
+
+  /** The friends' hue at (x, z) as the shader works it out (THREE.Color, linear), and the tint over it (uColour mixed in). */
+  function hueAt(x, z) {
+    let d1 = Infinity, d2 = Infinity;
+    let h1 = uniforms.uColour.value, h2 = uniforms.uColour.value;
+    uniforms.uFriends.value.forEach((f, k) => {
+      if (f.z < 0.5) return;
+      const d = Math.hypot(x - f.x, z - f.y);
+      if (d < d1) { d2 = d1; h2 = h1; d1 = d; h1 = uniforms.uHues.value[k]; } else if (d < d2) { d2 = d; h2 = uniforms.uHues.value[k]; }
+    });
+    const hue = h2.clone().lerp(h1, 0.5 + 0.5 * smooth(0, uniforms.uBorder.value, d2 - d1));
+    return { hue, tint: uniforms.uColour.value.clone().lerp(hue, uniforms.uMix.value) };
   }
 
   /** What the shader draws for flower `i`: how open it is (0 a bud, 1 open) and its light (the pulse and the pools under it). */
@@ -197,7 +243,8 @@ export function createGlowFloor(world, { count = FLOOR.count, radius = FLOOR.rad
     let steps = 0;
     for (const st of uniforms.uSteps.value) steps += st.w * (1 - smooth(0.5 * st.z, st.z, Math.hypot(x - st.x, z - st.y)));
     const light = (uniforms.uPulse.value + steps) * (FLOOR_LOOK.bud + (1 - FLOOR_LOOK.bud) * open);
-    return { at: [x, y, z], open, light };
+    const { hue, tint } = hueAt(x, z);
+    return { at: [x, y, z], open, light, hue: `#${hue.getHexString()}`, tint: `#${tint.getHexString()}` };
   }
 
   return {
