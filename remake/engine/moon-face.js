@@ -30,7 +30,7 @@ export const MOON_MOUTHS = ['smile', 'grin', 'oh', 'blow'];
 /** The acts' lengths in seconds. */
 export const MOON_ACTS = { peek: 3, toot: 2, fixHat: 1.6, wave: 2.3, tipHat: 2 };
 export const MOON_ROCK_DEG = 8; // how far it rocks either way on a beat
-export const MOON_ASKEW_DEG = 25; // how far the roar knocks its hat
+export const MOON_ASKEW_DEG = 25; // how far the roar knocks its hat: forward, over its brow (a pose's `hat` is degrees knocked forward)
 export const MOON_BLINK = { seconds: 0.2, every: [3, 6] }; // idle blinks, as the sun's: through half shut, every 3 to 6 s
 export const MOON_MOUTH_SECONDS = 1.5; // a smile or an "o" holds this long unless the act says
 export const MOON_BETWEEN = 0.08; // seconds of the little open in-between mouth when the mouth changes ('mid')
@@ -589,7 +589,8 @@ function blowerAt(list, t) {
  *         'tipHat' the hand lifts the hat off its head and puts it back (MOON_ACTS.tipHat s): the ride back's goodbye
  *         'rock'   it sways on the beat (`bpm`, 84 if not given), furthest over on each beat, the hand on its hat, for `seconds`
  *   It blinks by itself every 3 to 6 s (MOON_BLINK). Of acts that overlap, the later one has the mouth, or the hand.
- * Returns { rise, sway, eye, mouth, hand: { kind, u }, hat, blower } as createMoonFace's set takes it.
+ * Returns { rise, sway, eye, mouth, hand: { kind, u }, hat, blower } as createMoonFace's set takes it: rise 0 (under the sea) to 1 (its
+ * place); sway degrees it leans, clockwise; hat degrees its hat is knocked forward over its brow; blower 0 (rolled) to 1 (out).
  */
 export function moonPose(acts = [], time = 0) {
   const list = acts.map((a, i) => {
@@ -639,7 +640,7 @@ function waveHand(s) {
 /** The hat's brim point and angle for a pose (unswayed local): lifted and turned while the hand tips it. */
 function hatFrame(pose) {
   const tip = pose.hand?.kind === 'tip' ? clamp(pose.hand.u, 0, 1) : 0;
-  return { x: HAT_AT[0], y: HAT_AT[1] + TIP.lift * tip, angle: HAT_TILT + (Number(pose.hat) || 0) + TIP.tilt * tip };
+  return { x: HAT_AT[0], y: HAT_AT[1] + TIP.lift * tip, angle: HAT_TILT - (Number(pose.hat) || 0) + TIP.tilt * tip };
 }
 /** A place in the hat's square (from its top left, a side being 1) as unswayed local. */
 function onHat(frame, sx, sy) {

@@ -64,14 +64,15 @@ export const MOON_FACES = {
   hattur_lyft: { acts: [{ kind: 'tipHat', at: 0 }], t: 1.0 },
   kikir: { acts: [{ kind: 'peek', at: 0 }], t: 1.25 },
 };
-/** The moon large: from by the rim behind the stage's place (moon_close's spot), a long lens on it; lower for its peek. */
+/** The moon large: from by the rim behind the stage's place (moon_close's spot), a long lens on it; lower for its peek. Upright the
+ * director keeps the lens's width across, so its fov is narrower there. */
 function moonShot(world, face, upright) {
   const [x, z] = floorPoint(0, 41);
   const y = (world.forest.heightAt?.(x, z) ?? 1.2) + 1.4;
   const elevation = face === 'kikir' ? 1.2 : SKY.moon.elevation + 0.95;
   const a = SKY.moon.azimuth * Math.PI / 180, e = elevation * Math.PI / 180;
   const target = [x + Math.cos(a) * Math.cos(e) * 40, y + Math.sin(e) * 40, z + Math.sin(a) * Math.cos(e) * 40];
-  return { position: [x, y, z], target, fov: upright ? 24 : 16, label: `moon_${face}` };
+  return { position: [x, y, z], target, fov: upright ? 10 : 16, label: `moon_${face}` };
 }
 const SIX = FRIENDS.map(f => f.key);
 const HUE = Object.fromEntries(FRIENDS.map(f => [f.key, f.colour]));

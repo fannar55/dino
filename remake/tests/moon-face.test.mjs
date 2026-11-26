@@ -203,7 +203,8 @@ test('a roar knocks the hat askew and the hand puts it right', () => {
   const straight = hatAngle();
   face.set(moonPose(acts, 2));
   face.update(camera);
-  assert.ok(Math.abs(hatAngle() - straight - MOON_ASKEW_DEG) < 0.6, `the hat turned ${(hatAngle() - straight).toFixed(1)} degrees on the screen`);
+  // knocked forward, over its brow: counter-clockwise, toward the face, which looks to the screen's left
+  assert.ok(Math.abs(hatAngle() - straight + MOON_ASKEW_DEG) < 0.6, `the hat turned ${(hatAngle() - straight).toFixed(1)} degrees on the screen`);
   face.set(holding);
   face.update(camera);
   const R = SUN_DISTANCE * Math.tan(THREE.MathUtils.degToRad(MOON.radiusDeg));
