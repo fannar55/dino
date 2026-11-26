@@ -328,12 +328,26 @@ export const SHOTS = {
     egill_mosi: shot(fp(5, -19, 1.1), fp(0, -10, 1.6), 42),
     sky_dance: shot(fp(0, -30, 1.2), toSky(fp(0, -30, 1.2), { azimuth: 33, elevation: 30 }), 58),
     solo_kambedla: shot(fp(16, -6, 1.2), fp(12, 6, 1.6), 40),
-    solo_uggedla: shot(fp(-1, 2, 1.4), fp(-13, 0.5, 4.2), 38),
-    solo_thorsedla: shot(fp(18, -2, 1.2), fp(21, 22, 6.5), 50),
-    solo_flugedla: shot(fp(10, 16, 1.4), fp(7.6, 29, 2.5), 40),
-    solo_sloedla: shot(fp(-3, 17, 1.4), fp(0, 30, 2.6), 40),
+    // (Task 16: each solo's first shot holds the start of her trick, its second, `trick_<who>` from her solo's seventh beat, the
+    // trick's own moment: hatid-band.js SOLO_TRICKS) the fish leaping over the rim behind her
+    solo_uggedla: shot(fp(-1, 2, 1.4), fp(-13, 0.5, 5), 46),
+    solo_thorsedla: shot(fp(18, -2, 1.2), fp(21, 20, 8), 54),
+    solo_flugedla: shot(fp(10, 14, 1.4), fp(7.6, 29, 4.5), 50),
+    solo_sloedla: shot(fp(-3, 17, 1.4), fp(0, 30, 3.2), 40),
     // (Task 6: from her right, toward the rim: from fp(-14, 4) the lens stood inside Uggeðla)
     solo_gramedla: shot(fp(-7, 13, 1.2), fp(-17, 20, 3.8), 46),
+    // Task 16, the tricks' own moments: Kambeðla's back from her right, her plates and the lizards on it
+    trick_kambedla: shot(fp(5.5, 7.5, 3.4), fp(12, 4.6, 2.6), 44),
+    // Uggeðla from in front, low: the fifth fish coming over her head into her jaws
+    trick_uggedla: shot(fp(-5, -7, 1.6), fp(-13, -1, 6.5), 50),
+    // Þórseðla's head up in the lights and the berries raining past it, from below on her left
+    trick_thorsedla: shot(fp(13, 6, 1.6), fp(20.5, 18, 10), 52),
+    // Flugeðla's lap over the floor and her landing, wide from the front of the floor
+    trick_flugedla: shot(fp(-6, -18, 3.5), fp(4, 16, 9), 58),
+    // Slóeðla's head and crest side on, from her left
+    trick_sloedla: shot(fp(6, 26.5, 3.4), fp(0, 27.5, 3.9), 42),
+    // Grameðla's roar and her three prints running across the floor ahead of her, from the floor's middle side
+    trick_gramedla: shot(fp(-3, 12, 5.5), fp(-17, 12, 2.5), 54),
     // the moon alone over the sea of cloud, from behind the stage, everyone behind the lens (Task 6: from the floor its long lens drew
     // Mosi, Uggeðla and Þórseðla at full detail, 309k triangles, over the budget)
     moon_close: shot(fp(0, 41, 1.4), toSky(fp(0, 41, 1.4), { azimuth: 45, elevation: 7 }), 28),
@@ -389,6 +403,7 @@ export const SHOWS = {
   solo_flugedla: ['flugedla'],
   solo_sloedla: ['sloedla'],
   solo_gramedla: ['gramedla'],
+  ...Object.fromEntries(Object.keys(STAR_ROW).map(f => [`trick_${f}`, [f]])),
   moon_close: [],
   final_pose: FRIENDS8,
   gather: ['egill', 'mosi', 'kambedla', 'sloedla'],
@@ -403,7 +418,7 @@ const SCENES = {
   start: ['top_empty', ...ARRIVALS.flatMap(({ friend }) => [`arrive_${friend}`, ...(friend === 'flugedla' ? [] : [`home_${friend}`])])],
   farewell: ['home_flugedla', 'lineup_sun', 'sun_faces'],
   dark: ['dark_wait', 'first_star', 'roar_up', 'sea_ring', 'stars_wide', 'egill_down'],
-  party: ['moon_peek', 'stage_front', 'party_wide', 'party_high', 'floor_low', 'egill_mosi', 'sky_dance', ...Object.keys(STAR_ROW).map(f => `solo_${f}`), 'moon_close', 'final_pose'],
+  party: ['moon_peek', 'stage_front', 'party_wide', 'party_high', 'floor_low', 'egill_mosi', 'sky_dance', ...Object.keys(STAR_ROW).map(f => `solo_${f}`), ...Object.keys(STAR_ROW).map(f => `trick_${f}`), 'moon_close', 'final_pose'],
   gather: ['gather', 'seventh_sky', 'lift_side', 'mosi_up', 'rise_down'],
 };
 export const SCENE = Object.fromEntries(Object.entries(SCENES).flatMap(([scene, names]) => names.map(name => [name, scene])));

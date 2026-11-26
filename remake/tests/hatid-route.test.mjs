@@ -279,7 +279,7 @@ test('no arrival comes up within 30 degrees of another or of the south-west', ()
 const NAMES = [
   'top_empty', ...ARRIVALS.flatMap(a => [`arrive_${a.friend}`, `home_${a.friend}`]), 'lineup_sun', 'sun_faces', 'dark_wait', 'first_star', 'roar_up', 'sea_ring',
   'stars_wide', 'egill_down', 'moon_peek', 'stage_front', 'party_wide', 'party_high', 'floor_low', 'egill_mosi', 'sky_dance',
-  ...FRIENDS.map(f => `solo_${f.key}`), 'moon_close', 'final_pose', 'gather', 'seventh_sky', 'lift_side', 'mosi_up', 'rise_down',
+  ...FRIENDS.map(f => `solo_${f.key}`), ...FRIENDS.map(f => `trick_${f.key}`), 'moon_close', 'final_pose', 'gather', 'seventh_sky', 'lift_side', 'mosi_up', 'rise_down',
 ];
 // what of the sky each shot must hold
 const SKY_SHOTS = { lineup_sun: [SKY.sun], sun_faces: [SKY.sun], first_star: [SKY.first], moon_peek: [SKY.moon], moon_close: [SKY.moon], seventh_sky: [SKY.seventh], sky_dance: FRIENDS.map(f => SKY.stars[f.key]) };

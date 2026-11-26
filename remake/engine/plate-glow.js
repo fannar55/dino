@@ -31,6 +31,8 @@ const VERTEX_HEAD = `attribute float ${ATTRIBUTE};
 flat varying float vPlateRow;
 `;
 const FRAGMENT_HEAD = `uniform float uRowLevel[ ${MAX_ROWS} ];
+uniform vec3 uRowGlow[ ${MAX_ROWS} ];
+uniform float uRowOwn[ ${MAX_ROWS} ];
 uniform vec3 uPlateGlow;
 uniform float uPlateDull;
 uniform float uPlatePulse;
@@ -44,6 +46,9 @@ const FRAGMENT_PLATES = `
 		float plateGrey = ${GREY.toFixed(2)} * dot( diffuseColor.rgb, vec3( 0.2126, 0.7152, 0.0722 ) );
 		diffuseColor.rgb = mix( diffuseColor.rgb, vec3( plateGrey ), uPlateDull * ( 1.0 - plateLevel ) );
 		totalEmissiveRadiance += uPlateGlow * plateLevel * uPlatePulse;
+		// a row's own colour (setRowColour; 0 of it unless set): the glow moves from uPlateGlow toward it
+		int plateRow = int( clamp( vPlateRow + 0.5, 1.0, ${MAX_ROWS}.0 ) ) - 1;
+		totalEmissiveRadiance += ( uRowGlow[ plateRow ] - uPlateGlow ) * plateLevel * uPlatePulse * uRowOwn[ plateRow ];
 	}
 `;
 
@@ -123,6 +128,8 @@ export function addPlateGlow(actor, { colour = '#ab85c1', dull = 0.85 } = {}) {
   let pulseSwing = PULSE_SWING;
   const uniforms = {
     uRowLevel: { value: levels },
+    uRowGlow: { value: Array.from({ length: MAX_ROWS }, () => new THREE.Color(colour)) },
+    uRowOwn: { value: new Float32Array(MAX_ROWS) },
     uPlateGlow: { value: new THREE.Color(colour) },
     uPlateDull: { value: unit('dullness', dull) },
     uPlatePulse: { value: PULSE_BASE },
@@ -166,6 +173,16 @@ export function addPlateGlow(actor, { colour = '#ab85c1', dull = 0.85 } = {}) {
     setRow(index, level, { duration = DURATION } = {}) {
       if (!Number.isInteger(index) || index < 0 || index >= rows) throw new RangeError(`${actor.name} has plate rows 0 to ${rows - 1}, not ${String(index)}`);
       return move([[index, unit('level', level)]], seconds(duration), `${actor.name} plate row ${index + 1}`);
+    },
+    /**
+     * Row `index`'s glow in a colour of its own (a hex or THREE colour, in sRGB as the glow's own), or back to the glow's colour
+     * (null). Added for the festival's band (hatid-band.js: Kambeðla's plates in every hue, a row at a time); unset rows are as before.
+     */
+    setRowColour(index, colour = null) {
+      if (!Number.isInteger(index) || index < 0 || index >= rows) throw new RangeError(`${actor.name} has plate rows 0 to ${rows - 1}, not ${String(index)}`);
+      if (colour === null) { uniforms.uRowOwn.value[index] = 0; return; }
+      uniforms.uRowGlow.value[index].set(colour);
+      uniforms.uRowOwn.value[index] = 1;
     },
     /** Ease every row to `level` together. */
     setAll(level, { duration = DURATION } = {}) {

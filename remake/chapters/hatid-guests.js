@@ -250,9 +250,15 @@ export function createGuests(world, { top, models, budget = 23, ways = {} }) {
   }
 
   let disposed = false;
+  let rider = null;
   return {
     ready,
     counts,
+    /**
+     * (Task 16) `fn(group, k, time)` -> { at: [x, y, z], heading, pitch?, roll?, scale? } or null for each member, each frame: where the
+     * band has her (Kambeðla's four lizards on her back) in place of her seat; null as the fn's answer leaves her as she was. ride(null) ends it.
+     */
+    ride(fn) { rider = typeof fn === 'function' ? fn : null; },
     set(group, phase, u = 0) {
       if (!groups[group]) return;
       groups[group].phase = phase;
@@ -269,6 +275,17 @@ export function createGuests(world, { top, models, budget = 23, ways = {} }) {
       crowds.begin(camera ?? null);
       for (const m of members) {
         place(m);
+        const ridden = rider?.(m.group, m.k, time) ?? null; // (Task 16) the band moves some of them: Kambeðla's lizards
+        if (ridden) {
+          m.at.set(...ridden.at);
+          m.heading = ridden.heading;
+          m.shown = true;
+          const pose = poseOf(m, time);
+          pose.pitch = ridden.pitch ?? 0;
+          if (ridden.roll) pose.roll = ridden.roll;
+          crowds.place(m.kind, m.at, m.heading, ridden.scale ?? m.scale, pose);
+          continue;
+        }
         if (!m.shown) continue;
         crowds.place(m.kind, m.at, m.heading, m.scale, poseOf(m, time));
       }

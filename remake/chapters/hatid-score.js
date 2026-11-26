@@ -86,7 +86,8 @@ export const cuesIn = (kind, from, to) => song.cues.filter(cue => cue.kind === k
 // to each friend as she enters (the choir, the song's own voices, has none), everyone wide on the first beat of the dance and of the
 // last chorus, each friend close on her solo's first beat, the sky in the quiet part, and everyone's last pose on the chord. No shot
 // holds longer than four bars.
-const SOLO_CUTS = song.solos.map(({ who, startBeat }) => ({ beat: startBeat, cut: `solo_${who}` }));
+// (Task 16) each solo's first shot on its first beat, its trick's own (`trick_<who>`, hatid-band.js SOLO_TRICKS) on its seventh
+const SOLO_CUTS = song.solos.flatMap(({ who, startBeat }) => [{ beat: startBeat, cut: `solo_${who}` }, { beat: startBeat + 6, cut: `trick_${who}` }]);
 const ENTRY_CUTS = song.entries.filter(e => e.who !== 'choir' && e.beat > 0).map(({ who, beat }) => ({ beat, cut: `solo_${who}` }));
 const at = id => song.sections.find(part => part.id === id).startBeat;
 export const CAMERA = [

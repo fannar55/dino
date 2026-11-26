@@ -100,6 +100,8 @@ function clear(out) {
   out.feet.R = 0;
   out.glow = null;
   out.reach = 0; // (Egill's up) his arms this much longer than they are: a cheat for the look, eased with the move
+  out.offset = null; // (Task 16, a solo's taker) [x, z] m her body is moved in her root's frame: Flugeðla's lap
+  out.sky = null; // (Task 16, a solo's taker) { rise, turn } for her drawing in place of the dance's own
   return out;
 }
 /** Add [pitch, roll, yaw] degrees, times k, to a bone of the pose. */
@@ -430,6 +432,7 @@ function lay(rig, pose) {
   const cs = Math.cos(a), sn = Math.sin(a);
   model.rotation.set(0, a, 0);
   model.position.set(c.x - (cs * c.x + sn * c.z), pose.lift, c.z - (-sn * c.x + cs * c.z));
+  if (pose.offset) { model.position.x += pose.offset[0]; model.position.z += pose.offset[1]; } // (Task 16) her lap
   root.updateMatrixWorld(true);
   model.getWorldQuaternion(qm);
   const front = v1.copy(FRONT).applyQuaternion(qm);
@@ -613,7 +616,8 @@ export function createDance(c, { reduced = Boolean(c.reduced) } = {}) {
         try {
           // Flugeðla's drawing is her flier: held in its traced pose (it folds on her standing bones), it hops with her and twirls in
           // the sky's plane as she spins (a turn of the flier in depth squeezed it to a knot: the first stills)
-          if (who === 'flugedla') figures.follow(who, { live: 0, rise, turn: pose.spin });
+          if (pose.sky) figures.follow(who, { live: who === 'flugedla' ? 0 : live, rise: pose.sky.rise ?? 0, turn: pose.sky.turn ?? 0 }); // (Task 16) a solo's own
+          else if (who === 'flugedla') figures.follow(who, { live: 0, rise, turn: pose.spin });
           else figures.follow(who, { live, rise });
         } catch { /* not in the sky */ }
       }
