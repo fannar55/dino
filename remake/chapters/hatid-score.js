@@ -139,5 +139,5 @@ export const CAMERA = [
   ...CHORUS_BLOCK(324, 'dance_egill_b', 'dance_egill', [[20, 'party_high']]), // hop
   // the chord: Egill's end pose close, then everyone wide as the lights die
   { beat: at('chord'), cut: 'dance_egill_b' },
-  { beat: at('chord') + 8, cut: 'final_pose', then: { push: 3, beats: 8 } },
+  { beat: at('chord') + 8, cut: 'final_pose' }, // (Task 17 fix 1: still; its 3 m push brought Mosi to full detail, about 258k triangles)
 ].sort((a, b) => a.beat - b.beat);
