@@ -298,7 +298,7 @@ export function lapAt(b, { reduced = false } = {}) {
 // she catches `held` m, longer than her snout, held side on to the lens with its tail flapping `flap` times a beat; 2 m was a pale
 // blob at her lips)
 export const FISH = {
-  length: 4.5, held: 3.4, flap: 2, sea: -6, rim: 58, arcs: [[0.5, 2.5, 10, -9], [1.8, 3.8, 12, 7], [3.1, 5.1, 13, -5], [4.4, 6.4, 14, 3], [6.2, 9, 2.5, 8]],
+  length: 4.5, held: 3.4, flap: 2, sea: -6, rim: 58, arcs: [[0.5, 2.5, 24, -42], [1.8, 3.8, 28, -30], [3.1, 5.1, 30, -38], [4.4, 6.4, 32, -34], [6.2, 9, 2.5, 8]],
   span: 7, catch: 9, gulp: 11.3, hold: [5, 4.85, 0],
 };
 const UGG_DIR = Math.atan2(STANDS.uggedla.at[1], STANDS.uggedla.at[0]) / deg;
