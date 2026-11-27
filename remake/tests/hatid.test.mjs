@@ -743,7 +743,7 @@ test('the moon peeks, smiles and blows, and the song starts 1.2 s after', async 
     assert.ok(moon.filter(f => f.time < acts[0].at - 1e-6).every(f => f.rise === 0), `${what}: under the cloud before it peeks`);
     assert.ok(moon.find(f => f.time >= acts[2].at - 1e-6)?.rise === 1, `${what}: up when it blows`);
     assert.ok(moon.some(f => f.mouth === 'blow' && f.time >= acts[2].at), `${what}: it blows`);
-    const blower = run.soundLog.find(e => e.name === 'blower');
+    const blower = run.soundLog.find(e => e.name === 'partyBlower');
     assert.ok(blower && Math.abs(blower.at - acts[2].at) <= FRAME + 1e-6, `${what}: the blower sounds as it blows`);
     const [song] = logOf(run, 'party');
     assert.ok(Math.abs(song.at - acts[2].at - TOOT_GAP) <= FRAME + 1e-6, `${what}: the song ${(song.at - acts[2].at).toFixed(2)} s after the toot`);

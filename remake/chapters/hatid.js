@@ -411,7 +411,7 @@ function* theStars(s, c) {
   moonAct(s, c, 'smile', { seconds: MOON.smile });
   yield s.wait(MOON.smile);
   toTheParty(c);
-  toot(s, c, 'blower');
+  toot(s, c, 'partyBlower'); // the recording (assets/audio/hatid/CREDITS.md); the made blower stands in until it has decoded
   yield s.wait(TOOT_GAP);
   // the party opens on this shot: the shadows come back with its first cut away from it (the moon's shot with them is 264k)
   s.after(0, function* shadowsBack() {
