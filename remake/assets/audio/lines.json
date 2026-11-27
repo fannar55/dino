@@ -6498,5 +6498,130 @@
   "src": "assets/audio/book/book_myndband_krakkar_93.mp3",
   "duration": 1.69,
   "mouth": "04fa020bfdced5dc936400000000000000"
+ },
+ "h_egill_where": {
+  "src": "assets/audio/hatid/h_egill_where.mp3",
+  "duration": 1.77,
+  "mouth": "000fffc303cfed7ccb900030000000000000"
+ },
+ "h_mosi_wait": {
+  "src": "assets/audio/hatid/h_mosi_wait.mp3",
+  "duration": 2.49,
+  "mouth": "7ae800e8dfdc950000000000008ee27bffffda300000000000"
+ },
+ "h_flugedla_forest": {
+  "src": "assets/audio/hatid/h_flugedla_forest.mp3",
+  "duration": 2.57,
+  "mouth": "5fd0008eb300adefecfcdb707eeeeccfcdcbdaca500000000000"
+ },
+ "h_kambedla_light": {
+  "src": "assets/audio/hatid/h_kambedla_light.mp3",
+  "duration": 2.01,
+  "mouth": "07ceb00007cefffcabbdc90000300000000000000"
+ },
+ "h_uggedla_river": {
+  "src": "assets/audio/hatid/h_uggedla_river.mp3",
+  "duration": 2.25,
+  "mouth": "5fe0009e8048fffec759ac7edbfda6300000000000000"
+ },
+ "h_thorsedla_late": {
+  "src": "assets/audio/hatid/h_thorsedla_late.mp3",
+  "duration": 1.93,
+  "mouth": "009fdeeeeb000005cffa0a40dd8400000000000"
+ },
+ "h_sloedla_song": {
+  "src": "assets/audio/hatid/h_sloedla_song.mp3",
+  "duration": 1.61,
+  "mouth": "08eeffeba8ed8998b7030000000000000"
+ },
+ "h_mosi_sleep": {
+  "src": "assets/audio/hatid/h_mosi_sleep.mp3",
+  "duration": 3.77,
+  "mouth": "047eecbeeefece70eeceeb359efeaa780000000009ff90befdfffdca4008eda7000000000000"
+ },
+ "h_mosi_wave": {
+  "src": "assets/audio/hatid/h_mosi_wave.mp3",
+  "duration": 2.01,
+  "mouth": "4adfc40afcfffeedb60000beddd04000000000000"
+ },
+ "h_mosi_goodnight": {
+  "src": "assets/audio/hatid/h_mosi_goodnight.mp3",
+  "duration": 1.85,
+  "mouth": "8ffdaeeffe75000000006deed900000000000"
+ },
+ "h_mosi_first": {
+  "src": "assets/audio/hatid/h_mosi_first.mp3",
+  "duration": 3.05,
+  "mouth": "cffdd806dcc9deeacca0007e00b9200aa6500ac609fe70bba770000000000"
+ },
+ "h_thorsedla_there": {
+  "src": "assets/audio/hatid/h_thorsedla_there.mp3",
+  "duration": 2.17,
+  "mouth": "00aec600c640000000cf9000fffd8b84000000000000"
+ },
+ "h_mosi_now": {
+  "src": "assets/audio/hatid/h_mosi_now.mp3",
+  "duration": 1.77,
+  "mouth": "8feeeeffeb700009fedeb803000000000000"
+ },
+ "h_mosi_light": {
+  "src": "assets/audio/hatid/h_mosi_light.mp3",
+  "duration": 2.17,
+  "mouth": "44ef8060bdefffdbffc800000cfecc74000000000000"
+ },
+ "h_mosi_summer": {
+  "src": "assets/audio/hatid/h_mosi_summer.mp3",
+  "duration": 4.73,
+  "mouth": "00ee5400cd6409fe907ed8755dfeffe909b5000000000000000cfeeffccecdebea400effc0eeeed8388300000000000"
+ },
+ "h_sloedla_up": {
+  "src": "assets/audio/hatid/h_sloedla_up.mp3",
+  "duration": 1.61,
+  "mouth": "008ffb00ec7fe00000000000000000000"
+ },
+ "h_sloedla_stomp": {
+  "src": "assets/audio/hatid/h_sloedla_stomp.mp3",
+  "duration": 1.37,
+  "mouth": "00002f70000fc700000000000000"
+ },
+ "h_sloedla_spin": {
+  "src": "assets/audio/hatid/h_sloedla_spin.mp3",
+  "duration": 1.37,
+  "mouth": "00000dffec760000000000000000"
+ },
+ "h_sloedla_hop": {
+  "src": "assets/audio/hatid/h_sloedla_hop.mp3",
+  "duration": 1.21,
+  "mouth": "00f60000f9300000000000000"
+ },
+ "h_mosi_thanks": {
+  "src": "assets/audio/hatid/h_mosi_thanks.mp3",
+  "duration": 4.01,
+  "mouth": "3cfeb5070000dfec95000000000000ee09fefa0000ed00000ee00ffffddddebcffec8530000000000"
+ },
+ "h_thorsedla_more": {
+  "src": "assets/audio/hatid/h_thorsedla_more.mp3",
+  "duration": 2.97,
+  "mouth": "0c9000eeeed8000000000006e00bfefd9bffefd9fd003200000000000000"
+ },
+ "h_egill_fly": {
+  "src": "assets/audio/hatid/h_egill_fly.mp3",
+  "duration": 2.97,
+  "mouth": "08ffb0035000000000ffed50873000000afa0007c6500360000000000000"
+ },
+ "h_mosi_where": {
+  "src": "assets/audio/hatid/h_mosi_where.mp3",
+  "duration": 2.65,
+  "mouth": "aefeee9203000000000020cd400d607ed600fdfca950000000000"
+ },
+ "h_egill_bye": {
+  "src": "assets/audio/hatid/h_egill_bye.mp3",
+  "duration": 2.73,
+  "mouth": "00df500aef50003fda80003000000000000ffeb9400000000000000"
+ },
+ "h_mosi_find": {
+  "src": "assets/audio/hatid/h_mosi_find.mp3",
+  "duration": 2.01,
+  "mouth": "9ff80008fddd00cec000000ffdba3000000000000"
  }
 }

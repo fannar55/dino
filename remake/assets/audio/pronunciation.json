@@ -3756,6 +3756,97 @@
         }
       },
       "chosen": null
+    },
+    "stjornunni": {
+      "word": "stjörnunni",
+      "stem": "[Ss]tjörnunni$",
+      "forms": [
+        "stjörnunni"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (Stjörnuhátíðin, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "sumarsins": {
+      "word": "sumarsins",
+      "stem": "[Ss]umarsins$",
+      "forms": [
+        "sumarsins"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (Stjörnuhátíðin, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "gledilega": {
+      "word": "Gleðilega",
+      "stem": "[Gg]leðilega$",
+      "forms": [
+        "Gleðilega"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (Stjörnuhátíðin, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "vinkadu": {
+      "word": "Vinkaðu",
+      "stem": "[Vv]inkaðu$",
+      "forms": [
+        "Vinkaðu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (Stjörnuhátíðin, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "flyg": {
+      "word": "flýg",
+      "stem": "flýg$",
+      "forms": [
+        "flýg"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (Stjörnuhátíðin, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "kveiktu": {
+      "word": "Kveiktu",
+      "stem": "[Kk]veiktu$",
+      "forms": [
+        "Kveiktu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (Stjörnuhátíðin, óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "vidbot": {
+      "word": "viðbót",
+      "stem": "viðbót$",
+      "forms": [
+        "viðbót"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (Stjörnuhátíðin, óheyrt)."
+        }
+      },
+      "chosen": null
     }
   },
   "lines": {
