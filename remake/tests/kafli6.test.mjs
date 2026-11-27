@@ -918,7 +918,7 @@ test('a save that ended chapter 5 loses nothing: its stars, places and finds are
   assert.deepEqual(places, PLACES);
   assert.deepEqual(findings, FINDS);
   for (const id of SEEN) assert.ok(seen.includes(id), `${id} is still seen`);
-  assert.equal(defaultChapter(run.save), 'kafli6');
+  assert.equal(defaultChapter(run.save), 'hatid', 'and the next visit opens the festival');
 });
 
 test('scene 1 at both shapes of screen: each shot shows whom it is for, Flugeðla until she flies out of it', async () => {

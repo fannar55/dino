@@ -196,7 +196,7 @@ body:has(#book.child-open) .caption { display: none; }
 /* The seventh slot (journal.js, after the festival): no friend's, empty, its outline in the unknown star's hue blinking slowly (a
    blink every 2.4 s, far under twice a second); steady with reduced motion. */
 .star-slot.unknown { border-style: dashed; animation: star-slot-unknown 2.4s ease-in-out infinite; }
-.star-slot.unknown path { stroke: var(--hue); opacity: .8; }
+.star-slot.unknown path { stroke: color-mix(in srgb, var(--hue) 50%, var(--ink)); opacity: .75; } /* the lime alone is faint on the paper */
 @keyframes star-slot-unknown { 0%, 100% { border-color: var(--hue); } 50% { border-color: rgb(200 255 94 / .25); } }
 @media (prefers-reduced-motion: reduce) { .star-slot.unknown { animation: none; } }
 .journal-badge { /* a new animal is in the book: a twinkle on the button until the book is opened */
