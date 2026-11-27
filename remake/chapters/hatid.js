@@ -748,8 +748,7 @@ function* theParty(s, c) {
       breathing = breath > 0;
     }
   };
-  const levers = (c.levers ??= shotLevers(c));
-  const frame = () => {
+  const levers = (c.levers ??= shotLevers(c));  const frame = () => {
     const beat = beatAt(s.time - start);
     c.partyBeat = beat;
     levers();
@@ -848,14 +847,25 @@ function shotLevers(c) {
 
 /**
  * The tablet's budget in the party (hatid-route.js BUDGET, measured in Task 6): `who` cast no sun shadow while it lasts (their skins'
- * userData.noShadow: engine/character-lod.js keeps their shadow casters out of the sun's pass), and cast again after.
+ * userData.noShadow: engine/character-lod.js keeps their shadow casters out of the sun's pass), and cast again after. (Task 17b) The
+ * holds count: a skin casts again only when every hold on it is given back (scene 2's hold on all eight ends at the party's first
+ * cut, after the party's own on its four began; the four kept casting through the party before).
  */
 function noShadows(c, who) {
   const skins = [];
   for (const name of who) c[name].raw.model.traverse(o => { if (o.isSkinnedMesh && !o.name.endsWith(' shadow')) skins.push(o); });
-  for (const skin of skins) skin.userData.noShadow = true;
+  for (const skin of skins) skin.userData.noShadow = (Number(skin.userData.noShadow) || 0) + 1;
+  let held = true;
   return {
-    restore() { for (const skin of skins) delete skin.userData.noShadow; },
+    restore() {
+      if (!held) return;
+      held = false;
+      for (const skin of skins) {
+        const left = (Number(skin.userData.noShadow) || 0) - 1;
+        if (left > 0) skin.userData.noShadow = left;
+        else delete skin.userData.noShadow;
+      }
+    },
   };
 }
 
@@ -1256,6 +1266,7 @@ function guestsOf(s, c) {
   return {
     counts: core.counts,
     set: (group, phase, u) => core.set(group, phase, u),
+    phaseOf: group => core.phaseOf(group), // (Task 17b) for a shot's hideGuests lever (shotLevers), which asked for it and found none
     setHide: place => core.setHide(place),
     where: () => core.where(),
     come(which, seconds) {
@@ -1386,13 +1397,20 @@ export const party = {
       asParty(s, c);
       yield cut(s, c, 'moon_peek'); // (Task 17b) by its label, so its lever (BUDGET.shots) holds from the first frame
       (c.levers ??= shotLevers(c))();
+      // (Task 17b) and the party's own far four (BUDGET.noShadow) cast none from here, not from its first beat: the peek over the
+      // toot is in the tablet's budget too (262k triangles wide with them)
+      let far = noShadows(c, BUDGET.noShadow);
       yield s.ready(); // the tap on the tile, or on the play button; immediate in captures
       for (;;) {
         mark(c, 'moon');
         s.fade(0, ALONE.fadeIn);
         toot(s, c);
         yield s.wait(ALONE.toot);
-        yield* theParty(s, c);
+        try {
+          yield* theParty(s, c);
+        } finally {
+          far.restore();
+        }
         mark(c, 'end');
         let again = false;
         const card = endCard(doc, { onAgain: () => { again = true; }, onQuit: () => { c.song.stop(0.1); leaveShow(globalThis.window); } });
@@ -1407,6 +1425,7 @@ export const party = {
         asParty(s, c);
         yield cut(s, c, 'moon_peek');
         c.levers();
+        far = noShadows(c, BUDGET.noShadow);
       }
     } finally {
       close();

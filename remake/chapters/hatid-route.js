@@ -569,9 +569,12 @@ export const BUDGET = {
   // `hideGuests` groups of guests not drawn (only ones neither in the frame nor missed)
   shots: {
     final_pose: { noShadow: ['uggedla', 'thorsedla'] },
-    // (Task 17b closing round) the party opens on it: Mosi far at the back and Egill out of sight cast no shadow while it holds
-    // (the party alone had 284k triangles at beat 1 with them; the chapter's own way there has every shadow off on it already)
-    moon_peek: { noShadow: ['mosi', 'egill'] },
+    // (Task 17b closing round) the party opens on it: nobody casts a shadow while it holds, as on the chapter's own way there (scene
+    // 2 has every shadow off until the first cut away from it). The party alone had 284k triangles at beat 1 wide: Uggeðla's and
+    // Þórseðla's shadows, the two in the sun's shadow box (Mosi far and Egill out of sight drew none into it); and the six flyers on
+    // their rocks, all out of its frame to the left at both sizes, and the five frogs at its left edge, behind Uggeðla's body at both
+    // sizes, not drawn while it holds (the stage's stones coming up over the toot took it to 250.7k without them)
+    moon_peek: { noShadow: ['uggedla', 'thorsedla', 'mosi', 'egill'], hideGuests: ['flyers', 'frogs'] },
   },
   measured: {
     '1280x800': { gpuMs: 5.39, drawCalls: 50, triangles: 238029 },
