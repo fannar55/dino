@@ -21,6 +21,7 @@ const MAX_SOUNDS = 48; // sources sounding at once: a child tapping fast cannot 
 // it to a side: { pan: -0.6 }. Chapter 4's (assets/audio/kafli4/CREDITS.md, the owner's picks of 2026-11-02) have takes (`urls`):
 // one of them each time, not the one played last; until they have decoded, the made sound `instead` plays in their place.
 const kafli4 = file => new URL(`../../assets/audio/kafli4/hljod/${file}`, import.meta.url).href;
+const hatid = file => new URL(`../../assets/audio/hatid/hljod/${file}`, import.meta.url).href;
 // Chapter 6's recordings, by sample name: its files in assets/audio/kafli6/hljod/, once the owner has picked them by ear and
 // tools/kafli6-sounds.mjs has mastered them (it prints the entries to put here). A name not here has no url, so nothing is fetched for
 // it (a missing file would be a failed request in the page's log) and its made sound `instead` plays every time.
@@ -44,6 +45,12 @@ export const SAMPLES = {
   flyers: { urls: ['flyer-1.mp3', 'flyer-2.mp3'].map(kafli4), level: 0.4 },
   // a beat of Flugeðla's wings (the flight's wing-1..3, engine/audio/flight-sounds.js): the festival's party plays it in her solo
   wingbeat: { urls: ['wing-1.mp3', 'wing-2.mp3', 'wing-3.mp3'].map(kafli4), level: 0.5, instead: 'blow' },
+  // The festival's recordings (assets/audio/hatid/CREDITS.md, tools/hatid-sounds.mjs; the owner's "Já, sækja" and "Veldu fyrir
+  // mig" of 2026-11-27): a party blower, fireworks far off, and a small crowd clapping (whole, and a short one after a solo)
+  partyBlower: { url: hatid('blower.mp3'), level: 0.8, instead: 'blower' },
+  fireworkFar: { urls: ['firework-1.mp3', 'firework-2.mp3'].map(hatid), level: 0.8 },
+  applause: { url: hatid('applause.mp3'), level: 0.7 },
+  applauseShort: { url: hatid('applause-short.mp3'), level: 0.7 },
   // Chapter 6's (assets/audio/kafli6/CREDITS.md): her footfall, "Grameðla kemur!"'s recording, played at her distance (a play's
   // detail.cutoff puts it through a low-pass: far off, duller); and six that wait for the owner's picks (KAFLI6_PICKED below).
   gramedlaThump: { url: new URL('../../assets/audio/gramedla3d/hljod/thump.mp3', import.meta.url).href, level: 1, instead: 'step' },

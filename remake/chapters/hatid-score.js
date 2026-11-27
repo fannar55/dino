@@ -87,6 +87,7 @@ export const cuesIn = (kind, from, to) => song.cues.filter(cue => cue.kind === k
 // down over 9.3 to 10.8 (LAP), and her trick's shot opens on beat 7 (TRICK_CUT), high over the floor.
 const SOLO_START = Object.fromEntries(song.solos.map(slot => [slot.who, slot.startBeat]));
 const GIANT = [2, 4, 6];
+const CHORD = song.sections.find(part => part.id === 'chord').startBeat; // the last chord's first beat
 export const PARTY_SOUNDS = [
   // Grameðla: her drum foot in her solo (a thump on each of its stomps, the giant three louder), her solo's roar, and her roar on
   // each of the last chorus's roar cues
@@ -101,6 +102,16 @@ export const PARTY_SOUNDS = [
   ...[0, 1, 2].map(b => ({ beat: SOLO_START.flugedla + b, sample: 'wingbeat', level: 0.5, who: 'flugedla', what: 'her wings as she takes off' })),
   { beat: SOLO_START.flugedla + 7, sample: 'flyers', level: 0.5, who: 'flugedla', what: 'her glad cry at the top of her lap' },
   ...[9.5, 10.5].map(b => ({ beat: SOLO_START.flugedla + b, sample: 'wingbeat', level: 0.4, who: 'flugedla', what: 'her wings as she lands' })),
+  // The recordings the owner allowed and left the pick of to the controller (2026-11-27; assets/audio/hatid/CREDITS.md): a small
+  // clap as each solo ends, fireworks far off under the last chorus's bursts of light (with her roar), and as the last chord rings
+  // the forest claps, its animals call and a party blower sounds
+  ...song.solos.map(({ who, startBeat }) => ({ beat: startBeat + 10.5, sample: 'applauseShort', level: 0.35, who: 'guests', what: `a small clap as ${who}'s solo ends` })),
+  ...cuesIn('burst', 0, Infinity).map(({ beat }) => ({ beat, sample: 'fireworkFar', level: 0.5, who: 'sky', what: 'fireworks far off with the burst of light' })),
+  { beat: CHORD + 2, sample: 'applause', level: 0.6, who: 'guests', what: 'the forest claps as the last chord rings' },
+  { beat: CHORD + 2.5, sample: 'grazers', level: 0.4, who: 'guests', what: 'the herd calls with the clapping' },
+  { beat: CHORD + 3.5, sample: 'lizards', level: 0.4, who: 'guests', what: 'the small ones call with the clapping' },
+  { beat: CHORD + 4, sample: 'partyBlower', level: 0.6, who: 'moon', what: 'a party blower as the song ends' },
+  { beat: CHORD + 5, sample: 'flyers', level: 0.4, who: 'guests', what: 'the flyers call with the clapping' },
 ].sort((a, b) => a.beat - b.beat);
 
 // The party's camera (spec 6, "eins og tónleikamyndband": wide shots of everyone, closes in the solos, cut on the beat), by the song's

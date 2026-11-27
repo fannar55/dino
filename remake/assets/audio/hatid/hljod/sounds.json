@@ -1,0 +1,65 @@
+{
+  "about": "Stjörnuhátíðin: recordings (tools/hatid-sounds.mjs). Freesound HQ previews the owner allowed by name on 2026-11-27.",
+  "files": {
+    "blower.mp3": {
+      "is": "the party blower (the moon's \"Tút!\" and the song's end)",
+      "seconds": 1.6,
+      "title": "Party Pack, Horn Coil 01, Long, 01.wav",
+      "author": "InspectorJ",
+      "licence": "CC BY 4.0",
+      "page": "https://freesound.org/people/InspectorJ/sounds/484267/",
+      "preview": "https://cdn.freesound.org/previews/484/484267_5121236-hq.mp3",
+      "sourceSha256": "58ef1a15d2ff036c3f44ec7ccc8267ead5b00e5cbce4d6a9442776059ec645ea",
+      "cutSha256": "7f0cf42e740f0e1ee2d403dc34754a64b4333c87665f41275dd094451d01529d",
+      "did": "from 0 s for 1.6 s, mono, a 0.25 s fade out, -0.9 dB to a peak of -3 dBFS"
+    },
+    "firework-1.mp3": {
+      "is": "fireworks far off, under the last chorus's bursts of light",
+      "seconds": 2.4,
+      "title": "Distant Fireworks 1",
+      "author": "ted",
+      "licence": "CC0 1.0",
+      "page": "https://freesound.org/people/ted/sounds/434225/",
+      "preview": "https://cdn.freesound.org/previews/434/434225_10638-hq.mp3",
+      "sourceSha256": "c74177bd1f83f4032636ddee2b77e7bdc5fe8a2abaeea36f64eee39cc84e4b2c",
+      "cutSha256": "130ca6d4dfd2503ae771228021ef1c6478a182854fd2d79e76f189a3550375b3",
+      "did": "from 2.7 s for 2.4 s, mono, a 0.25 s fade out, +12.7 dB to a peak of -3 dBFS"
+    },
+    "firework-2.mp3": {
+      "is": "fireworks far off, under the last chorus's bursts of light",
+      "seconds": 3,
+      "title": "Distant Fireworks 1",
+      "author": "ted",
+      "licence": "CC0 1.0",
+      "page": "https://freesound.org/people/ted/sounds/434225/",
+      "preview": "https://cdn.freesound.org/previews/434/434225_10638-hq.mp3",
+      "sourceSha256": "c74177bd1f83f4032636ddee2b77e7bdc5fe8a2abaeea36f64eee39cc84e4b2c",
+      "cutSha256": "809cafb7f305419d78ceb5bdd874c1e83d48643c7e7e13aef81e8d73368ac01d",
+      "did": "from 20.8 s for 3 s, mono, a 0.25 s fade out, +10.9 dB to a peak of -3 dBFS"
+    },
+    "applause.mp3": {
+      "is": "the forest claps as the last chord rings",
+      "seconds": 4.4,
+      "title": "Small applause",
+      "author": "Breviceps",
+      "licence": "CC0 1.0",
+      "page": "https://freesound.org/people/Breviceps/sounds/462362/",
+      "preview": "https://cdn.freesound.org/previews/462/462362_9159316-hq.mp3",
+      "sourceSha256": "0297dc19883bf2ffd6ea2634101eb744c6d52acb588a7b8eab1760d6ebd543ba",
+      "cutSha256": "976f669f367585f5b9fae75ff80bc737fa95afa45370c94418d6d48ba2432af8",
+      "did": "from 0 s for 4.4 s, mono, a 0.25 s fade out, +1.5 dB to a peak of -3 dBFS"
+    },
+    "applause-short.mp3": {
+      "is": "a small clap as a friend's solo ends",
+      "seconds": 2.2,
+      "title": "Small applause",
+      "author": "Breviceps",
+      "licence": "CC0 1.0",
+      "page": "https://freesound.org/people/Breviceps/sounds/462362/",
+      "preview": "https://cdn.freesound.org/previews/462/462362_9159316-hq.mp3",
+      "sourceSha256": "0297dc19883bf2ffd6ea2634101eb744c6d52acb588a7b8eab1760d6ebd543ba",
+      "cutSha256": "d5647889a04d9799e8af5d3344bf1d432dcc00157b7a80e01a08397e5211efa1",
+      "did": "from 0.5 s for 2.2 s, mono, a 0.25 s fade out, +1.5 dB to a peak of -3 dBFS"
+    }
+  }
+}
