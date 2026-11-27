@@ -453,3 +453,22 @@ test('memory rules caches frozen getState() snapshot across unchanged reads', ()
   assert.equal(s1, s2, 'unchanged state returns cached snapshot reference');
   assert.equal(Object.isFrozen(s1), true, 'snapshot is frozen');
 });
+
+test('memory world declares updateTargets scratch vars before initial resize() call', () => {
+  const src = fs.readFileSync(new URL('../engine/memory/world.js', import.meta.url), 'utf8');
+  const tSideDecl = src.indexOf('const tCentre = new THREE.Vector3()');
+  const firstResize = src.indexOf('onProgress(\'Skógarrjóðrið vaknar…\'); resize();');
+  assert.ok(tSideDecl > 0, 'tCentre/tSide scratch declarations present');
+  assert.ok(firstResize > 0, 'initial resize() call present');
+  assert.ok(tSideDecl < firstResize, 'tSide scratch vars must be initialized before initial resize() -> updateTargets()');
+});
+
+test('gltf-codecs default KTX2Loader auto-detects on both load() and parse()', async () => {
+  const src = fs.readFileSync(new URL('../../dist/vendor/gltf-codecs.js', import.meta.url), 'utf8');
+  assert.match(src, /browserKtx2\.load\s*=/, 'browser KTX2Loader wraps load() for GLTFLoader');
+  assert.match(src, /browserKtx2\.parse\s*=/, 'browser KTX2Loader wraps parse()');
+  const { getDefaultKTX2Loader } = await import('../../dist/vendor/gltf-codecs.js');
+  const loader = getDefaultKTX2Loader();
+  assert.equal(typeof loader.load, 'function', 'Node stub exposes load()');
+  assert.equal(typeof loader.parse, 'function', 'Node stub exposes parse()');
+});

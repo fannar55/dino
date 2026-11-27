@@ -499,9 +499,10 @@
   display: grid; grid-template-columns: repeat(3, var(--tile-w)); grid-template-rows: auto auto;
   justify-content: center; align-content: center; justify-items: center; gap: var(--gap) var(--gap);
 }
-/* Seven or more on the left page (now eight videos and the game's own show, chapter 5's music show: three rows of three, the show
-   the last). (With six videos the show stood alone in the middle of the third row: the rule below.) The tiles keep the width two
-   rows gave them wherever the page is tall enough for three. */
+/* Seven or more on the left page (now nine videos: three rows of three; the game's own show, chapter 5's music show, stood in
+   the ninth place while there were eight, and is on the right page now: .with-show below). (With six videos the show stood alone
+   in the middle of the third row: the rule below.) The tiles keep the width two rows gave them wherever the page is tall enough
+   for three. */
 .video-tiles:has(> :nth-child(7)) {
   --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 2.4) / 3, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap) * 2) / 3.36);
   grid-template-rows: auto auto auto;
@@ -526,11 +527,15 @@
 }
 .video-3d-column:has(> .video-tile-3d:nth-of-type(3)) .video-tile-3d .tile-name { font-size: clamp(14px, var(--tile-w) * .12, 24px); min-height: 1.3em; }
 .video-3d-column:has(> .video-tile-3d:nth-of-type(3)) .video-tile-3d .badge-new { font-size: clamp(16px, var(--tile-w) * .13, 26px); } /* clear of the 3D mark */
-/* Four (Flugeðla og fiðrildið the fourth): smaller again and closer, so heading + four tiles fit the page's height. */
-.video-3d-column:has(> .video-tile-3d:nth-of-type(4)) { gap: calc(var(--gap) * .22); }
+/* Four (Fiðrildadansinn, Grameðla kemur!, Flugeðla og fiðrildið, Uggeðla í tjörninni): 16:9 pictures with generous gap so badges and two-line titles stay clear. */
+.video-3d-column:has(> .video-tile-3d:nth-of-type(4)) { gap: calc(var(--gap) * .48); padding-top: calc(var(--gap) * .35 + 6px); }
 .video-3d-column:has(> .video-tile-3d:nth-of-type(4)) .video-tile-3d {
-  --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 2.4) / 3, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap) * 1.1 - 30px) / 4.2);
+  --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 2.4) / 3, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap) * 1.9 - 36px) / 4.05);
 }
+.video-3d-column:has(> .video-tile-3d:nth-of-type(4)) .video-tile-3d .tile-picture { aspect-ratio: 16 / 9; flex: 1 0 auto; }
+.video-3d-column:has(> .video-tile-3d:nth-of-type(4)) .video-tile-3d .tile-name { min-height: 2.16em; font-size: clamp(12px, var(--tile-w) * .125, 22px); }
+.video-3d-column:has(> .video-tile-3d:nth-of-type(4)) .video-tile-3d .badge-new { font-size: clamp(13px, var(--tile-w) * .13, 24px); }
+.video-3d-column:has(> .video-tile-3d:nth-of-type(4)) .video-tile-3d.new::after { box-shadow: 0 0 0 3px var(--book-gold), 0 0 5px 1px rgb(242 182 48 / .9); }
 /* Five (Uggeðla í tjörninni the fifth): laid so that every name is read whole. A tile is a sticker that rocks and glows while it is
    new, so the tiles stand as far apart as that takes: no card, tape, badge or glow of one reaches the name of another, new or
    seen (tools/tjorn3d-tile.mjs --shelf measures it as painted, over a whole round of the rocking). To be as large as that allows,
@@ -571,6 +576,18 @@
    first two at the foot of the first row, the other two at the top of the second), level with the left page's */
 .video-tiles.with-3d:has(.video-tile-3d:nth-of-type(3)) > .video-tile:nth-child(-n + 2) { align-self: end; }
 .video-tiles.with-3d:has(.video-tile-3d:nth-of-type(3)) > .video-tile:nth-child(n + 3) { align-self: start; }
+/* The game's own show on the right page (videos.js: the left page's nine places are full of videos): under the page's four videos,
+   in a third row, in the middle of their two columns. The five tiles take the width three rows leave them, as the left page's
+   do, so the two pages' tiles are one size; the page's own --tile-w (its columns, the column's heading) stays as it was, and so
+   does the 3D column, which now stands beside all three rows. The three rows stay together in the middle: the first at the foot
+   of its row, the second in the middle of its own, the show at the top of the third. */
+.video-tiles.with-3d.with-show { grid-template-rows: auto auto auto; }
+.video-tiles.with-3d.with-show > .video-tile {
+  --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 2.4) / 3, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap) * 2) / 3.36);
+}
+.video-tiles.with-3d.with-show > .video-tile:nth-child(n + 3):not(.video-tile-show) { align-self: center; }
+.video-tiles.with-3d.with-show > .video-tile-show { grid-column: 1 / span 2; grid-row: 3; }
+.video-tiles.with-3d.with-show > .video-3d-column { grid-row: 1 / span 3; }
 .video-3d-head {
   margin: 0; font: inherit; font-weight: 800; color: var(--book-ink); text-align: center; white-space: nowrap;
   font-size: clamp(16px, var(--tile-w) * .13, 28px); line-height: 1.1;

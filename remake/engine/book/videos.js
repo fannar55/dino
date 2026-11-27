@@ -2,20 +2,21 @@ import { pressable, reducedMotion } from './fx.js';
 import { ICONS } from './icons.js';
 import { isUnlocked, bookState, FIND_ME } from './cards.js';
 
-// The Myndbönd page: twelve educational videos, eight on the left page of the Myndbönd leaf and four on the right, as taped video
-// tiles with a play badge, and on the right page's last column "3D myndbönd" (BOOK_3D): shows for red/cyan glasses, open from the
-// start. A 3D entry with a `chapter` is a show the game plays (onOpenShow: main.js goes to that chapter); one with a `src` would play
-// in the video player as the others do. After the left page's eight videos, the last of its third row, stands a show of the
-// game's own with no glasses (BOOK_SHOWS): chapter 5's music show, "Djamm skógarins", played alone in the same frame as the 3D
-// shows.
+// The Myndbönd page: thirteen educational videos, nine on the left page of the Myndbönd leaf (three rows of three) and four on the
+// right, as taped video tiles with a play badge, and on the right page's last column "3D myndbönd" (BOOK_3D): shows for red/cyan
+// glasses, open from the start. A 3D entry with a `chapter` is a show the game plays (onOpenShow: main.js goes to that chapter); one
+// with a `src` would play in the video player as the others do. Under the right page's four videos, in a third row, stands a show
+// of the game's own with no glasses (BOOK_SHOWS): chapter 5's music show, "Djamm skógarins", played alone in the same frame as the
+// 3D shows. (It followed the left page's videos while one of that page's nine places was free.)
 // Each video shares the unlock rules of the dinosaur, animal or fossil it belongs to (cards.js isUnlocked), so the child unlocks
-// videos progressively through play, and each linked card in the card viewer also gets a button to open its video directly. Four
+// videos progressively through play, and each linked card in the card viewer also gets a button to open its video directly. Five
 // belong to no card and are open from the start: Heimur risaeðlanna, Hvað varð um risaeðlurnar?, Hvernig fundum við
-// risaeðlurnar? and Stelpan sem fann sæskrímslið.
+// risaeðlurnar?, Stelpan sem fann sæskrímslið and Krakkarnir sem fundu risaeðlur.
 
 const WIGGLE_MS = 560;
 const NOD_MS = 620;
 const SAME_TAP_MS = 500;
+const LEFT_PLACES = 9; // the left page's tiles: three rows of three (book.css)
 const videoUrl = file => new URL(`../../assets/book/videos/${file}`, import.meta.url).href;
 
 export const BOOK_VIDEOS = [
@@ -110,6 +111,17 @@ export const BOOK_VIDEOS = [
     findMe: 'book_mosi_later',
   },
   {
+    id: 'krakkar', // true stories of children who found animals from the dinosaurs' time: the third about finders, belonging to no card, so open from the start
+    name: 'Krakkarnir sem fundu risaeðlur',
+    title: 'Krakkarnir sem fundu risaeðlur',
+    src: '/myndbond/krakkar.mp4',
+    poster: videoUrl('krakkar-thumb.webp'), // composed for the tile, which shows only the middle of the picture under a play badge: the seven children in a row with their finds, and over them the long skeleton in a striped cliff (the video repo's tools/krakkar-flis.mjs)
+    hue: '#b7552f', // the rust band of the striped hills
+    unlock: { start: true },
+    cards: [],
+    findMe: 'book_mosi_later',
+  },
+  {
     id: 'fuglar',
     name: 'Fuglar eru risaeðlur',
     title: 'Af hverju eru fuglar risaeðlur?',
@@ -166,16 +178,6 @@ export const BOOK_3D = [
     hue: '#9cb24a',
     unlock: { start: true },
     label: 'Fiðrildadansinn, þrívíddarmyndband, með rauðum og bláum gleraugum',
-  },
-  {
-    id: 'safn3d',
-    name: 'Þrívíddarsafnið',
-    title: 'Þrívíddarsafnið',
-    chapter: 'safn3d',
-    poster: videoUrl('safn3d-thumb.webp'),
-    hue: '#47908a',
-    unlock: { start: true },
-    label: 'Þrívíddarsafnið, þrívíddarsýning, með rauðum og bláum gleraugum',
   },
   {
     id: 'gramedla3d',
@@ -308,10 +310,13 @@ export function createVideosPage(leaf, { save, audio = null, win = globalThis.wi
   left.classList.add('video-tiles');
   right.classList.add('video-tiles');
   // with a 3D column the right page has room for four videos beside it, two by two; the left page takes the rest, three across
-  // (eight now), and the game's own show follows them, the last of the third row (book.css)
+  // (nine now: its three rows of three are full). The game's own show follows the left page's videos while one of those nine places
+  // is free; now it stands on the right page, under that page's four videos (book.css .with-show)
   const leftCount = threeDs.length ? Math.max(regular.length - 4, Math.ceil(regular.length / 2)) : 4;
-  left.append(...regular.slice(0, leftCount).map(item => item.tile), ...ownShows.map(item => item.tile));
-  right.append(...regular.slice(leftCount).map(item => item.tile));
+  const showsOnLeft = !ownShows.length || leftCount + ownShows.length <= LEFT_PLACES;
+  left.append(...regular.slice(0, leftCount).map(item => item.tile), ...(showsOnLeft ? ownShows : []).map(item => item.tile));
+  right.append(...regular.slice(leftCount).map(item => item.tile), ...(showsOnLeft ? [] : ownShows).map(item => item.tile));
+  if (!showsOnLeft) right.classList.add('with-show');
   if (threeDs.length) {
     // the 3D column: its own heading, set apart from the videos, room for three tiles
     right.classList.add('with-3d');
