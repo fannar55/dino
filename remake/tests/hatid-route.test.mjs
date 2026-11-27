@@ -285,6 +285,8 @@ const NAMES = [
 // what of the sky each shot must hold
 const SKY_SHOTS = { lineup_sun: [SKY.sun], sun_faces: [SKY.sun], first_star: [SKY.first], moon_peek: [SKY.moon], moon_close: [SKY.moon], seventh_sky: [SKY.seventh], chorus_sky: [SKY.moon], sky_dance: FRIENDS.map(f => SKY.stars[f.key]) };
 
+// the upright frames that see Egill from his front (Task 15b, the controller's word): Mosi's body in them, not his head
+const BODY_ONLY_UPRIGHT = ['dance_egill', 'dance_egill_b'];
 test('every shot keeps the director quiet (LIMITS) and shows who SHOWS names, wide and upright', () => {
   assert.deepEqual(Object.keys(SHOTS), ['toppur']);
   assert.deepEqual(Object.keys(SHOTS.toppur).sort(), [...NAMES].sort());
@@ -302,6 +304,12 @@ test('every shot keeps the director quiet (LIMITS) and shows who SHOWS names, wi
       assert.deepEqual(view.director.warnings, [], `${name} at ${aspect}`);
       for (const who of SHOWS[name]) {
         assert.ok(stands[who], `${name}: where ${who} stands`);
+        if (aspect < 1 && who === 'mosi' && BODY_ONLY_UPRIGHT.includes(name)) {
+          // (Task 15b) Egill from his front a third of the narrow frame: Mosi's body behind him, his head 4.5 m to the side
+          const [left, right] = view.span('mosi');
+          assert.ok(right >= 0.04 * view.w && left <= 0.96 * view.w, `mosi's body in ${name} upright: ${left.toFixed(0)} to ${right.toFixed(0)}`);
+          continue;
+        }
         const s = view.head(who);
         assert.ok(s.front && s.x >= 0.04 * s.w && s.x <= 0.96 * s.w && s.y >= 0.08 * s.h && s.y <= 0.85 * s.h,
           `${who} in ${name} at ${aspect}: ${s.x.toFixed(0)}, ${s.y.toFixed(0)} of ${s.w} x ${s.h}`);

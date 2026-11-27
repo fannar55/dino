@@ -467,9 +467,13 @@ const TALL = {
   trick_flugedla: shot(fp(8, 31, 1.5), fp(14, 24, 15.5), 42),
   // (fix 1) upright: her and her three prints without the empty floor under them
   trick_gramedla: shot(fp(-28, -4, 7.3), fp(-20.5, 10, 0.4), 36),
-  // (Task 17) upright: from his right along the line through him and Mosi, so both fit the narrow frame, Egill a fifth of its height
-  dance_egill: shot(fp(6, -12.9, 1.2), fp(-1, -9.6, 1.6), 26),
-  dance_egill_b: shot(fp(5.8, -13.1, 0.6), fp(-1, -9.4, 2.1), 25),
+  // (Task 15b) upright: from his front three-quarter (42 degrees off his front, 3.6 m away, on 24, the lens limit), both his hands
+  // and his face to the lens, Egill about a third of the frame's height a little right of its middle, Mosi's body behind him on his
+  // left (Task 17's lens from his right along the line through him and Mosi saw him in profile: one hand of the V hidden behind his
+  // head). Mosi's head stands 4.5 m to Egill's side: no front lens on the narrow frame holds it and Egill a third of the frame
+  // with his raised hands (aimed between them at 45 degrees off, Egill's hand left the frame's edge)
+  dance_egill: shot(fp(4.91, -13.68, 0.9), fp(0.63, -9.47, 1), 24),
+  dance_egill_b: shot(fp(4.91, -13.68, 0.5), fp(0.63, -9.47, 1.4), 24),
   // upright: the same place, looking higher and tighter (at its own lens the bottom two fifths were empty floor and the bursts small)
   chorus_sky: shot(fp(0, -40, 3), toSky(fp(0, -40, 3), { azimuth: 40, elevation: 32 }), 44),
   // (fix 1) upright: the quiet part's first two shots looking higher (half the frame was floor), quiet_egill nearer him (Egill was a
