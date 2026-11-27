@@ -231,6 +231,8 @@ Hér gengur skemmtun fyrir raunveruleika. Ekkert af þessu þarf að geta gerst 
        í senu 4; ljósflugurnar fljúga þangað sem hún kemur.)
 - **Hljómsveitin:** hver vinur gerir sitt í takt, eins og taflan í 2. kafla sýnir. Dýrin spila á plötur Kambeðlu eins og sílófón.
 - **Dansinn er nýr** og saminn við þetta lag. Engin hreyfing er tekin úr kafla 5.
+  - **Breyting 27. nóvember 2026 (orð eigandans):** Egill dansar með sínum eigin hreyfingum úr tónlistaratriði kafla 5 (hendur
+    upp í V, hnefar, klapp, hopp, snúningur); bein hans eru aldrei teygð.
   - **Slóeðla kallar hreyfingarnar** og allir gera þær saman: „Hendur upp!“, „Stappa!“, „Snúa!“, „Hoppa!“. Þær eru einfaldar,
     svo sex ára barn geti dansað með heima í stofu.
   - **Hver vinur gerir hreyfinguna á sinn hátt,** eftir líkamanum: Þórseðla sveiflar hálsinum, Uggeðla veifar seglinu, Flugeðla
