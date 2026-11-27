@@ -3765,10 +3765,10 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað (Stjörnuhátíðin, óheyrt)."
+          "note": "Sent eins og það er skrifað (Stjörnuhátíðin; eigandinn heyrði línuna og sagði já 2026-11-27)."
         }
       },
-      "chosen": null
+      "chosen": "hratt"
     },
     "sumarsins": {
       "word": "sumarsins",
@@ -3778,10 +3778,10 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað (Stjörnuhátíðin, óheyrt)."
+          "note": "Sent eins og það er skrifað (Stjörnuhátíðin; eigandinn heyrði línuna og sagði já 2026-11-27)."
         }
       },
-      "chosen": null
+      "chosen": "hratt"
     },
     "gledilega": {
       "word": "Gleðilega",
@@ -3791,10 +3791,10 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað (Stjörnuhátíðin, óheyrt)."
+          "note": "Sent eins og það er skrifað (Stjörnuhátíðin; eigandinn heyrði línuna og sagði já 2026-11-27)."
         }
       },
-      "chosen": null
+      "chosen": "hratt"
     },
     "vinkadu": {
       "word": "Vinkaðu",
@@ -3804,10 +3804,10 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað (Stjörnuhátíðin, óheyrt)."
+          "note": "Sent eins og það er skrifað (Stjörnuhátíðin; eigandinn heyrði línuna og sagði já 2026-11-27)."
         }
       },
-      "chosen": null
+      "chosen": "hratt"
     },
     "flyg": {
       "word": "flýg",
@@ -3817,10 +3817,10 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað (Stjörnuhátíðin, óheyrt)."
+          "note": "Sent eins og það er skrifað (Stjörnuhátíðin; eigandinn heyrði línuna og sagði já 2026-11-27)."
         }
       },
-      "chosen": null
+      "chosen": "hratt"
     },
     "kveiktu": {
       "word": "Kveiktu",
@@ -3830,10 +3830,10 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað (Stjörnuhátíðin, óheyrt)."
+          "note": "Sent eins og það er skrifað (Stjörnuhátíðin; eigandinn heyrði línuna og sagði já 2026-11-27)."
         }
       },
-      "chosen": null
+      "chosen": "hratt"
     },
     "vidbot": {
       "word": "viðbót",
@@ -3843,10 +3843,10 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað (Stjörnuhátíðin, óheyrt)."
+          "note": "Sent eins og það er skrifað (Stjörnuhátíðin; eigandinn heyrði línuna og sagði já 2026-11-27)."
         }
       },
-      "chosen": null
+      "chosen": "hratt"
     }
   },
   "lines": {

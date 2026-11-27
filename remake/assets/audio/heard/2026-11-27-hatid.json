@@ -1,0 +1,182 @@
+{
+  "set": "hatid",
+  "date": "2026-11-27",
+  "source": "jano-hatid.json",
+  "verdicts": {
+    "hatid/h_egill_where": {
+      "verdict": "ja",
+      "key": "5d8902c78325396a246253076c5581743e0b564cb220ede6fece6dc5df4a93e2",
+      "mp3": "26c2ef9ce8fe10e868356fc09f6ad47c4c365932c948da3de5371e0bb859ea7a",
+      "speaker": "egill",
+      "text": "Hvar eru allir?"
+    },
+    "hatid/h_mosi_wait": {
+      "verdict": "ja",
+      "key": "cd3f2f355b5328b701a60dd806f7b358e7b9c0b08275e3ca156596d1bdd8774f",
+      "mp3": "0e0e84a26fa2df6783533a29bc091501f2037ac92fffbb8a78a51cc72089333d",
+      "speaker": "mosi",
+      "text": "Bíddu bara. Þau koma."
+    },
+    "hatid/h_flugedla_forest": {
+      "verdict": "ja",
+      "key": "91de1a8f710a5c57d6e59d0a7bc036c2aab7ab80d4d2aac5522d4b740c5bac9a",
+      "mp3": "5e0db5010a6eeb76c3c8d5916521f57141cbfdd861d296d0f2a2ce0b0ceb4b10",
+      "speaker": "flugedla",
+      "text": "Allur skógurinn er á leiðinni!"
+    },
+    "hatid/h_kambedla_light": {
+      "verdict": "ja",
+      "key": "9fb4270a07820db298804cb91631821bf6dcc15ee333d812342bd7f779c5f70c",
+      "mp3": "865458b687ee446996460e68e5206d590bcfe9066e1e4f84bdff68f7ee5dce12",
+      "speaker": "kambedla",
+      "text": "Ég kom með ljósið!"
+    },
+    "hatid/h_uggedla_river": {
+      "verdict": "ja",
+      "key": "379c35bf598fc0b9c39f2d873e39e0fd2516b6be881ddbef77c7fcd5495b2424",
+      "mp3": "2841b0a39647badbe1e67a9fb2f29fce7ce2cb7e2636e5ac745a62f36abd8e8c",
+      "speaker": "uggedla",
+      "text": "Allir komnir yfir ána!"
+    },
+    "hatid/h_thorsedla_late": {
+      "verdict": "ja",
+      "key": "af5fe6834b9149563c844ec2eb9552a81396f8e17e942f801b863337bd8128a7",
+      "mp3": "4fb09c61fd9c4cde5582b9c5ce56547337cce5b2b28c3b73a3cc092adcdcdae2",
+      "speaker": "thorsedla",
+      "text": "Er ég of sein?"
+    },
+    "hatid/h_sloedla_song": {
+      "verdict": "ja",
+      "key": "bd0e776a2f8bbbc865d65b5f8f5029d39a858a9d7e0480b9ad843364b007e13f",
+      "mp3": "296c54987332986aec0c880e2d0cd335b0f3a51b5e8b3e812a2edf85a1f7d46e",
+      "speaker": "sloedla",
+      "text": "Ég man lagið!"
+    },
+    "hatid/h_mosi_sleep": {
+      "verdict": "ja",
+      "key": "abb907b6ec100c0af4b99cb22c1b911956b467b42d8362f4f1389cd98b2fea40",
+      "mp3": "c6881a2d43e452877daee9d25bc66fbf6e9e8f921359e207aca05e4adbc511a4",
+      "speaker": "mosi",
+      "text": "Sólin er að fara að sofa. Vinkaðu henni, Egill!"
+    },
+    "hatid/h_mosi_wave": {
+      "verdict": "ja",
+      "key": "216ed0d6c7b4f6384d6c1a9db2a033351382b87e8ecbb5f3ee886da1c444a66c",
+      "mp3": "8df47effa0a43975601d48f19f9d6a16ccb362b51b2bc77db5f2fb0189482150",
+      "speaker": "mosi",
+      "text": "Vinkaðu henni, Egill!"
+    },
+    "hatid/h_mosi_goodnight": {
+      "verdict": "ja",
+      "key": "87858e646dfa22eb81784e98468fa391876af453948b275bc932823a10b04bf1",
+      "mp3": "78423d32d6447e766ad9e4bb093a63045818f2263e5fa47d5ba75fb81bfcf1c0",
+      "speaker": "mosi",
+      "text": "Góða nótt, sól!"
+    },
+    "hatid/h_mosi_first": {
+      "verdict": "ja",
+      "key": "03659effe7cd5110563ac8037263f8a0bed6d109a0bd3af09e7273fc62708e50",
+      "mp3": "0ef9b4ccab6f5505d3939a070d5abc917289592244fcb61f8cdebe8ff92909a1",
+      "speaker": "mosi",
+      "text": "Nú bíðum við eftir fyrstu stjörnunni."
+    },
+    "hatid/h_thorsedla_there": {
+      "verdict": "ja",
+      "key": "7ff3a85bdb155f824a4f008685c26eeeda61b462b8f2df64faf87c28b753e561",
+      "mp3": "94f6f246875e039b5d7d354e80eadec58feb62c79d25d08e358f632a2c82da96",
+      "speaker": "thorsedla",
+      "text": "Þarna! Ég sé hana!"
+    },
+    "hatid/h_mosi_now": {
+      "verdict": "ja",
+      "key": "8806b48473f7d1a98cb4de9624c8c283b7a5fcdbef9322dd64bd804040a760aa",
+      "mp3": "b7d8491763089b0ded4642a66e9d58d622ab0799cbf2caf076160a0629f3e909",
+      "speaker": "mosi",
+      "text": "Núna, Egill!"
+    },
+    "hatid/h_mosi_light": {
+      "verdict": "ja",
+      "key": "fc6e8c808e5c82a1fb6015fc2974bb60e32083a6b1cbd53b9832be5372d68179",
+      "mp3": "c55fda36719f0ef3a3c856e7edd850d852b2d6e55a490ec970b0d7ecf1e0a98c",
+      "speaker": "mosi",
+      "text": "Kveiktu á þeim, Egill!"
+    },
+    "hatid/h_mosi_summer": {
+      "verdict": "ja",
+      "key": "a080bd3d6ea8b8d5137ebc071610adb440e144f718ffc5ee805a71cba34b3497",
+      "mp3": "14b9756260c2ffa74f44d59bb0f92aa70abc8601a96f48e28db5b59591394aee",
+      "speaker": "mosi",
+      "text": "Fyrstu stjörnur sumarsins! Gleðilega Stjörnuhátíð!"
+    },
+    "hatid/h_sloedla_up": {
+      "verdict": "ja",
+      "key": "b42d6686b0ce2b4eed440b57b4f5c642816c91375f8fd3a9ea5dba36e610627e",
+      "mp3": "3ed2f70ffaf5888f0b833a48ea889c4fc1bdb03b4cf487eb0dc2321141c1adbf",
+      "speaker": "sloedla",
+      "text": "Hendur upp!"
+    },
+    "hatid/h_sloedla_stomp": {
+      "verdict": "ja",
+      "key": "00d54df2ea6ff1eb9d21d8c4b7340f5de0344d7eb8f88a01e54b35a878e21e74",
+      "mp3": "eaf1b6d3cdf458779ba9fc29ee82ae0e7d0f3fd04b8535541e35243779868edd",
+      "speaker": "sloedla",
+      "text": "Stappa!"
+    },
+    "hatid/h_sloedla_spin": {
+      "verdict": "ja",
+      "key": "4c143a09f5809c6977a60830651e0ba363f317a015af6287d8bd6da70abd9b0e",
+      "mp3": "602a8a6cfa7461b7ad4be5e270ad1ffa5a1924e4c1f61e73da308058cc879115",
+      "speaker": "sloedla",
+      "text": "Snúa!"
+    },
+    "hatid/h_sloedla_hop": {
+      "verdict": "ja",
+      "key": "d36829e1cddba723e463cb8092afed9a43c6a1dd9016e1c53303fa41dea6223f",
+      "mp3": "d40439693377ffeb6424bc1970d8a99cac01b3815c4a980596781bcdf8f62731",
+      "speaker": "sloedla",
+      "text": "Hoppa!"
+    },
+    "hatid/h_mosi_thanks": {
+      "verdict": "ja",
+      "key": "6ede416f0a237de9b714432ccd79da1f72c5895b714df2b265bd051d58587d8e",
+      "mp3": "cfefe9ce5cdccb530bfbe3b7d8665c2c1d02a5d704359dd28dcd5dc034c39a1f",
+      "speaker": "mosi",
+      "text": "Takk, Egill. Þetta var besti dagur í heimi."
+    },
+    "hatid/h_thorsedla_more": {
+      "verdict": "ja",
+      "key": "a54eb4f7dbafb94f7106cb52363b7eac9b0805b9ba37eb06b9d2ec29ec67ef7a",
+      "mp3": "1fb671e28329750a9545202128e3e89ebccf5d48de0f28e45c76a3db06082261",
+      "speaker": "thorsedla",
+      "text": "Bíddu … þarna er ein í viðbót."
+    },
+    "hatid/h_egill_fly": {
+      "verdict": "ja",
+      "key": "3c448025dbcda5cfe0e3dced6d3a0e623522276ab2fdff5b3c98451e548a69a9",
+      "mp3": "ef96d2de084a0d0765928b7c891e042be54e6cea21bc9276168134dc0f0d0e4f",
+      "speaker": "egill",
+      "text": "Mosi, sjáðu! Ég flýg!"
+    },
+    "hatid/h_mosi_where": {
+      "verdict": "ja",
+      "key": "a1641a18967b246fb9b86eb10fee945f63b3bea44eb1ff2306e7b44a321ddc3c",
+      "mp3": "4e3dff62e12f2c98b16cf421623badf667f153072d3ad26f80d1660ade3e6ca3",
+      "speaker": "mosi",
+      "text": "Egill! Hvert ertu að fara?"
+    },
+    "hatid/h_egill_bye": {
+      "verdict": "ja",
+      "key": "f82375c870ba5fb97db271414fed93024938734e763ec665a96d87870cf72786",
+      "mp3": "1ec42224a1d9999636919255b6c2f036edc882352ee1deb3d81cf181e3098d73",
+      "speaker": "egill",
+      "text": "Ég veit það ekki! Sjáumst!"
+    },
+    "hatid/h_mosi_find": {
+      "verdict": "ja",
+      "key": "00481dfc6d13379f74f33e8c70b96f50d7bd3cb37e0c733c4bf7ea26fd77f576",
+      "mp3": "f4a4e6cc6fbcd640e212e8f048e627f8f42d3cfacd53ad2da5a7deba9b239734",
+      "speaker": "mosi",
+      "text": "Ég finn þig, Egill!"
+    }
+  }
+}
