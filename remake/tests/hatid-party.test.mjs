@@ -933,8 +933,14 @@ test('Egill is in frame, whole, for four dance beats or more of each called move
         const pts = egillPoints(p).map(v => v.project(camera));
         const whole = pts.every(q => q.z < 1 && Math.abs(q.x) <= 0.97 && q.y <= 0.84 && q.y >= -0.97);
         const tall = (Math.max(...pts.map(q => q.y)) - Math.min(...pts.map(q => q.y))) / 2;
-        const mosi = at(p, 'mosi', 'Head').add(new THREE.Vector3(0, TOP_GROUND, 0)).project(camera);
-        const friend = mosi.z < 1 && Math.abs(mosi.x) <= 1 && Math.abs(mosi.y) <= 1;
+        const inside = q => q.z < 1 && Math.abs(q.x) <= 1 && Math.abs(q.y) <= 1;
+        const lift = new THREE.Vector3(0, TOP_GROUND, 0);
+        // Mosi with him: his head in the wide frame; upright (Task 15b, Egill from his front a third of the narrow frame, the
+        // controller's word) Mosi's body behind him, his head 4.5 m to the side out of the frame: half his bones or more in it
+        const mosiBones = [...p.bones.mosi.values()].map(b => b.getWorldPosition(new THREE.Vector3()).add(lift).project(camera));
+        const friend = aspect < 1
+          ? mosiBones.filter(inside).length >= mosiBones.length / 2
+          : inside(at(p, 'mosi', 'Head').add(lift).project(camera));
         const key = `${aspect}`;
         if (!worst[key] || tall < worst[key].tall) worst[key] = { tall, at: `${call.move} ${beat.toFixed(2)} ${entry.cut}` };
         if (whole && tall >= least && friend) { run += FRAME / BEAT; held = Math.max(held, run); } else { run = 0; why ||= `${beat.toFixed(2)} in ${entry.cut}: whole ${whole} (x ${Math.min(...pts.map(q => q.x)).toFixed(2)}..${Math.max(...pts.map(q => q.x)).toFixed(2)}, y ${Math.min(...pts.map(q => q.y)).toFixed(2)}..${Math.max(...pts.map(q => q.y)).toFixed(2)}), ${(tall * 100).toFixed(0)} % tall, Mosi ${friend}`; }
