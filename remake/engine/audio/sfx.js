@@ -42,6 +42,8 @@ export const SAMPLES = {
   // the owner's picks of 2026-11-07: the herd answering her big call, and the gorge's flyers (as they leave their nests, and answering)
   grazers: { urls: ['grazer-1.mp3', 'grazer-2.mp3', 'grazer-3.mp3', 'grazer-4.mp3'].map(kafli4), level: 0.5 },
   flyers: { urls: ['flyer-1.mp3', 'flyer-2.mp3'].map(kafli4), level: 0.4 },
+  // a beat of Flugeðla's wings (the flight's wing-1..3, engine/audio/flight-sounds.js): the festival's party plays it in her solo
+  wingbeat: { urls: ['wing-1.mp3', 'wing-2.mp3', 'wing-3.mp3'].map(kafli4), level: 0.5, instead: 'blow' },
   // Chapter 6's (assets/audio/kafli6/CREDITS.md): her footfall, "Grameðla kemur!"'s recording, played at her distance (a play's
   // detail.cutoff puts it through a low-pass: far off, duller); and six that wait for the owner's picks (KAFLI6_PICKED below).
   gramedlaThump: { url: new URL('../../assets/audio/gramedla3d/hljod/thump.mp3', import.meta.url).href, level: 1, instead: 'step' },

@@ -79,6 +79,30 @@ export function pulseAt(beat) {
 
 export const cuesIn = (kind, from, to) => song.cues.filter(cue => cue.kind === kind && cue.beat >= from && cue.beat < to);
 
+// (Task 20, the owner's word of 2026-11-27: "það er ekkert öskur í grameðlu") Every sound of the party over the song, one row each:
+// { beat, sample (sfx.js SAMPLES), level (the play's detail.level), who, what }. The party plays a row on its beat and nothing else
+// (the song and Slóeðla's four calls aside), so striking a row takes its sound away. A seek plays none it passed (the scene is
+// silent while seeking) and every one from where it lands. The solos' beats are hatid-band.js's: Grameðla's giant stomps land on her
+// solo's beats 2, 4 and 6 (PRINTS.at) and she roars at 6.4 (PRINTS.roar); Flugeðla rises off her stand over beats 0 to 2.2 and comes
+// down over 9.3 to 10.8 (LAP), and her trick's shot opens on beat 7 (TRICK_CUT), high over the floor.
+const SOLO_START = Object.fromEntries(song.solos.map(slot => [slot.who, slot.startBeat]));
+const GIANT = [2, 4, 6];
+export const PARTY_SOUNDS = [
+  // Grameðla: her drum foot in her solo (a thump on each of its stomps, the giant three louder), her solo's roar, and her roar on
+  // each of the last chorus's roar cues
+  ...cuesIn('stomp', SOLO_START.gramedla, SOLO_START.gramedla + 12).map(({ beat }) => {
+    const giant = GIANT.includes(beat - SOLO_START.gramedla);
+    return { beat, sample: 'gramedlaThump', level: giant ? 0.55 : 0.3, who: 'gramedla', what: giant ? 'a giant stomp' : 'her drum foot' };
+  }),
+  { beat: SOLO_START.gramedla + 6.4, sample: 'gramedlaRoar', level: 0.5, who: 'gramedla', what: 'her solo\'s roar' },
+  ...cuesIn('roar', 0, Infinity).map(({ beat }) => ({ beat, sample: 'gramedlaRoar', level: 0.5, who: 'gramedla', what: 'her roar on the cue' })),
+  // Flugeðla: her wings as she takes off and as she lands, and her glad cry high over the floor (chapter 4's: the gorge's flyers'
+  // cry, her kind's; she says no words in the party)
+  ...[0, 1, 2].map(b => ({ beat: SOLO_START.flugedla + b, sample: 'wingbeat', level: 0.5, who: 'flugedla', what: 'her wings as she takes off' })),
+  { beat: SOLO_START.flugedla + 7, sample: 'flyers', level: 0.5, who: 'flugedla', what: 'her glad cry at the top of her lap' },
+  ...[9.5, 10.5].map(b => ({ beat: SOLO_START.flugedla + b, sample: 'wingbeat', level: 0.4, who: 'flugedla', what: 'her wings as she lands' })),
+].sort((a, b) => a.beat - b.beat);
+
 // The party's camera (spec 6, "eins og tónleikamyndband": wide shots of everyone, closes in the solos, cut on the beat), by the song's
 // beat, as chapter 5's music video (kafli5-video.js CAMERA): a cut on a beat, and a shot lasts a bar at least unless `quick`; `then`
 // a push (m), orbit (degrees) or zoom (a lens) over so many beats while the shot lasts, inside STYLE.md 8's speeds; with less motion

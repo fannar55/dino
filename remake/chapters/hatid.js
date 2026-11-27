@@ -26,7 +26,7 @@ import {
   FRIENDS8, MODELS, standsOf, arrivalOf, ARRIVALS, SKY, STAR_TAP, SUN_TAP, SHOTS, tallShot, BUDGET, partyPlace,
 } from './hatid-route.js';
 import { createOneTap, createStars, createSkyStars, starTone, TAP_HELP } from './hatid-stars.js';
-import { BEAT, END_BEAT, beatAt, secondsAt, CAMERA } from './hatid-score.js';
+import { BEAT, END_BEAT, beatAt, secondsAt, CAMERA, PARTY_SOUNDS } from './hatid-score.js';
 import { SONG } from './hatid-song.js';
 import { gramedlaLife } from './kafli6-gramedla.js';
 import { HEAD_SEAT } from './kafli6-seat.js';
@@ -37,6 +37,7 @@ import { demoAsked, startDemoChild } from './hatid-demo.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
 import { createSeat, ride, floatTo, floatDown } from '../engine/riding.js';
 import { createSong } from '../engine/audio/song.js';
+import { preloadSamples } from '../engine/audio/sfx.js';
 import { createStage, moonAt, moonPlaceAt, skyBurstsAt, auroraAt, breathAt } from './hatid-stage.js';
 import { createDance, CALL_LINE } from './hatid-dance.js';
 import { createBand } from './hatid-band.js';
@@ -710,6 +711,7 @@ const PARTY_BEATS = (() => {
     ...SONG.song.sections.map(section => ({ beat: section.startBeat, kind: 'section', section })),
     ...SONG.song.calls.map(call => ({ beat: call.beat, kind: 'call', call })),
     ...SONG.song.cues.map(cue => ({ beat: cue.beat, kind: 'cue', cue })),
+    ...PARTY_SOUNDS.map(row => ({ beat: row.beat, kind: 'sound', row })), // (Task 20) every sound over the song, a row of the table
   ].sort((a, b) => a.beat - b.beat);
   const beats = [];
   for (const event of events) {
@@ -816,6 +818,12 @@ function onParty(s, c, event) {
     case 'cue':
       c.partyLog.push({ type: 'cue', beat: event.beat, kind: event.cue.kind, at });
       break;
+    case 'sound': {
+      const { row } = event;
+      c.partyLog.push({ type: 'sound', beat: row.beat, sample: row.sample, at });
+      sound(s, c, row.sample, { level: row.level, row: true });
+      break;
+    }
     default:
       break;
   }
@@ -1168,6 +1176,9 @@ function setUp(s) {
   c.lines = helpLines(s, c);
   c.sfx = (name, detail) => sound(s, c, name, detail);
   c.footfall = () => sound(s, c, 'gramedlaThump', { level: 0.5 });
+  // (Task 20) the recordings the festival plays, decoded before they are wanted: her roar and breath, her footfall, the wind, and
+  // the party's table (hatid-score.js PARTY_SOUNDS)
+  preloadSamples(world.sound?.context ?? null, [...new Set(['gramedlaRoar', 'gramedlaExhale', 'gramedlaThump', 'mountainWind', ...PARTY_SOUNDS.map(r => r.sample)])]);
   c.her = gramedlaLife(s, c);
   c.sky = greySky(c);
   c.seat = createSeat(c.gramedla.raw, HEAD_SEAT); // Egill's place on her head (the party alone has it too, unused)

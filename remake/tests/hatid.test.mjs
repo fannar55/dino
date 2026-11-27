@@ -16,7 +16,7 @@ import { GUESTS, guestSeat, createGuests, hideSpot } from '../chapters/hatid-gue
 import { SUNSET, lookAt, HATID_LOOKS } from '../chapters/hatid-looks.js';
 import { DRAW_SECONDS } from '../chapters/hatid-stars.js';
 import { FJALL } from '../world/fjall/ground.js';
-import { BEAT, END_BEAT, secondsAt, CAMERA } from '../chapters/hatid-score.js';
+import { BEAT, END_BEAT, secondsAt, CAMERA, PARTY_SOUNDS } from '../chapters/hatid-score.js';
 import { SONG } from '../chapters/hatid-song.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
 import { LOOKS } from '../engine/looks.js';
@@ -777,6 +777,27 @@ test('the party on the tile is the party in the chapter: the same partyFrame at 
   assert.equal(run.task.failed, false, String(run.task.error?.stack ?? run.task.error));
   sameLog(partyLog(run), partyLog(base), 'the tile\'s party');
   sameFrames(run.watched.frames, base.watched.frames, 'the tile\'s party');
+});
+
+test('the party\'s sounds are its table\'s: each row on its beat at its level (none over 0.6), and nothing else plays from the first beat to the last chord', async () => {
+  const run = await tile();
+  const c = run.world.chapterState;
+  assert.equal(run.task.failed, false, String(run.task.error?.stack ?? run.task.error));
+  const [over] = logOf(run, 'partyEnd');
+  const heard = run.soundLog.filter(e => e.at >= c.partyStart - 1e-6 && e.at <= over.at + 1e-6);
+  assert.equal(heard.length, PARTY_SOUNDS.length, `${heard.length} sounds in the party: ${heard.map(e => e.name).join(', ')}`);
+  PARTY_SOUNDS.forEach((row, i) => {
+    const e = heard[i];
+    assert.equal(e.name, row.sample, `row ${i} (beat ${row.beat})`);
+    assert.ok(Math.abs(e.at - c.partyStart - secondsAt(row.beat)) <= FRAME + 1e-6, `${row.sample} on beat ${row.beat}`);
+    assert.equal(e.detail.level, row.level);
+    assert.ok(row.level <= 0.6, `${row.sample} at ${row.level}`);
+  });
+  for (const cue of [264, 288, 312, 336]) assert.ok(PARTY_SOUNDS.some(r => r.beat === cue && r.sample === 'gramedlaRoar'), `her roar on ${cue}`);
+  assert.ok(PARTY_SOUNDS.some(r => r.who === 'flugedla' && r.sample === 'wingbeat') && PARTY_SOUNDS.some(r => r.who === 'flugedla' && r.sample === 'flyers'), 'Flugeðla\'s wings and cry');
+  // and scene 2's roar is heard
+  const base = await untouched();
+  assert.ok(base.soundLog.some(e => e.name === 'gramedlaRoar' && e.scene === 'stars'), 'her roar lights the stars');
 });
 
 test('the tile plays from the moon\'s Tút to the last chord, says only the four calls, gives no star and leaves the save as it was', async () => {
