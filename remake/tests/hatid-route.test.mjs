@@ -257,7 +257,7 @@ test('upright and wide: the six stars are in starsShot, each within its friend\'
   assert.ok(rows.length === 2 && rows[1] - rows[0] >= 10 && rows[0] >= 20, `two rows: ${rows}`);
   for (const f of FRIENDS) for (const aspect of [1.6, 0.625]) assert.ok(offOf(SKY.stars[f.key].azimuth, starOver(f.key, STANDS.dark, starsShot(aspect))) < 1e-9);
   assert.equal(STAR_TAP, 3.6);
-  assert.deepEqual([SKY.moon, SKY.seventh], [{ azimuth: 45, elevation: 7 }, { azimuth: 45, elevation: 58 }]);
+  assert.deepEqual([SKY.moon, SKY.seventh], [{ azimuth: 45, elevation: 7 }, { azimuth: 45, elevation: 58 }]); // the peek: as approved
 });
 
 test('no arrival comes up within 30 degrees of another or of the south-west', () => {
@@ -283,7 +283,7 @@ const NAMES = [
   'dance_egill', 'dance_egill_b', 'chorus_sky', 'quiet_wide', 'quiet_egill', // (Task 17; fix 1)
 ];
 // what of the sky each shot must hold
-const SKY_SHOTS = { lineup_sun: [SKY.sun], sun_faces: [SKY.sun], first_star: [SKY.first], moon_peek: [SKY.moon], moon_close: [SKY.moon], seventh_sky: [SKY.seventh], chorus_sky: [SKY.moon], sky_dance: FRIENDS.map(f => SKY.stars[f.key]) };
+const SKY_SHOTS = { lineup_sun: [SKY.sun], sun_faces: [SKY.sun], first_star: [SKY.first], moon_peek: [SKY.moon], moon_close: [SKY.partyMoon], seventh_sky: [SKY.seventh], chorus_sky: [SKY.partyMoon], sky_dance: [SKY.partyMoon, ...FRIENDS.map(f => partyPlace(f.key))], party_high: [SKY.partyMoon] }; // (Task 17b: the party's sky)
 
 // the upright frames that see Egill from his front (Task 15b, the controller's word): Mosi's body in them, not his head
 const BODY_ONLY_UPRIGHT = ['dance_egill', 'dance_egill_b'];
@@ -328,30 +328,45 @@ test('every shot keeps the director quiet (LIMITS) and shows who SHOWS names, wi
   }
 });
 
-test('in the party the six hang lower and closer (SKY.party), each star in party_wide at both sizes, clear of the moon and of each other', () => {
-  assert.deepEqual([SKY.span, SKY.party.lower, SKY.party.gather, SKY.party.span], [9, 16, 0.62, 11]);
-  const [px, , pz] = SHOTS.toppur.party_wide.position, [tx, , tz] = SHOTS.toppur.party_wide.target;
-  const middle = Math.atan2(tz - pz, tx - px) / rad(1);
-  for (const f of FRIENDS) {
-    const { azimuth, elevation } = SKY.stars[f.key];
-    const [da, de] = SKY.party.nudge[f.key] ?? [0, 0];
-    const place = partyPlace(f.key);
-    assert.ok(Math.abs(place.elevation - (elevation - SKY.party.lower + de)) < 1e-9, `${f.key} ${SKY.party.lower} degrees lower`);
-    assert.ok(offOf(place.azimuth, middle + offOf(azimuth, middle) * Math.sign(((azimuth - middle + 540) % 360) - 180) * SKY.party.gather + da) < 0.01, `${f.key} gathered to the middle`);
-    assert.deepEqual(partyPlace(f.key), place, 'pure');
-  }
+test('in the party the six are spread out (SKY.party.places), each on her own side, every star in party_wide at both sizes', () => {
+  // (Task 17b, the owner's word of 2026-11-27: "dreifum aðeins betur úr stjörnumerki eðlana") none smaller than Task 12's drawings
+  assert.equal(SKY.span, 9);
+  assert.ok(SKY.party.span >= 11, `span ${SKY.party.span}`);
+  assert.deepEqual(Object.keys(SKY.party.places).sort(), FRIENDS.map(f => f.key).sort());
+  for (const f of FRIENDS) assert.deepEqual(partyPlace(f.key), SKY.party.places[f.key], 'pure');
+  // left to right as in scene 2 (the child has learnt whose is whose), Slóeðla over Grameðla at the right
+  const byAzimuth = places => FRIENDS.map(f => f.key).filter(k => k !== 'sloedla').sort((a, b) => places(a).azimuth - places(b).azimuth);
+  assert.deepEqual(byAzimuth(partyPlace), byAzimuth(k => SKY.stars[k]));
+  assert.ok(partyPlace('sloedla').elevation > partyPlace('gramedla').elevation + 8, 'Slóeðla over Grameðla');
   for (const aspect of [1.6, 0.625]) {
     const view = project(shotFor('party_wide', aspect), aspect, STANDS.party);
-    const moon = view.sky(SKY.moon);
+    const moon = view.sky(SKY.partyMoon);
     const stars = FRIENDS.map(f => [f.key, view.sky(partyPlace(f.key))]);
     for (const [key, star] of stars) {
       assert.ok(view.inFrame(star, 0.02), `${key}'s star in party_wide at ${aspect}`);
-      assert.ok(Math.hypot(star.x - moon.x, star.y - moon.y) > 0.05 * star.w, `${key}'s star off the moon at ${aspect}`);
+      assert.ok(Math.hypot(star.x - moon.x, star.y - moon.y) > 0.08 * star.w, `${key}'s star off the moon at ${aspect}`);
     }
     for (let i = 0; i < stars.length; i++) for (let j = i + 1; j < stars.length; j++) {
       const [a, b] = [stars[i][1], stars[j][1]];
-      assert.ok(Math.hypot(a.x - b.x, a.y - b.y) > 0.05 * a.w, `${stars[i][0]} and ${stars[j][0]} apart at ${aspect}`);
+      assert.ok(Math.hypot(a.x - b.x, a.y - b.y) > 0.08 * a.w, `${stars[i][0]} and ${stars[j][0]} apart at ${aspect}`);
     }
+  }
+});
+
+test('in the party the moon hangs up to the right of party_wide, whole and not in the corner, at both sizes', () => {
+  // (Task 17b, the owner: "færum tunglið meira uppí hægra hornið, en ekki alveg útí horni") its disc, its hat over it and its hand at
+  // its back: inside the frame with 8 % of the width free on the right and 8 % of the height over the hat
+  const R = 3.4; // engine/moon-face.js MOON.radiusDeg
+  for (const aspect of [1.6, 0.625]) {
+    const view = project(shotFor('party_wide', aspect), aspect, STANDS.party);
+    const m = view.sky(SKY.partyMoon, R);
+    const hat = view.sky({ ...SKY.partyMoon, elevation: SKY.partyMoon.elevation + 1.75 * R }); // the hat's tip, bobbing
+    const hand = view.sky({ ...SKY.partyMoon, azimuth: SKY.partyMoon.azimuth + 1.3 * R }); // the hand at its back
+    assert.ok(m.front && m.x >= 0.7 * m.w && m.x <= 0.84 * m.w, `the moon ${(m.x / m.w).toFixed(2)} across at ${aspect}`);
+    assert.ok(Math.max(m.x + m.r, hand.x) <= 0.92 * m.w, `8 % free right of it at ${aspect}`);
+    assert.ok(hat.y >= 0.08 * m.h && m.y + m.r <= 0.85 * m.h, `whole, 8 % free over its hat at ${aspect} (${(hat.y / m.h).toFixed(2)})`);
+    if (aspect > 1) assert.ok(m.y >= 0.15 * m.h && m.y <= 0.3 * m.h, `about a quarter down (${(m.y / m.h).toFixed(2)})`);
+    else assert.ok(m.y <= 0.45 * m.h, `in the upper part upright (${(m.y / m.h).toFixed(2)})`);
   }
 });
 
@@ -367,7 +382,7 @@ test('party_wide holds all eight, the stage and the moon\'s place; no solo shot 
       const s = view.at(new THREE.Vector3(cx + dx * STAGE.radius, g + STAGE.height[0], cz + dz * STAGE.radius));
       assert.ok(view.inFrame(s, 0.04), `the stage's stones at ${b} at ${aspect}`);
     }
-    assert.ok(view.inFrame(view.sky(SKY.moon), 0.04), `the moon's place at ${aspect}`);
+    assert.ok(view.inFrame(view.sky(SKY.partyMoon), 0.04), `the moon's party place at ${aspect}`);
     for (const f of FRIENDS) {
       const solo = project(shotFor(`solo_${f.key}`, aspect), aspect, STANDS.party);
       assert.ok(solo.inFrame(solo.head(f.key), 0.04), `${f.key} in her solo at ${aspect}`);

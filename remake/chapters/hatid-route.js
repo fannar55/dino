@@ -384,9 +384,9 @@ export const SHOTS = {
     // the party's last picture (Task 17 fix 1: from far back and high Egill was a speck and half the frame floor): low and near Egill,
     // he and Mosi in front in their end poses, the six whole behind them (.tools/hatid-17/finalpose.mjs: no nearer lens holds every
     // head and tail on 16:10), looking up 13 degrees so the floor is a quarter of the frame and the drawings and the moon are over them
-    // (Task 17b: turned 5 degrees right, from 42 to 47, 2 degrees lower and 3 wider, so the moon up to the right is inside the frame
-    // and clear of its corner, 0.84 across and 0.39 down, with everyone still in it; it was 43.5 at 42, 12 up)
-    final_pose: shot(fp(1, -24.5, 1), toSky(fp(1, -24.5, 1), { azimuth: 47, elevation: 10 }), 46.5),
+    // (Task 17b: turned 4 degrees right, from 42 to 46, 2 degrees lower and 4.5 wider, so the moon up to the right is inside the frame
+    // and clear of its corner, 0.85 across and 0.38 down, with everyone still in it, Uggeðla at its left edge; it was 43.5 at 42, 12 up)
+    final_pose: shot(fp(1, -24.5, 1), toSky(fp(1, -24.5, 1), { azimuth: 46, elevation: 10 }), 48),
     // Task 17 (chunk-6 ruling 17: the dance must be seen to be copied): Egill whole and big doing each called move, Mosi beside him
     // doing it too. From in front of them to his right, at his chest's height, Mosi behind him over his shoulder (from straight in
     // front Mosi's head left the frame in the spin)
@@ -500,7 +500,7 @@ const TALL = {
   quiet_wide: shot(fp(0, -32, 1.2), toSky(fp(0, -32, 1.2), { azimuth: 47, elevation: 24 }), 54), // (Task 17b: as the wide one)
   quiet_egill: shot(fp(5.5, -13.5, 0.5), fp(-1.5, -8.5, 3.2), 30),
   // (fix 1) upright: the same lens looking higher, so the narrow frame's long height is sky over them, not floor under them
-  final_pose: shot(fp(1, -24.5, 1), toSky(fp(1, -24.5, 1), { azimuth: 47, elevation: 22.9 }), 46.5), // (Task 17b: as the wide one)
+  final_pose: shot(fp(1, -24.5, 1), toSky(fp(1, -24.5, 1), { azimuth: 46, elevation: 22.9 }), 48), // (Task 17b: as the wide one)
 };
 /** The upright frame of shot `name`, where one is needed (else null: the wide frame holds upright too). */
 export function tallShot(name) {

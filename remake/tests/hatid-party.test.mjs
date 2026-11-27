@@ -12,8 +12,9 @@ import { FRIENDS } from '../engine/scene/journal-data.js';
 import { FRIENDS8, partyStands, partyPlace, SKY } from '../chapters/hatid-route.js';
 import { BEAT, CAMERA, END_BEAT, TRICK_CUT, callAt, cuesIn, soloAt } from '../chapters/hatid-score.js';
 import { SONG } from '../chapters/hatid-song.js';
-import { floorAt, spotsAt, stageLightAt, skyBurstsAt, auroraAt, breathAt, moonAt, fireworksAt, partyLook, BREATH, SKY_BURSTS, MOON_FINALE, FRIEND_HUES, END_TAIL, FIREFLY_QUIET } from '../chapters/hatid-stage.js';
+import { floorAt, spotsAt, stageLightAt, skyBurstsAt, auroraAt, breathAt, moonAt, moonPlaceAt, fireworksAt, partyLook, BREATH, SKY_BURSTS, MOON_FINALE, FRIEND_HUES, END_TAIL, FIREFLY_QUIET } from '../chapters/hatid-stage.js';
 import { createNightSky, skyDirection, NIGHT } from '../engine/night-sky.js';
+import { createMoonFace, MOON } from '../engine/moon-face.js';
 import { createDance, moveOf, grooveOf, grooveSize, moveAt, MOVES, CALL_LINE, HOP, LOOK_UP, lookUpAt } from '../chapters/hatid-dance.js';
 import { createBand, ROLES, roleOf, SOLO_TRICKS, trickOf, lapAt, DECK, joltAt, roarAt, END_POSE } from '../chapters/hatid-band.js';
 import { SHOTS, SHOWS, BUDGET, HEAD, LENGTH, tallShot } from '../chapters/hatid-route.js';
@@ -343,6 +344,72 @@ test('the constellations dance with them: in the hop each friend\'s constellatio
   const outline = p.c.figures.outlineOf('flugedla');
   const span = Math.max(...outline.map(o => o.azimuth)) - Math.min(...outline.map(o => o.azimuth));
   assert.ok(span > SKY.party.span * 0.6, `her drawing keeps her wings wide (${span.toFixed(1)} degrees across)`);
+});
+
+// Task 17b (the owner's word of 2026-11-27: "dreifum aðeins betur úr stjörnumerki eðlana, er smá klesst saman, og færum tunglið
+// meira uppí hægra hornið, en ekki alveg útí horni")
+test('the six drawings are spread out: the nearest two 4 degrees apart or more, and none within 5 degrees of the moon\'s disc and hat', async () => {
+  const p = await party();
+  p.frame(100); // dancing: each drawing with its friend
+  const dir = ({ azimuth, elevation }) => skyDirection(azimuth, elevation, new THREE.Vector3());
+  const lines = Object.fromEntries(SIX.map(key => {
+    const d = p.c.figures.drawingOf(key);
+    const out = [...d];
+    for (const { near, far } of p.c.figures.linesOf(key)) for (let k = 1; k < 6; k++) {
+      out.push({ azimuth: d[near].azimuth + (d[far].azimuth - d[near].azimuth) * k / 6, elevation: d[near].elevation + (d[far].elevation - d[near].elevation) * k / 6 });
+    }
+    return [key, out.map(dir)];
+  }));
+  for (let i = 0; i < SIX.length; i++) for (let j = i + 1; j < SIX.length; j++) {
+    let near = Infinity;
+    for (const a of lines[SIX[i]]) for (const b of lines[SIX[j]]) near = Math.min(near, deg(a.angleTo(b)));
+    assert.ok(near >= 4, `${SIX[i]} and ${SIX[j]} ${near.toFixed(2)} degrees apart`);
+  }
+  // the moon at its party place as party_wide sees it: its disc, and its hat up to the tip
+  const shot = SHOTS.toppur.party_wide;
+  const camera = new THREE.PerspectiveCamera(shot.fov, 1.6, 0.1, 4000);
+  camera.position.fromArray(shot.position);
+  camera.lookAt(new THREE.Vector3().fromArray(shot.target));
+  camera.updateMatrixWorld();
+  const moon = createMoonFace({ scene: new THREE.Scene(), texture: null, sheet: null, ...SKY.moon });
+  moon.set({ ...moonAt(100), ...SKY.partyMoon });
+  moon.update(camera);
+  const toDir = q => q.clone().sub(camera.position).normalize();
+  const centre = toDir(moon.points.centre), tip = toDir(moon.points.hatTip);
+  assert.ok(deg(centre.angleTo(dir(SKY.partyMoon))) < 0.01, 'a pose\'s place hangs the moon there');
+  for (const key of SIX) {
+    let near = Infinity;
+    for (const d of lines[key]) {
+      near = Math.min(near, deg(d.angleTo(centre)) - MOON.radiusDeg);
+      for (let k = 0; k <= 10; k++) near = Math.min(near, deg(d.angleTo(centre.clone().lerp(tip, 0.4 + 0.06 * k).normalize())) - 0.45 * MOON.radiusDeg);
+    }
+    assert.ok(near >= 5, `${key}'s drawing ${near.toFixed(2)} degrees off the moon`);
+  }
+  moon.dispose();
+});
+
+test('the moon climbs from its peek to its party place over the intro, smoothly, as a function of the beat; with less motion it is there from the start', () => {
+  const same = (a, b) => Math.abs(a.azimuth - b.azimuth) < 1e-9 && Math.abs(a.elevation - b.elevation) < 1e-9;
+  assert.ok(same(moonPlaceAt(0), SKY.moon), 'where it peeked as the party starts');
+  assert.ok(same(moonPlaceAt(SKY.moonRise.to), SKY.partyMoon) && SKY.moonRise.to < 72, 'at its place before the dance');
+  for (const b of [72, 100, 230, 360]) assert.ok(same(moonPlaceAt(b), SKY.partyMoon), `there at ${b}`);
+  for (const b of [0, 30, 100]) assert.ok(same(moonPlaceAt(b, { reduced: true }), SKY.partyMoon), `less motion: there at ${b}`);
+  // no jump between frames at 30 frames a second (under 0.12 degrees a frame), and no kick (its speed changes little a frame)
+  let last = null, lastStep = 0, most = 0, kick = 0;
+  for (let t = 0; t <= 80 * BEAT; t += FRAME) {
+    const now = moonPlaceAt(t / BEAT);
+    if (last) {
+      const step = Math.hypot(now.azimuth - last.azimuth, now.elevation - last.elevation);
+      most = Math.max(most, step);
+      kick = Math.max(kick, Math.abs(step - lastStep));
+      lastStep = step;
+    }
+    last = now;
+  }
+  assert.ok(most < 0.12, `${most.toFixed(3)} degrees a frame at the most`);
+  assert.ok(kick < 0.005, `its speed changes ${kick.toFixed(4)} degrees a frame at the most`);
+  // a seek: the same beat, the same place, whatever came before
+  assert.deepEqual(moonPlaceAt(33.3), moonPlaceAt(33.3));
 });
 
 test('nobody\'s feet leave her stand: every root stays within 1.5 m of it through the dance', async () => {
