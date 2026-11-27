@@ -25,6 +25,7 @@ import { moonPose, MOON_HAT_LIFT } from '../engine/moon-face.js';
 //   stoneLightsAt(beat)        each stone's light: [{ who, colour, level }], dark until its one comes into the song (Task 14b)
 //   fireworksAt(beat, o)       the bursts in the air after a hit: [{ at, colour, level, size, hit, spot }] (Task 14b)
 //   moonAt(beat, base)         the moon's pose in the party: MOON_MOVES over its acts' pose (Task 14b)
+//   moonPlaceAt(beat, o)       where the moon hangs: its climb from its peek to its party place over the intro (Task 17b)
 //   FRIEND_HUES, FIREFLY_QUIET the eight's and the choir's hues as light; the quiet part's gathering and rise (Task 14b)
 //   coneAt(beat, o)            Slóeðla's own cone: { from, to, width, colour, level }
 //   spotsAt(beat, o)           the four spotlights: [{ from, to, width, colour, level }] (their sources are swarms of fireflies)
@@ -781,6 +782,28 @@ MOON_MOVES.push(
     return { ...pose, sway: (Number(pose.sway) || 0) + rock.sway, hat: (Number(pose.hat) || 0) + hat, hand };
   },
 );
+/**
+ * (Task 17b, the owner's word of 2026-11-27: the moon up to the right) Where the moon hangs at `beat` of the party: { azimuth,
+ * elevation }. It peeked over the sea of cloud at SKY.moon (scene 2, approved) and climbs to SKY.partyMoon over the intro, from
+ * SKY.moonRise.from to .to, so the child sees it go up to watch the party; there before the dance (beat 72). Its way: it slides to the
+ * right first (its azimuth over the first `side` of the climb), sinking a little toward the cloud (`dip` degrees at the most in the
+ * middle), and climbs up the right side to its place (its elevation over the last `side`), every part eased at both ends: so it
+ * passes under Uggeðla's and Grameðla's drawings, not through them (.tools/hatid-17b/risepath.mjs: a straight way crossed a line for
+ * a third of the climb). A pure function of the beat, so a seek finds it where its beat has it. With less motion it is at its party
+ * place from the start.
+ */
+export const MOON_RISE = { side: 0.75, dip: 6 };
+export function moonPlaceAt(beat, { reduced = false } = {}) {
+  const { from, to } = SKY.moonRise;
+  const s = reduced ? 1 : Math.min(1, Math.max(0, (beat - from) / (to - from)));
+  const ease = t => { const u = Math.min(1, Math.max(0, t)); return u * u * u * (10 + u * (6 * u - 15)); };
+  const { side, dip } = MOON_RISE;
+  return {
+    azimuth: lerp(SKY.moon.azimuth, SKY.partyMoon.azimuth, ease(s / side)),
+    elevation: lerp(SKY.moon.elevation, SKY.partyMoon.elevation, ease((s - (1 - side)) / side)) - dip * Math.sin(Math.PI * s) ** 2,
+  };
+}
+
 export function moonAt(beat, base = moonPose([], beat * BEAT)) {
   let pose = { ...base, hand: { ...(base.hand ?? { kind: 'rest', u: 0 }) } };
   for (const move of MOON_MOVES) pose = move(beat, pose);

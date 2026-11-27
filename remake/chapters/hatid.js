@@ -37,7 +37,7 @@ import { demoAsked, startDemoChild } from './hatid-demo.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
 import { createSeat, ride, floatTo, floatDown } from '../engine/riding.js';
 import { createSong } from '../engine/audio/song.js';
-import { createStage, moonAt, skyBurstsAt, auroraAt, breathAt } from './hatid-stage.js';
+import { createStage, moonAt, moonPlaceAt, skyBurstsAt, auroraAt, breathAt } from './hatid-stage.js';
 import { createDance, CALL_LINE } from './hatid-dance.js';
 import { createBand } from './hatid-band.js';
 import { addPlateGlow } from '../engine/plate-glow.js';
@@ -523,8 +523,9 @@ function nightOf(s, c) {
     ...keys.map(key => ({ ...SKY.stars[key], degrees: STAR_TAP + 1 })),
     ...keys.map(key => ({ ...partyPlace(key), degrees: STAR_TAP })),
     { ...SKY.moon, degrees: 6 },
+    { ...SKY.partyMoon, degrees: 6 }, // (Task 17b) where it hangs in the party
   ];
-  c.night = createNightSky(world, { clear, first: SKY.first, reduced: c.reduced });
+  c.night =createNightSky(world, { clear, first: SKY.first, reduced: c.reduced });
   c.many = 0;
   c.figures = createConstellations(world, { capacity: 6 });
   c.skyStars = createSkyStars(world, { sky: c.night, constellations: c.figures, actors: Object.fromEntries(keys.map(key => [key, c[key].raw])) });
@@ -567,7 +568,9 @@ function moonOf(s, c) {
     update(time) {
       const pose = moonPose(moon.acts, time);
       // in the party it dances (hatid-stage.js moonAt: its hat on the beat, a rock with the bar, its mouth with the choir) over its acts
-      moon.pose = c.inParty && Number.isFinite(c.partyBeat) ? moonAt(c.partyBeat, pose) : pose;
+      // and climbs from its peek to its party place over the intro (moonPlaceAt, Task 17b), where it stays after the party
+      if (c.inParty && Number.isFinite(c.partyBeat)) moon.pose = { ...moonAt(c.partyBeat, pose), ...moonPlaceAt(c.partyBeat, { reduced: c.reduced }) };
+      else moon.pose = c.partyOver ? { ...pose, ...SKY.partyMoon } : pose;
       face.set(moon.pose);
       heaps.update(0, time);
     },
@@ -788,6 +791,7 @@ function* theParty(s, c) {
   } finally {
     over = true;
     c.inParty = false;
+    c.partyOver = true; // the moon stays at its party place (moonOf)
     c.night?.shoot([]);
     c.night?.aurora(0, 0);
     if (breathing) for (const key of keys) { try { c.figures.set(key, { drawn: 1, level: 1, breath: 0 }); } catch { /* not in the sky */ } }
@@ -1341,6 +1345,7 @@ function asParty(s, c) {
   c.skyStars.update(world.camera, s.time);
   for (const { key, colour } of FRIENDS) c.skyStars.light(key, colour, { at: -Infinity });
   c.skyStars.update(world.camera, s.time);
+  c.partyOver = false; // ("Aftur") it peeks again where it peeked
   moonOf(s, c);
   c.moon.update(s.time);
   c.stars = c.skyStars.stars;

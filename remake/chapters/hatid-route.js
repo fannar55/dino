@@ -217,15 +217,33 @@ export const SKY = {
   // the first star, the one Þórseðla sees (spec: "Ein lítil stjarna kviknar"): high over the arc, above the six's rows
   first: { azimuth: 30, elevation: 50 },
   moon: { azimuth: 45, elevation: 7 }, // behind the stage, peeking up over the sea of cloud
+  // (Task 17b, the owner's word of 2026-11-27: "færum tunglið meira uppí hægra hornið, en ekki alveg útí horni") in the party it
+  // hangs up to the right: in party_wide at 1280x800 its middle 0.80 of the way across and 0.22 down, its hand 14 % of the width
+  // from the right edge and its hat's tip 11 % of the height from the top; upright 0.80 across and 0.39 down. It climbs there from
+  // where it peeked over the intro, `rise` beats (hatid-stage.js moonPlaceAt), and is there from the party's first frame with less
+  // motion.
+  partyMoon: { azimuth: 72.5, elevation: 14 },
+  moonRise: { from: 4, to: 60 },
   seventh: { azimuth: 45, elevation: 58 },
   // the constellations (engine/constellations.js): in scene 2 each drawing's longest side `span` degrees, her own star at her place
   // above (Task 10b measured all six whole and apart in stars_wide at 9, at both sizes). In the party (party_wide cuts the sky at
-  // about 27 degrees) the six hang `lower` degrees lower and `gather` of their way from the shot's middle, `span` wide (partyPlace),
-  // and `nudge` ([azimuth, elevation] degrees more) moves four of them off the moon, which rises in the shot's middle: without it
-  // Uggeðla's snout touched its hat and Grameðla's tail and Slóeðla's feet came within 1.6 degrees of it; with it no line is within
-  // 3.4 degrees, all six whole at both sizes, two drawings 1.7 degrees apart at the nearest (.tools/hatid-12/moonclear.mjs; Task 12)
+  // about 27 degrees) the six hang at `places` (her star; partyPlace), `span` wide. (Task 17b, the owner: "dreifum aðeins betur úr
+  // stjörnumerki eðlana, er smá klesst saman") spread over the sky party_wide sees left of the moon, in three heights, each on her
+  // own side as before (left to right Þórseðla, Kambeðla, Flugeðla, Uggeðla, Slóeðla over Grameðla): the nearest two drawings 5.2
+  // degrees apart (Task 12's were 1.7), no line within 5.5 degrees of the moon's disc and hat, every line inside party_wide at both
+  // sizes, no string of lights across another's drawing (.tools/hatid-17b/spread.mjs, sky.mjs)
   span: 9,
-  party: { lower: 16, gather: 0.62, span: 11, nudge: { kambedla: [-5, 0], uggedla: [-4.5, 0], gramedla: [4.5, 0], sloedla: [2, 2] } },
+  party: {
+    span: 11,
+    places: {
+      thorsedla: { azimuth: 18.8, elevation: 20.1 },
+      kambedla: { azimuth: 28.6, elevation: 9.8 },
+      flugedla: { azimuth: 34, elevation: 21 },
+      uggedla: { azimuth: 48.2, elevation: 16 },
+      sloedla: { azimuth: 63.4, elevation: 21.2 },
+      gramedla: { azimuth: 62.8, elevation: 10.4 },
+    },
+  },
 };
 
 /** The sun's tap shot: from behind Grameðla and Mosi on the arc, high, toward the sun low over the sea, they clear under it. */
@@ -323,17 +341,20 @@ export const SHOTS = {
     // Scene 3. The party, all toward the stage from the child's side
     stage_front: shot(fp(2, 14, 1.6), fp(3, 30, 3), 44),
     party_wide: shot(fp(0, -36, 4.2), fp(1, 10, 3.6), 55),
-    party_high: shot(fp(-14, -28, 6.8), fp(2, 12, 1.5), 52),
+    // (Task 17b: 4 degrees higher, from 7 down to 3, so the moon up to the right is whole under its top edge: it was cut there)
+    party_high: shot(fp(-14, -28, 6.8), toSky(fp(-14, -28, 6.8), { azimuth: 66.8, elevation: -3 }), 52),
     floor_low: shot(fp(4, -18, 0.5), fp(0, -9, 1.4), 46),
     egill_mosi: shot(fp(5, -19, 1.1), fp(0, -10, 1.6), 42),
-    sky_dance: shot(fp(0, -30, 1.2), toSky(fp(0, -30, 1.2), { azimuth: 33, elevation: 30 }), 58),
+    // (Task 17b: turned from 33 to 40, so the moon up to the right is whole in it and the six drawings beside it)
+    sky_dance: shot(fp(0, -30, 1.2), toSky(fp(0, -30, 1.2), { azimuth: 40, elevation: 30 }), 58),
     // (Task 16: on 32 a little left of her, so Þórseðla's body is out of it: on 40 it was 270k triangles)
     solo_kambedla: shot(fp(16, -6, 1.2), fp(10.2, 6, 1.6), 32),
     // (Task 16: each solo's first shot holds the start of her trick, its second, `trick_<who>` from her solo's seventh beat, the
     // trick's own moment: hatid-band.js SOLO_TRICKS) the fish leaping over the rim behind her
     solo_uggedla: shot(fp(-1, 2, 1.4), fp(-13, 0.5, 5), 46),
     solo_thorsedla: shot(fp(18, -2, 1.2), fp(21, 20, 8), 54),
-    solo_flugedla: shot(fp(10, 14, 1.4), fp(7.6, 29, 4.5), 50),
+    // (Task 17b: turned 6 degrees left, so the moon at its party place is just out of the frame's right edge: it was cut by it)
+    solo_flugedla: shot(fp(10, 14, 1.4), toSky(fp(10, 14, 1.4), { azimuth: 29.9, elevation: 11.5 }), 50),
     solo_sloedla: shot(fp(-3, 17, 1.4), fp(0, 30, 3.2), 40),
     // (Task 6: from her right, toward the rim: from fp(-14, 4) the lens stood inside Uggeðla)
     solo_gramedla: shot(fp(-6, 11, 1.6), fp(-16, 17, 3), 50),
@@ -358,12 +379,14 @@ export const SHOTS = {
     trick_gramedla: shot(fp(-28, -4, 7.3), fp(-22.5, 10, 1.2), 42),
     // the moon alone over the sea of cloud, from behind the stage, everyone behind the lens (Task 6: from the floor its long lens drew
     // Mosi, Uggeðla and Þórseðla at full detail, 309k triangles, over the budget; Task 17 fix 1: on 24, the lens limit, the quiet
-    // part's close; it was 28)
-    moon_close: shot(fp(0, 41, 1.4), toSky(fp(0, 41, 1.4), { azimuth: 45, elevation: 7 }), 24),
+    // part's close; it was 28; Task 17b: at the moon's party place, up to the right, where it was low over the stage)
+    moon_close: shot(fp(0, 41, 1.4), toSky(fp(0, 41, 1.4), SKY.partyMoon), 24),
     // the party's last picture (Task 17 fix 1: from far back and high Egill was a speck and half the frame floor): low and near Egill,
     // he and Mosi in front in their end poses, the six whole behind them (.tools/hatid-17/finalpose.mjs: no nearer lens holds every
     // head and tail on 16:10), looking up 13 degrees so the floor is a quarter of the frame and the drawings and the moon are over them
-    final_pose: shot(fp(1, -24.5, 1), fp(-0.57, 5.46, 7.38), 43.5),
+    // (Task 17b: turned 5 degrees right, from 42 to 47, 2 degrees lower and 3 wider, so the moon up to the right is inside the frame
+    // and clear of its corner, 0.84 across and 0.39 down, with everyone still in it; it was 43.5 at 42, 12 up)
+    final_pose: shot(fp(1, -24.5, 1), toSky(fp(1, -24.5, 1), { azimuth: 47, elevation: 10 }), 46.5),
     // Task 17 (chunk-6 ruling 17: the dance must be seen to be copied): Egill whole and big doing each called move, Mosi beside him
     // doing it too. From in front of them to his right, at his chest's height, Mosi behind him over his shoulder (from straight in
     // front Mosi's head left the frame in the spin)
@@ -373,14 +396,16 @@ export const SHOTS = {
     dance_egill_b: shot(fp(5.4, -14.7, 0.6), fp(0, -9, 2), 42),
     // the last chorus's sky: from the child's side of the floor, the whole party low in the frame, the moon over the stage, the
     // bursts and the northern lights over everything
-    chorus_sky: shot(fp(0, -40, 3), toSky(fp(0, -40, 3), { azimuth: 40, elevation: 24 }), 60),
+    // (Task 17b: turned from 40 to 43, the moon up to the right well inside it)
+    chorus_sky: shot(fp(0, -40, 3), toSky(fp(0, -40, 3), { azimuth: 43, elevation: 24 }), 60),
     // Task 17 fix 1, the quiet part as a small story: Egill and Mosi side by side, low in front of them to his right, looking up
     // past them to where the fireflies gather (hatid-stage.js FIREFLY_QUIET.gather, behind them over the floor)
     // (from 0.5 m nearer Egill: further back Mosi took the frame and Egill was a sixth of it)
     quiet_egill: shot(fp(5.2, -14.6, 0.5), fp(-2, -7, 3.2), 40),
     // and its first shot: everyone whole and swaying under the breathing drawings, from low on the child's side so the sky is most of
-    // the frame (party_wide's was half floor)
-    quiet_wide: shot(fp(0, -32, 1.2), toSky(fp(0, -32, 1.2), { azimuth: 45, elevation: 12 }), 40),
+    // the frame (party_wide's was half floor); (Task 17b) turned from 45 to 47 and wider (40 to 54) so the six spread drawings are
+    // whole in it and the moon up to the right not in its corner
+    quiet_wide: shot(fp(0, -32, 1.2), toSky(fp(0, -32, 1.2), { azimuth: 47, elevation: 10 }), 54),
     // Scene 4. Round Egill, the seventh star, the lift
     gather: shot(off(GATHER.egill, -15, 1, 3.4), off(GATHER.egill, 4, 0, 1.4), 54),
     seventh_sky: shot(SEVENTH_FROM, toSky(SEVENTH_FROM, { azimuth: 45, elevation: 44 }), 55),
@@ -391,16 +416,9 @@ export const SHOTS = {
   },
 };
 
-/**
- * Where `friend`'s star hangs in the party (her constellation with it): SKY.stars' place SKY.party.lower degrees lower, its azimuth
- * brought SKY.party.gather of its way to party_wide's middle (the look-check page's nedar=16&saman=0.62), and her nudge off the moon.
- */
-const PARTY_MIDDLE = (() => { const { position: p, target: t } = SHOTS.toppur.party_wide; return headingTo([p[0], p[2]], [t[0], t[2]]); })();
+/** Where `friend`'s star hangs in the party (her constellation with it): SKY.party.places (Task 17b; it was SKY.stars' place gathered). */
 export function partyPlace(friend) {
-  const { azimuth, elevation } = SKY.stars[friend];
-  const off = ((azimuth - PARTY_MIDDLE + 540) % 360) - 180;
-  const [da, de] = SKY.party.nudge[friend] ?? [0, 0];
-  return { azimuth: round(PARTY_MIDDLE + off * SKY.party.gather + da, 1000), elevation: elevation - SKY.party.lower + de };
+  return { ...SKY.party.places[friend] };
 }
 
 /** Who each shot is for: in its frame while the camera holds it (tests/hatid-route.test.mjs), standing as SCENE says. */
@@ -466,7 +484,8 @@ const TALL = {
   // upright: the same lens, tighter, so her wings are a quarter of the frame or more
   trick_flugedla: shot(fp(8, 31, 1.5), fp(14, 24, 15.5), 42),
   // (fix 1) upright: her and her three prints without the empty floor under them
-  trick_gramedla: shot(fp(-28, -4, 7.3), fp(-20.5, 10, 0.4), 36),
+  // (Task 17b) looking 5.5 degrees further down (29), so the moon at its party place is out over the top: it was cut by it
+  trick_gramedla: shot(fp(-28, -4, 7.3), toSky(fp(-28, -4, 7.3), { azimuth: 73.17, elevation: -29 }), 36),
   // (Task 15b) upright: from his front three-quarter (42 degrees off his front, 3.6 m away, on 24, the lens limit), both his hands
   // and his face to the lens, Egill about a third of the frame's height a little right of its middle, Mosi's body behind him on his
   // left (Task 17's lens from his right along the line through him and Mosi saw him in profile: one hand of the V hidden behind his
@@ -475,13 +494,13 @@ const TALL = {
   dance_egill: shot(fp(4.91, -13.68, 0.9), fp(0.63, -9.47, 1), 24),
   dance_egill_b: shot(fp(4.91, -13.68, 0.5), fp(0.63, -9.47, 1.4), 24),
   // upright: the same place, looking higher and tighter (at its own lens the bottom two fifths were empty floor and the bursts small)
-  chorus_sky: shot(fp(0, -40, 3), toSky(fp(0, -40, 3), { azimuth: 40, elevation: 32 }), 44),
+  chorus_sky: shot(fp(0, -40, 3), toSky(fp(0, -40, 3), { azimuth: 47, elevation: 32 }), 44), // (Task 17b: from 40, the moon whole)
   // (fix 1) upright: the quiet part's first two shots looking higher (half the frame was floor), quiet_egill nearer him (Egill was a
   // speck between Mosi and the edge)
-  quiet_wide: shot(fp(0, -32, 1.2), toSky(fp(0, -32, 1.2), { azimuth: 45, elevation: 26 }), 40),
+  quiet_wide: shot(fp(0, -32, 1.2), toSky(fp(0, -32, 1.2), { azimuth: 47, elevation: 24 }), 54), // (Task 17b: as the wide one)
   quiet_egill: shot(fp(5.5, -13.5, 0.5), fp(-1.5, -8.5, 3.2), 30),
   // (fix 1) upright: the same lens looking higher, so the narrow frame's long height is sky over them, not floor under them
-  final_pose: shot(fp(1, -24.5, 1), fp(-0.57, 5.46, 13.7), 43.5),
+  final_pose: shot(fp(1, -24.5, 1), toSky(fp(1, -24.5, 1), { azimuth: 47, elevation: 22.9 }), 46.5), // (Task 17b: as the wide one)
 };
 /** The upright frame of shot `name`, where one is needed (else null: the wide frame holds upright too). */
 export function tallShot(name) {

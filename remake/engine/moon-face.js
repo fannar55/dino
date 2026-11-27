@@ -591,6 +591,7 @@ function blowerAt(list, t) {
  *   It blinks by itself every 3 to 6 s (MOON_BLINK). Of acts that overlap, the later one has the mouth, or the hand.
  * Returns { rise, sway, eye, mouth, hand: { kind, u }, hat, blower } as createMoonFace's set takes it: rise 0 (under the sea) to 1 (its
  * place); sway degrees it leans, clockwise; hat degrees its hat is knocked forward over its brow; blower 0 (rolled) to 1 (out).
+ * The caller may add `azimuth` and `elevation` (degrees) to a pose to hang it somewhere else than where it was made (set's place).
  */
 export function moonPose(acts = [], time = 0) {
   const list = acts.map((a, i) => {
@@ -743,8 +744,10 @@ export function createMoonFace({ scene, texture = drawMoonFrames(), sheet = draw
   function set(pose) {
     shown = structuredClone(pose);
     const rise = clamp(Number(pose.rise) || 0, 0, 1);
-    const e = rad(lerp(MOON.under, elevation, rise));
-    const a = rad(azimuth);
+    // a pose may carry a place of its own (`azimuth`, `elevation` in degrees: the festival's party moon climbs to its party place);
+    // without one it hangs where it was made
+    const e = rad(lerp(MOON.under, Number.isFinite(pose.elevation) ? pose.elevation : elevation, rise));
+    const a = rad(Number.isFinite(pose.azimuth) ? pose.azimuth : azimuth);
     direction.set(Math.cos(e) * Math.cos(a), Math.sin(e), Math.cos(e) * Math.sin(a));
     sway = Number(pose.sway) || 0;
     material.rotation = -rad(sway); // a sprite turns counter-clockwise; the moon's angles are clockwise
