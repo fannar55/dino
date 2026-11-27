@@ -517,7 +517,8 @@ const trees = new Map();
 function birdsTree(forest, group) {
   if (trees.has(group.id)) return trees.get(group.id);
   const prop = forest.animals.props.find(p => p.name === 'broadleaf' && Math.hypot(p.x - group.point.x, p.z - group.point.z) < 12);
-  const tree = forest.stats.sections.flatMap(part => part.userData.placements ?? []).find(q => q.name === prop.name && Math.hypot(q.x - prop.x, q.z - prop.z) < 0.01);
+  // a section not built yet is null in the list (index.js builds them a slice of wall clock a frame: later on a slow machine)
+  const tree = forest.stats.sections.filter(Boolean).flatMap(part => part.userData.placements ?? []).find(q => q.name === prop.name && Math.hypot(q.x - prop.x, q.z - prop.z) < 0.01);
   if (!tree) return null;
   const mesh = new THREE.Group();
   for (const part of [tree.model.solid, tree.model.thin]) {
