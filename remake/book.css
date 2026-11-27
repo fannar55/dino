@@ -587,6 +587,9 @@
 }
 .video-tiles.with-3d.with-show > .video-tile:nth-child(n + 3):not(.video-tile-show) { align-self: center; }
 .video-tiles.with-3d.with-show > .video-tile-show { grid-column: 1 / span 2; grid-row: 3; }
+/* Two shows of the game's own ("Djamm skógarins" and "Stjörnuhátíðin", videos.js BOOK_SHOWS): side by side in the third row, one
+   under each of the two video columns. */
+.video-tiles.with-3d.with-show:has(> .video-tile-show ~ .video-tile-show) > .video-tile-show { grid-column: auto; }
 .video-tiles.with-3d.with-show > .video-3d-column { grid-row: 1 / span 3; }
 .video-3d-head {
   margin: 0; font: inherit; font-weight: 800; color: var(--book-ink); text-align: center; white-space: nowrap;

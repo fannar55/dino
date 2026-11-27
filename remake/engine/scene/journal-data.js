@@ -12,6 +12,13 @@ export const FRIENDS = [
   { key: 'gramedla', name: 'Grameðla', colour: '#b37955' },
 ];
 
+/**
+ * The seventh slot: no friend's, the unknown star's of the festival's end (chapters/hatid-seventh.js SEVENTH.colour, the hue none of
+ * the six has). The journal draws it after the six, empty and blinking slowly, once the festival has been seen: a hint of story 2.
+ * It is never earned, and FRIENDS stays six.
+ */
+export const SEVENTH_SLOT = { key: 'seventh', colour: '#c8ff5e' };
+
 const STAR_PATH = 'M12 2.4L14.88 9.04L22.08 9.72L16.66 14.51L18.23 21.58L12 17.9L5.77 21.58L7.34 14.51L1.92 9.72L9.12 9.04Z';
 export const STAR_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${STAR_PATH}"/></svg>`;
 

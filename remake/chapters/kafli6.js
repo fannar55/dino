@@ -1201,7 +1201,7 @@ export { SHOWS };
 export const chapter = {
   id: 'kafli6',
   title: 'Boð til Grameðlu',
-  next: null, // the festival, once it is made
+  next: 'hatid', // the festival (chapters/hatid.js): it follows Grameðla's star
   look: 'lowSun', // the sun's place, the sky's light on things and the fog's baked glow; the light itself is kafli6-looks.js's from the first frame
   theme: 'kafli2/theme.json', // Mosi's travelling theme, at the ford and on the slope; none in the cloud, and back, bigger, after the roar
   start: 'ardalur',

@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from 'three';
 import { createSave } from '../engine/save.js';
-import { createJournal, FLIGHT_SECONDS, LAUNCH } from '../engine/scene/journal.js';
+import { createJournal, FLIGHT_SECONDS, LAUNCH, SEVENTH_SLOT, FRIENDS as FRIENDS_DATA } from '../engine/scene/journal.js';
+import { SEVENTH } from '../chapters/hatid-seventh.js';
 import { createStarSprite } from '../engine/scene/star-sprite.js';
 import { createScene } from '../engine/scene/scene.js';
 import { createPointResolver } from '../engine/points.js';
@@ -452,6 +453,44 @@ test('the book keeps up with a star that lands', () => {
   journal.addStar('k1_kambedla', { x: 0, y: 0 });
   journal.update(FLIGHT_SECONDS + 0.01);
   assert.equal(book.refreshed, 1, 'the book shows what the star opened (a friend\'s card, her game, her place on the map)');
+});
+
+const FRIEND_HUES = ['#8f6aa3', '#47908a', '#e9b14d', '#dc8090', '#6793d0', '#b37955']; // STYLE.md section 3, as journal-data.js has them
+
+test('the six slots are as they were; the seventh comes only when the festival has been seen, after them, empty', () => {
+  const SIX = ['k1_kambedla', 'k2_uggedla', 'k2_thorsedla', 'k4_flugedla', 'k5_sloedla', 'k6_gramedla'];
+  const { journal, slots, earned, book } = journalRig({ stored: { stars: SIX, seen: ['video:djamm'] } });
+  const hues = () => slots().map(slot => slot.style.getPropertyValue('--hue'));
+  assert.equal(slots().length, 6, 'six slots before the festival');
+  assert.deepEqual(hues(), FRIEND_HUES, 'in the friends\' order and hues');
+  assert.deepEqual(earned(), [true, true, true, true, true, true]);
+  assert.equal(journal.seen('hatid'), true, 'the festival is seen');
+  assert.equal(book.refreshed, 1, 'and the book is told');
+  assert.equal(slots().length, 7, 'a seventh slot after the six');
+  assert.deepEqual(hues().slice(0, 6), FRIEND_HUES, 'the six as they were');
+  const seventh = slots()[6];
+  assert.equal(hues()[6], SEVENTH_SLOT.colour, 'in the unknown star\'s hue');
+  assert.equal(SEVENTH_SLOT.colour, SEVENTH.colour, 'the seventh star\'s own (hatid-seventh.js)');
+  assert.ok(seventh.classList.contains('unknown'), 'blinking (style.css .star-slot.unknown)');
+  assert.deepEqual(earned(), [true, true, true, true, true, true, false], 'empty: never earned');
+  assert.equal(FRIENDS_DATA.length, 6, 'and the friends are still six');
+  const css = fs.readFileSync(new URL('../style.css', import.meta.url), 'utf8');
+  assert.match(css, /\.star-slot\.unknown \{[^}]*animation: star-slot-unknown 2\.4s/, 'it blinks slowly, once in 2.4 s');
+  assert.match(css, /prefers-reduced-motion: reduce\) \{ \.star-slot\.unknown \{ animation: none; \} \}/, 'and stands still with reduced motion');
+  // a save that has seen the festival before shows it from the first frame; one that has not, never
+  assert.equal(journalRig({ stored: { stars: SIX, seen: ['hatid'] } }).slots().length, 7);
+  assert.equal(journalRig({ stored: { stars: SIX.slice(0, 5) } }).slots().length, 6);
+});
+
+test('seen a second time: no star, hatid once, the six as they were', () => {
+  const SIX = ['k1_kambedla', 'k2_uggedla', 'k2_thorsedla', 'k4_flugedla', 'k5_sloedla', 'k6_gramedla'];
+  const { journal, save, earned, slots, book } = journalRig({ stored: { stars: SIX, seen: ['hatid'] } });
+  assert.equal(journal.seen('hatid'), false, 'nothing new');
+  assert.equal(book.refreshed, 0, 'so the book has nothing to show');
+  assert.deepEqual(save.get().stars, SIX, 'no star');
+  assert.equal(save.get().seen.filter(id => id === 'hatid').length, 1, 'hatid once');
+  assert.equal(slots().length, 7, 'one seventh slot, not two');
+  assert.deepEqual(earned().slice(0, 6), [true, true, true, true, true, true], 'the six as they were');
 });
 
 test('the book can be brought out and put away', () => {

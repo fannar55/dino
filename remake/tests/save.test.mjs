@@ -51,7 +51,7 @@ test('a save that ended chapter 5 opens chapter 6 and loses nothing, and so does
   assert.equal(save.addStar('k6_gramedla'), true);
   assert.equal(save.addStar('k6_gramedla'), false, 'her star once');
   const after = createSave(storage);
-  assert.equal(defaultChapter(after), 'kafli6', 'the last chapter until the festival is made');
+  assert.equal(defaultChapter(after), 'hatid', 'then the festival');
   assert.deepEqual(after.get().stars, [...FIVE, 'k6_gramedla']);
   assert.deepEqual(after.get().places, stored.places, 'the places are as they were');
 });
@@ -84,4 +84,20 @@ test('minigame stickers persist cleanly, omit empty sticker objects, and awardSt
   };
   awardSticker('sloedla', subWin);
   assert.deepEqual(posted, [[{ type: 'mosi:sticker', game: 'sloedla' }, 'https://mosi.fannar55.workers.dev']]);
+});
+
+/** A save of the test's own with these stars and these seen, in memory. */
+const saveWith = (stars, seen = []) => {
+  const save = createSave(null);
+  for (const star of stars) save.addStar(star);
+  for (const id of seen) save.addSeen(id);
+  return save;
+};
+
+test('the save opens the festival after Grameðla\'s star until it has been seen, and keeps every earlier answer', () => {
+  const SIX = ['k1_kambedla', 'k2_uggedla', 'k2_thorsedla', 'k4_flugedla', 'k5_sloedla', 'k6_gramedla'];
+  const cases = [[[], [], 'kafli1'], [SIX.slice(0, 4), [], 'kafli5'], [SIX.slice(0, 5), [], 'kafli6'], [SIX, [], 'hatid'], [SIX, ['hatid'], 'kafli6'],
+    [[...SIX.slice(0, 4), 'k6_gramedla'], [], 'kafli5'], // Grameðla's star alone does not skip Slóeðla
+    [SIX.slice(0, 5), ['hatid'], 'kafli6']];
+  for (const [stars, seen, want] of cases) assert.equal(defaultChapter(saveWith(stars, seen)), want, `${stars.length} stars, seen ${seen}`);
 });

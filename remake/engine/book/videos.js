@@ -218,7 +218,8 @@ export const BOOK_3D = [
  * show player's frame as the 3D shows are. "Djamm skógarins" is chapter 5's music show, DJ Flugeðla's set (chapters/kafli5.js
  * `show`), so it can be watched again without the story before it. Open from the start, as every show on this page is (the three
  * 3D shows): a show is no reward. (To keep it until the chapter is finished instead: `unlock: { star: 'k5_sloedla' }`, and it
- * stands as a "?" until then, with "Nýtt!" on the ribbon when the star comes, as the videos do.)
+ * stands as a "?" until then, with "Nýtt!" on the ribbon when the star comes, as the videos do.) "Stjörnuhátíðin", the festival's
+ * party, is the one that waits: it opens when the festival has been seen (`unlock: { seen: 'hatid' }`, cards.js), beside it in the row.
  */
 export const BOOK_SHOWS = [
   {
@@ -230,6 +231,18 @@ export const BOOK_SHOWS = [
     hue: '#e2833a',
     unlock: { start: true },
     label: 'Djamm skógarins, tónlistarmyndband úr leiknum',
+  },
+  {
+    // the festival's party alone (chapters/veisla.js), from the moon's "Tút!" to the last chord: a "?" until the festival has been
+    // seen (`hatid` in the save's seen, from the moment the seventh star lifts Egill), then "Nýtt!" until it is opened, as a video
+    id: 'veisla',
+    name: 'Stjörnuhátíðin',
+    title: 'Stjörnuhátíðin',
+    chapter: 'veisla',
+    poster: videoUrl('veisla-thumb.webp'), // a still of the party the game draws itself (.tools/hatid-17/stills.mjs party_wide@258)
+    hue: '#3d4f9a',
+    unlock: { seen: 'hatid' },
+    label: 'Stjörnuhátíðin, veislan úr leiknum',
   },
 ];
 

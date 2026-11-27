@@ -167,6 +167,7 @@ function matchesUnlock(unlock, state) {
   if ('found' in unlock) return (state?.findings ?? []).includes(unlock.found);
   if ('place' in unlock) return (state?.places ?? []).includes(unlock.place);
   if ('fossil' in unlock) return (state?.fossils ?? []).includes(unlock.fossil);
+  if ('seen' in unlock) return (state?.seen ?? []).includes(unlock.seen); // a chapter seen (the book's tile of the festival: videos.js)
   return (state?.stars ?? []).includes(unlock.star);
 }
 

@@ -10,6 +10,7 @@ import { playUnattended } from './chapter-harness.mjs';
 import { CLOUD_BY_PRINT, FORD, STEPS, CALL, callStand } from '../chapters/kafli6-route.js';
 import { SHAPE, STEP_OUT, SNIFF } from '../chapters/kafli6-gramedla.js';
 import * as kafli5 from '../chapters/kafli5.js';
+import * as hatid from '../chapters/hatid.js';
 import { createSave, defaultChapter } from '../engine/save.js';
 import { renderMap } from '../engine/book/map-page.js';
 import { parseCards, bookState, isUnlocked } from '../engine/book/cards.js';
@@ -823,18 +824,20 @@ function mapOf(save, { reduced = false } = {}) {
   return renderMap(leaf, { save, win: { matchMedia: () => ({ matches: reduced }) }, liveMap: () => null });
 }
 
-test('defaultChapter opens chapter 6 after Slóeðla and keeps every earlier answer', () => {
+test('defaultChapter opens chapter 6 after Slóeðla, the festival after her star, and keeps every earlier answer', () => {
   const cases = [[[], 'kafli1'], [FIVE.slice(0, 1), 'kafli2'], [FIVE.slice(0, 2), 'kafli3'], [FIVE.slice(0, 3), 'kafli4'],
-    [FIVE.slice(0, 4), 'kafli5'], [FIVE, 'kafli6'], [[...FIVE, 'k6_gramedla'], 'kafli6'],
+    [FIVE.slice(0, 4), 'kafli5'], [FIVE, 'kafli6'], [[...FIVE, 'k6_gramedla'], 'hatid'], // the festival, until it has been seen (save.test.mjs)
     [['k1_kambedla', 'k2_thorsedla'], 'kafli2'], // an old chapter 2 save still meets Uggeðla
     [['k1_kambedla', 'k2_uggedla', 'k4_flugedla'], 'kafli3'], // Flugeðla's star alone does not skip Þórseðla
     [[...FIVE.slice(0, 4), 'k6_gramedla'], 'kafli5']]; // nor Grameðla's Slóeðla
   for (const [stars, want] of cases) assert.equal(defaultChapter(saveWith(stars)), want, `stars ${stars.join(', ') || 'none'}`);
 });
 
-test('kafli5 hands over to kafli6 (kafli5.chapter.next), and kafli6 to none yet (chapter.next === null)', () => {
+test('kafli5 hands over to kafli6, kafli6 to the festival, and the festival to none', () => {
   assert.equal(kafli5.chapter.next, 'kafli6');
-  assert.equal(chapter.next, null, 'the festival is not made yet');
+  assert.equal(chapter.next, 'hatid', '"Áfram" at her chapter\'s end leads to the festival');
+  assert.equal(hatid.chapter.next, null, 'the ride back ends the story: nothing after it');
+  assert.equal(hatid.party.next, null, 'and the party alone, the book\'s tile, leads nowhere either');
 });
 
 test("scene 1 draws map piece f once, with Mosi's, Egill's and Mosi's lines said while the map is up", async () => {
@@ -893,7 +896,7 @@ test('played again with k6_gramedla already in the save: no second star, map-rou
   assert.deepEqual(places, PLACES, 'the places as they were');
   assert.deepEqual(run.moments.flatMap(moment => moment.ids), ['f'], 'the map still draws the way in scene 1');
   assert.ok(run.seen.spokenAt.has('k6_mosi_star') && run.seen.spokenAt.has('k6_mosi_room'), 'the lines are said all the same');
-  assert.equal(defaultChapter(run.save), 'kafli6', 'and the save still opens chapter 6');
+  assert.equal(defaultChapter(run.save), 'hatid', 'and the save opens the festival, not seen yet');
 });
 
 test('the chapter ends in the book on the dinosaurs with Grameðla nodding, then the map', async () => {

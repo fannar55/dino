@@ -193,6 +193,12 @@ body:has(#book.child-open) .caption { display: none; }
 .star-slot svg { width: 72%; height: 72%; display: block; overflow: visible; }
 .star-slot path { fill: none; stroke: var(--ink-soft); stroke-width: 1.5; stroke-linejoin: round; opacity: .45; }
 .star-slot.earned path { fill: var(--star); stroke: var(--ink); opacity: 1; }
+/* The seventh slot (journal.js, after the festival): no friend's, empty, its outline in the unknown star's hue blinking slowly (a
+   blink every 2.4 s, far under twice a second); steady with reduced motion. */
+.star-slot.unknown { border-style: dashed; animation: star-slot-unknown 2.4s ease-in-out infinite; }
+.star-slot.unknown path { stroke: var(--hue); opacity: .8; }
+@keyframes star-slot-unknown { 0%, 100% { border-color: var(--hue); } 50% { border-color: rgb(200 255 94 / .25); } }
+@media (prefers-reduced-motion: reduce) { .star-slot.unknown { animation: none; } }
 .journal-badge { /* a new animal is in the book: a twinkle on the button until the book is opened */
   position: absolute; top: -11px; left: 31px; width: 32px; height: 32px; display: grid; place-items: center;
   border: 2.5px solid var(--card); border-radius: 50%; background: var(--accent); box-shadow: 0 2px 6px rgba(40, 30, 15, .35);

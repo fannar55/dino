@@ -1,7 +1,7 @@
 import { Handle } from '../handle.js';
 import { createMapMoment } from '../book/map-moment.js';
-import { FRIENDS, STAR_SVG, placeHue, friendOf } from './journal-data.js';
-export { FRIENDS, STAR_SVG, placeHue, friendOf };
+import { FRIENDS, SEVENTH_SLOT, STAR_SVG, placeHue, friendOf } from './journal-data.js';
+export { FRIENDS, SEVENTH_SLOT, STAR_SVG, placeHue, friendOf };
 
 // Egill's explorer's journal (STYLE.md section 10): a book in the top right corner of the screen with a slot for the star of
 // each friend. A tap on it opens the book itself (engine/book/book.js), the living book over the paused game. A star from a
@@ -64,7 +64,11 @@ function needId(id, call) {
  *   open(tab, { nod }), close(), isOpen  the book for a scene that ends in it: open() opens it on its dinosaurs (or on `tab`, such as
  *                           'games' or 'map') as the script's, which holds nothing (book.js), so the scene goes on under it; `nod` (a card's id)
  *                           nods that card's tile once the book has grown, as chapter 2's end has Þórseðla's, new, nod on the Risaeðlur page
+ *   seen(id)                the save marks `id` seen (save.addSeen, once however often it is called) and the book is refreshed;
+ *                           true when it was new. The festival calls it with 'hatid' as the seventh star lifts Egill
  *   stars, findings, places the ids, in the order they came
+ * Once the festival has been seen (`hatid` in the save's seen) a seventh slot follows the six: empty, in SEVENTH_SLOT's hue,
+ * blinking slowly (style.css .star-slot.unknown), never earned, a hint of story 2.
  *   mapMoment               the map in the journey (engine/book/map-moment.js), which a scene plays at a departure: the whole map slides
  *                           up over the game, draws the leg ahead and slides away. The journal owns it because it has the save (the
  *                           pieces drawn are kept as seen) and the sound, and it is counted on the game clock by update(dt) below.
@@ -100,11 +104,27 @@ export function createJournal(doc, save, { book = null, audio = null, win = glob
     return slot;
   });
   slotsEl.replaceChildren(...slots);
+  const seventh = doc.createElement('span'); // after the six once the festival has been seen; never earned
+  seventh.className = 'star-slot unknown';
+  seventh.style.setProperty('--hue', SEVENTH_SLOT.colour);
+  seventh.innerHTML = STAR_SVG;
 
   /** Lights the slots of the stars the save holds. */
   function render() {
     const got = new Set(save.get().stars.map(friendOf));
     FRIENDS.forEach((friend, i) => slots[i].classList.toggle('earned', got.has(friend.key)));
+    const festival = (save.get().seen ?? []).includes('hatid');
+    if (festival && seventh.parentNode !== slotsEl) slotsEl.append(seventh);
+    if (!festival && seventh.parentNode === slotsEl) seventh.remove();
+  }
+
+  /** The save marks `id` seen, once; the slots and the book show it. */
+  function seen(id) {
+    needId(id, 'journal.seen');
+    const fresh = save.addSeen(id);
+    render();
+    if (fresh) book?.refresh?.();
+    return fresh;
   }
 
   function show(on = true) {
@@ -390,6 +410,7 @@ export function createJournal(doc, save, { book = null, audio = null, win = glob
     addFinding,
     addPlace,
     launchStars,
+    seen,
     update,
     show,
     mapMoment,

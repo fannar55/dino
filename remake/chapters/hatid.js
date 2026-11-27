@@ -987,7 +987,7 @@ function* seventh(s, c) {
   const light = { seat: high, update: () => high, host: holder };
   c.log({ type: 'lifted', at: from.toArray() });
   c.lifted = { at: from.toArray(), time: s.time };
-  if (typeof s.journal?.seen === 'function') s.journal.seen('hatid'); // as his feet leave the ground (Task 19 makes it real)
+  s.journal.seen('hatid'); // as his feet leave the ground: from now on the festival has been seen, even if the child leaves in the ride
   sound(s, c, 'float');
   c.moth.follow('egill', s.time);
   c.log({ type: 'moth', act: 'follow' });

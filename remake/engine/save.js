@@ -309,16 +309,18 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
 /**
  * The chapter a page plays when its address names none (main.js), from the stars the child has: chapter 1 until Kambeðla's star
  * (k1_kambedla) is won, then chapter 2 until Uggeðla's (k2_uggedla), then chapter 3 until Þórseðla's (k2_thorsedla), then
- * chapter 4 until Flugeðla's (k4_flugedla), then chapter 5 until Slóeðla's (k5_sloedla), then chapter 6, which stays the answer once
- * Grameðla's star (k6_gramedla) is won too: it is the last chapter until the festival is made. A save from the old chapter 2, which has
- * Þórseðla's star but not Uggeðla's, plays the new chapter 2 and meets Uggeðla; nothing in it is lost. A star won out of order never
- * skips a chapter: Grameðla's without Slóeðla's still plays chapter 5.
+ * chapter 4 until Flugeðla's (k4_flugedla), then chapter 5 until Slóeðla's (k5_sloedla), then chapter 6 until Grameðla's
+ * (k6_gramedla), then the festival (hatid) until it has been seen (`hatid` in seen, from the moment the seventh star lifts Egill),
+ * and after it chapter 6 again: the festival gives no star, and the story has no chapter after it yet. A save from the old chapter 2,
+ * which has Þórseðla's star but not Uggeðla's, plays the new chapter 2 and meets Uggeðla; nothing in it is lost. A star won out of
+ * order never skips a chapter: Grameðla's without Slóeðla's still plays chapter 5.
  */
 export function defaultChapter(save) {
-  const stars = save.get().stars;
+  const { stars, seen } = save.get();
   if (!stars.includes('k1_kambedla')) return 'kafli1';
   if (!stars.includes('k2_uggedla')) return 'kafli2';
   if (!stars.includes('k2_thorsedla')) return 'kafli3';
   if (!stars.includes('k4_flugedla')) return 'kafli4';
-  return stars.includes('k5_sloedla') ? 'kafli6' : 'kafli5';
+  if (!stars.includes('k5_sloedla')) return 'kafli5';
+  return stars.includes('k6_gramedla') && !(seen ?? []).includes('hatid') ? 'hatid' : 'kafli6';
 }

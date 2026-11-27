@@ -596,6 +596,8 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
        * game and draws the named pieces, `close()` slides it away (scene/map-moment-scene.js times both beside Mosi's line).
        */
       get mapMoment() { needJournal('s.journal.mapMoment'); return journal.mapMoment; },
+      /** The save marks `id` seen, once (journal.seen: save.addSeen), and the book is refreshed: the festival's 'hatid' as Egill lifts. */
+      seen: id => { needJournal('s.journal.seen'); journal.seen(id); return DONE; },
       /**
        * The book sends the six friends' stars up to `points` (point specs in the world, in FRIENDS' order: the festival's places on
        * the sky), each from where the book swells in the middle of the screen to where its point is on the screen now
