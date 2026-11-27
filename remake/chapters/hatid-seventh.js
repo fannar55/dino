@@ -56,6 +56,7 @@ export function createSeventh(c) {
   const rings = createRings(world, { capacity: 1, name: 'Hátíð seventh disc' });
   const state = { level: 0, near: 0, light: 0 };
   const point = new THREE.Vector3();
+  const through = new THREE.Vector3();
   let clock = 0;
 
   function frame() {
@@ -77,9 +78,12 @@ export function createSeventh(c) {
     beams.begin();
     rings.begin();
     if (state.light > 0.003 && state.level > 0.003) {
-      const to = [base.x, base.y, base.z];
+      // through Egill wherever he is in his rise, on to the ground (so he is in its light all the way up)
+      const him = world.actors?.get('egill')?.centre(through) ?? base;
+      const k = point.y - him.y > 0.5 ? (point.y - base.y) / (point.y - him.y) : 1;
+      const to = [point.x + (him.x - point.x) * k, base.y, point.z + (him.z - point.z) * k];
       beams.beam(point, to, LOOK.cone, ...SRGB, state.light * LOOK.coneLevel);
-      rings.disc(base.x, base.y + 0.06, base.z, LOOK.disc, ...SRGB, state.light * LOOK.discLevel);
+      rings.disc(to[0], base.y + 0.06, to[2], LOOK.disc, ...SRGB, state.light * LOOK.discLevel);
     }
     beams.end();
     rings.end();

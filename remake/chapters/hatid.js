@@ -23,7 +23,7 @@
 import * as THREE from 'three';
 import { createTop } from '../world/fjall/index.js';
 import {
-  FRIENDS8, MODELS, standsOf, arrivalOf, ARRIVALS, SKY, STAR_TAP, SUN_TAP, SHOTS, tallShot, BUDGET, partyPlace, STAGE,
+  FRIENDS8, MODELS, standsOf, arrivalOf, ARRIVALS, SKY, STAR_TAP, SUN_TAP, SHOTS, tallShot, BUDGET, partyPlace,
 } from './hatid-route.js';
 import { createOneTap, createStars, createSkyStars, starTone, TAP_HELP } from './hatid-stars.js';
 import { BEAT, END_BEAT, beatAt, secondsAt, CAMERA, PARTY_SOUNDS } from './hatid-score.js';
@@ -1084,15 +1084,17 @@ function liftCut(s, c, name) {
   // lift_side's lens brought nearer him (FOUR.near of the way), so he is more than a speck in front of Grameðla
   const side = new THREE.Vector3(...SHOTS.toppur.lift_side.position);
   const lens = side.clone().sub(base).multiplyScalar(FOUR.near).add(base).setY(side.y);
-  const toStage = new THREE.Vector3(STAGE.centre[0] - base.x, 0, STAGE.centre[1] - base.z).normalize();
+  // over him toward Mosi below, who calls up to him (not toward the stage: Uggeðla stood under him there)
+  const [mx, mz] = c.stands.gather.mosi.at;
+  const toMosi = new THREE.Vector3(mx - base.x, 0, mz - base.z).normalize();
   const specs = {
     lift_follow: {
       position: out => out.copy(lens).add(new THREE.Vector3(0, (egill().y - base.y) * FOUR.follow, 0)),
       target: out => out.copy(egill()).add(new THREE.Vector3(0, 1.4, 0)), fov: SHOTS.toppur.lift_side.fov,
     },
     rise_above: {
-      position: out => out.copy(egill()).addScaledVector(toStage, -4).add(new THREE.Vector3(0, 3.5, 0)),
-      target: out => out.copy(base).addScaledVector(toStage, 12), fov: 58, aerial: true,
+      position: out => out.copy(egill()).addScaledVector(toMosi, -4).add(new THREE.Vector3(0, 3.5, 0)),
+      target: out => out.copy(base).addScaledVector(toMosi, 10), fov: 58, aerial: true,
     },
   };
   c.shotLabel = name;
