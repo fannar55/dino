@@ -25,6 +25,66 @@ import { STEMS, noteName } from './measure.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(here, '../../..');
+
+// ---------------------------------------------------------------- the seventh star's motif (--stef)
+// `node remake/tools/hatid-lag/render.mjs --stef` makes only the three candidates of the seventh star's motif (spec 8: "fáir,
+// bjartir og framandi tónar sem tilheyra ekki skóginum"), by code on this machine: a few bright tones outside the song's key
+// (D major: D E F# G A B C#; these are of Bb, C, Eb, F and Ab), each a struck tone of inharmonic partials with a long ring and a
+// little echo, so they sound like nothing in the forest. Writes qa/remake/hatid/lag/stef/{a,b,c}.mp3 and stef.json (each one's
+// notes in Hz, its length and a note on it); tools/hatid-song.mjs carries the owner's pick (STEF_PICK there) into the game.
+// Nothing is asked of anyone: no outside service, no download.
+export const STEF = {
+  a: { notes: [932.33, 1396.91, 1046.5, 1661.22], gap: 0.55, partials: [[1, 1], [2.76, 0.42], [5.4, 0.2], [8.93, 0.08]], ring: 2.4, note: 'glass bells: Bb5 F6 C6 Ab6, rising strangely, its last two a wide leap up' },
+  b: { notes: [1244.51, 1046.5, 1661.22, 1864.66], gap: 0.6, partials: [[1, 1], [2, 0.3], [3.01, 0.12], [4.17, 0.1]], ring: 2.0, shimmer: 5.5, note: 'a celesta that wavers: Eb6 C6 Ab6 Bb6, its last two a step at the top' },
+  c: { notes: [698.46, 1661.22, 1244.51, 2093], gap: 0.5, partials: [[1, 1], [3.93, 0.35], [6.27, 0.15]], ring: 1.8, drone: 466.16, note: 'a music box over a soft Bb drone: F5 Ab6 Eb6 C7, wide leaps, the last the highest' },
+};
+function stefTone(left, right, from, hz, { partials, ring, shimmer = 0 }, pan) {
+  const n = Math.min(left.length - from, Math.round((ring + 0.5) * SR));
+  const [gl, gr] = [Math.cos((pan + 1) * Math.PI / 4), Math.sin((pan + 1) * Math.PI / 4)];
+  for (let i = 0; i < n; i++) {
+    const t = i / SR;
+    const attack = Math.min(1, t / 0.006);
+    let v = 0;
+    for (const [ratio, level] of partials) v += level * Math.sin(2 * Math.PI * hz * ratio * t + (shimmer ? 0.004 * hz * Math.sin(2 * Math.PI * shimmer * t) / shimmer : 0)) * Math.exp(-t * ratio * 2.2 / ring);
+    v *= attack * 0.22;
+    left[from + i] += v * gl;
+    right[from + i] += v * gr;
+  }
+}
+function renderStef() {
+  const OUT = path.join(ROOT, 'qa/remake/hatid/lag/stef');
+  fs.mkdirSync(OUT, { recursive: true });
+  const about = {};
+  for (const [name, stef] of Object.entries(STEF)) {
+    const seconds = round(stef.gap * (stef.notes.length - 1) + stef.ring + 1.2, 2);
+    const n = Math.round(seconds * SR);
+    const left = new Float32Array(n), right = new Float32Array(n);
+    if (stef.drone) {
+      for (let i = 0; i < n; i++) {
+        const t = i / SR;
+        const env = Math.min(1, t / 0.8) * Math.min(1, (seconds - t) / 1.2);
+        const v = 0.035 * env * (Math.sin(2 * Math.PI * stef.drone * t) + 0.4 * Math.sin(2 * Math.PI * stef.drone * 1.5 * t + 0.3 * Math.sin(t * 0.7)));
+        left[i] += v; right[i] += v;
+      }
+    }
+    stef.notes.forEach((hz, k) => stefTone(left, right, Math.round((0.05 + k * stef.gap) * SR), hz, stef, k % 2 ? 0.35 : -0.35));
+    // a little echo off the sky: two taps, each to the other side
+    for (const [delay, gain] of [[0.23, 0.32], [0.41, 0.18]]) {
+      const d = Math.round(delay * SR);
+      for (let i = n - 1; i >= d; i--) { const l = left[i - d], r = right[i - d]; left[i] += r * gain; right[i] += l * gain; }
+    }
+    const peak = peakOf({ L: left, R: right, n });
+    const k = 10 ** (-4 / 20) / peak; // to -4 dBFS at its peak
+    for (let i = 0; i < n; i++) { left[i] *= k; right[i] *= k; }
+    const wav = path.join(OUT, `${name}.wav`);
+    writeWav(wav, left, right);
+    encodeMp3(wav, path.join(OUT, `${name}.mp3`));
+    fs.rmSync(wav);
+    about[name] = { src: `${name}.mp3`, notes: stef.notes, seconds, note: stef.note };
+    say(`stef ${name}: ${stef.notes.join(' ')} Hz, ${seconds} s`);
+  }
+  fs.writeFileSync(path.join(OUT, 'stef.json'), `${JSON.stringify(about, null, 2)}\n`);
+}
 const H = path.join(ROOT, 'qa/remake/hatid/lag/hatid-h');
 const WORK = path.join(H, 'work');
 const AUDIO = path.join(ROOT, 'remake/assets/audio');
@@ -32,6 +92,10 @@ const t0 = Date.now();
 const say = msg => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s] ${msg}`);
 const db = v => 20 * Math.log10(Math.max(v, 1e-12));
 const round = (v, k = 1) => Math.round(v * 10 ** k) / 10 ** k;
+if (process.argv.includes('--stef')) {
+  renderStef();
+  process.exit(0);
+}
 fs.mkdirSync(path.join(H, 'stems'), { recursive: true });
 fs.mkdirSync(WORK, { recursive: true });
 

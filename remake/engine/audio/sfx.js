@@ -55,6 +55,9 @@ export const SAMPLES = {
   // the wind in the belt of cloud: a loop, s.sfx('mountainWind', { level, seconds }) to `level` over `seconds` (0 fades it out and ends
   // it); until it has a file the forest's own wind stands for it (its bed with no birds, at the same level)
   mountainWind: { urls: picked('mountainWind'), level: 0.3, loop: true, instead: 'forest' },
+  // the festival's seventh star's motif (tools/hatid-lag/render.mjs --stef, the pick tools/hatid-song.mjs carries): play it with
+  // detail.rate 1, its notes are its own
+  seventh: { url: new URL('../../assets/audio/hatid/seventh.mp3', import.meta.url).href, level: 0.7 },
 };
 const SAMPLE_VARY = 0.06; // a recorded sample plays up to 6 % higher or lower each time (a play's detail.rate sets it instead)
 const DEFAULT_KEY = [523.25, 587.33, 659.25, 783.99, 880]; // C major pentatonic, for a page with no theme.json

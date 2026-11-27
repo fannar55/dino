@@ -1647,5 +1647,16 @@ export const SONG = {
         "who": "sloedla"
       }
     ]
+  },
+  "seventh": {
+    "src": "../seventh.mp3",
+    "pick": "a",
+    "notes": [
+      932.33,
+      1396.91,
+      1046.5,
+      1661.22
+    ],
+    "seconds": 5.25
   }
 };

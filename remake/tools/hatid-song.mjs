@@ -24,6 +24,15 @@ const LAG = path.join(ROOT, 'qa/remake/hatid/lag');
 const FROM = path.join(LAG, 'hatid-h');
 const TO = path.join(ROOT, 'remake/assets/audio/hatid/song');
 const MODULE = path.join(ROOT, 'remake/chapters/hatid-song.js');
+// The seventh star's motif (render.mjs --stef): the candidate the game plays, carried to assets/audio/hatid/seventh.mp3 with its
+// notes in song.json (`seventh`: the ride back ends on its two last tones). 'a' until the owner picks by ear (Task 18: the first).
+export const STEF_PICK = 'a';
+const STEF = path.join(LAG, 'stef');
+const SEVENTH = path.join(ROOT, 'remake/assets/audio/hatid/seventh.mp3');
+function stefOf() {
+  const { notes, seconds } = JSON.parse(fs.readFileSync(path.join(STEF, 'stef.json'), 'utf8'))[STEF_PICK];
+  return { src: '../seventh.mp3', pick: STEF_PICK, notes, seconds };
+}
 const moduleOf = song => `// Stjörnuhátíðin's song as the party reads it: assets/audio/hatid/song/song.json as a module (read it through hatid-score.js).
 // Written by tools/hatid-song.mjs: do not edit it by hand.
 export const SONG = ${song.trimEnd()};
@@ -32,7 +41,7 @@ const md5 = file => crypto.createHash('md5').update(fs.readFileSync(file)).diges
 const rel = file => path.relative(ROOT, file).replace(/\\/g, '/');
 
 /** song.json from the render's beat map. */
-export function songOf(render) {
+export function songOf(render, seventh = null) {
   return {
     about: 'Stjörnuhátíðin\'s song (tools/hatid-song.mjs): the owner\'s pick H of 2026-11-24, composed by ElevenLabs Music from a description of the scene, arranged from its own stems and mixed for small speakers by tools/hatid-lag/render.mjs. Beats are counted from the first bar line (beatOffset seconds into the file); the tempo is fixed: beat b is at beatOffset + b * 60 / bpm. Read it through chapters/hatid-score.js.',
     name: 'Stjörnuhátíðin',
@@ -57,6 +66,7 @@ export function songOf(render) {
       calls: render.calls,
       cues: render.cues,
     },
+    ...(seventh ? { seventh } : {}),
   };
 }
 
@@ -131,7 +141,7 @@ export function sourcesOf() {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const render = JSON.parse(fs.readFileSync(path.join(FROM, 'render.json'), 'utf8'));
   const check = process.argv.includes('--check');
-  const song = `${JSON.stringify(songOf(render), null, 2)}\n`;
+  const song = `${JSON.stringify(songOf(render, stefOf()), null, 2)}\n`;
   const credits = creditsOf(render);
   const sources = sourcesOf();
   if (check) {
@@ -142,12 +152,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       same(path.join(TO, 'CREDITS.md'), credits) ? null : 'CREDITS.md',
       same(path.join(TO, 'SOURCES.md'), sources) ? null : 'SOURCES.md',
       fs.existsSync(path.join(TO, 'hatid.mp3')) && md5(path.join(TO, 'hatid.mp3')) === md5(path.join(FROM, 'mix.mp3')) ? null : 'hatid.mp3',
+      fs.existsSync(SEVENTH) && md5(SEVENTH) === md5(path.join(STEF, `${STEF_PICK}.mp3`)) ? null : 'seventh.mp3',
     ].filter(Boolean);
     console.log(differ.length ? `the song in the game is NOT the render's (${differ.join(', ')}): run without --check` : 'the song in the game is the render\'s');
     process.exit(differ.length ? 1 : 0);
   }
   fs.mkdirSync(TO, { recursive: true });
   fs.copyFileSync(path.join(FROM, 'mix.mp3'), path.join(TO, 'hatid.mp3'));
+  fs.copyFileSync(path.join(STEF, `${STEF_PICK}.mp3`), SEVENTH);
+  console.log(`seventh.mp3 (motif ${STEF_PICK})  ${fs.statSync(SEVENTH).size} bytes`);
   fs.writeFileSync(path.join(TO, 'song.json'), song);
   fs.writeFileSync(MODULE, moduleOf(song));
   fs.writeFileSync(path.join(TO, 'CREDITS.md'), credits);
