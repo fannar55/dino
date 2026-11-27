@@ -222,7 +222,7 @@ export const SKY = {
   // from the right edge and its hat's tip 11 % of the height from the top; upright 0.80 across and 0.39 down. It climbs there from
   // where it peeked over the intro, `rise` beats (hatid-stage.js moonPlaceAt), and is there from the party's first frame with less
   // motion.
-  partyMoon: { azimuth: 72.5, elevation: 14 },
+  partyMoon: { azimuth: 73.5, elevation: 14.3 },
   moonRise: { from: 4, to: 60 },
   seventh: { azimuth: 45, elevation: 58 },
   // the constellations (engine/constellations.js): in scene 2 each drawing's longest side `span` degrees, her own star at her place
@@ -237,11 +237,11 @@ export const SKY = {
     span: 11,
     places: {
       thorsedla: { azimuth: 18.8, elevation: 20.1 },
-      kambedla: { azimuth: 28.6, elevation: 9.8 },
-      flugedla: { azimuth: 34, elevation: 21 },
-      uggedla: { azimuth: 48.2, elevation: 16 },
-      sloedla: { azimuth: 63.4, elevation: 21.2 },
-      gramedla: { azimuth: 62.8, elevation: 10.4 },
+      kambedla: { azimuth: 24.8, elevation: 8.2 },
+      flugedla: { azimuth: 31.2, elevation: 17.3 },
+      uggedla: { azimuth: 45.7, elevation: 22.1 },
+      sloedla: { azimuth: 62.7, elevation: 21.5 },
+      gramedla: { azimuth: 63.4, elevation: 11.8 },
     },
   },
 };
@@ -384,9 +384,10 @@ export const SHOTS = {
     // the party's last picture (Task 17 fix 1: from far back and high Egill was a speck and half the frame floor): low and near Egill,
     // he and Mosi in front in their end poses, the six whole behind them (.tools/hatid-17/finalpose.mjs: no nearer lens holds every
     // head and tail on 16:10), looking up 13 degrees so the floor is a quarter of the frame and the drawings and the moon are over them
-    // (Task 17b: turned 4 degrees right, from 42 to 46, 2 degrees lower and 4.5 wider, so the moon up to the right is inside the frame
-    // and clear of its corner, 0.85 across and 0.38 down, with everyone still in it, Uggeðla at its left edge; it was 43.5 at 42, 12 up)
-    final_pose: shot(fp(1, -24.5, 1), toSky(fp(1, -24.5, 1), { azimuth: 46, elevation: 10 }), 48),
+    // (Task 17b: turned 2.8 degrees right, from 42 to 44.8, on 51, not 43.5, and a metre higher looking 7 degrees up, not 12, so the
+    // moon up to the right is whole and clear of the corner, 0.85 across and 0.33 down, the six drawings whole and everyone in it,
+    // Uggeðla 14 % in from the left, her head off Kambeðla's drawing but for 8 % of it; Egill about a sixth smaller than on 43.5)
+    final_pose: shot(fp(1, -24.5, 2), toSky(fp(1, -24.5, 2), { azimuth: 44.8, elevation: 7 }), 51),
     // Task 17 (chunk-6 ruling 17: the dance must be seen to be copied): Egill whole and big doing each called move, Mosi beside him
     // doing it too. From in front of them to his right, at his chest's height, Mosi behind him over his shoulder (from straight in
     // front Mosi's head left the frame in the spin)
@@ -494,13 +495,13 @@ const TALL = {
   dance_egill: shot(fp(4.91, -13.68, 0.9), fp(0.63, -9.47, 1), 24),
   dance_egill_b: shot(fp(4.91, -13.68, 0.5), fp(0.63, -9.47, 1.4), 24),
   // upright: the same place, looking higher and tighter (at its own lens the bottom two fifths were empty floor and the bursts small)
-  chorus_sky: shot(fp(0, -40, 3), toSky(fp(0, -40, 3), { azimuth: 47, elevation: 32 }), 44), // (Task 17b: from 40, the moon whole)
+  chorus_sky: shot(fp(0, -40, 3), toSky(fp(0, -40, 3), { azimuth: 43.5, elevation: 30 }), 54), // (Task 17b: 43.5, 30 up, on 54: the six drawings and the moon whole)
   // (fix 1) upright: the quiet part's first two shots looking higher (half the frame was floor), quiet_egill nearer him (Egill was a
   // speck between Mosi and the edge)
   quiet_wide: shot(fp(0, -32, 1.2), toSky(fp(0, -32, 1.2), { azimuth: 47, elevation: 24 }), 54), // (Task 17b: as the wide one)
   quiet_egill: shot(fp(5.5, -13.5, 0.5), fp(-1.5, -8.5, 3.2), 30),
   // (fix 1) upright: the same lens looking higher, so the narrow frame's long height is sky over them, not floor under them
-  final_pose: shot(fp(1, -24.5, 1), toSky(fp(1, -24.5, 1), { azimuth: 46, elevation: 22.9 }), 48), // (Task 17b: as the wide one)
+  final_pose: shot(fp(1, -24.5, 2), toSky(fp(1, -24.5, 2), { azimuth: 44.8, elevation: 21 }), 51), // (Task 17b: as the wide one)
 };
 /** The upright frame of shot `name`, where one is needed (else null: the wide frame holds upright too). */
 export function tallShot(name) {

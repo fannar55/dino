@@ -283,7 +283,7 @@ const NAMES = [
   'dance_egill', 'dance_egill_b', 'chorus_sky', 'quiet_wide', 'quiet_egill', // (Task 17; fix 1)
 ];
 // what of the sky each shot must hold
-const SKY_SHOTS = { lineup_sun: [SKY.sun], sun_faces: [SKY.sun], first_star: [SKY.first], moon_peek: [SKY.moon], moon_close: [SKY.partyMoon], seventh_sky: [SKY.seventh], chorus_sky: [SKY.partyMoon], sky_dance: [SKY.partyMoon, ...FRIENDS.map(f => partyPlace(f.key))], party_high: [SKY.partyMoon] }; // (Task 17b: the party's sky)
+const SKY_SHOTS = { lineup_sun: [SKY.sun], sun_faces: [SKY.sun], first_star: [SKY.first], moon_peek: [SKY.moon], moon_close: [SKY.partyMoon], seventh_sky: [SKY.seventh], chorus_sky: [SKY.partyMoon], sky_dance: [SKY.partyMoon, ...FRIENDS.map(f => partyPlace(f.key)).filter(p => p.elevation > 15)], party_high: [SKY.partyMoon] }; // (Task 17b: the party's sky)
 
 // the upright frames that see Egill from his front (Task 15b, the controller's word): Mosi's body in them, not his head
 const BODY_ONLY_UPRIGHT = ['dance_egill', 'dance_egill_b'];

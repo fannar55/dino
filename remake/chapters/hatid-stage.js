@@ -786,13 +786,14 @@ MOON_MOVES.push(
  * (Task 17b, the owner's word of 2026-11-27: the moon up to the right) Where the moon hangs at `beat` of the party: { azimuth,
  * elevation }. It peeked over the sea of cloud at SKY.moon (scene 2, approved) and climbs to SKY.partyMoon over the intro, from
  * SKY.moonRise.from to .to, so the child sees it go up to watch the party; there before the dance (beat 72). Its way: it slides to the
- * right first (its azimuth over the first `side` of the climb), sinking a little toward the cloud (`dip` degrees at the most in the
- * middle), and climbs up the right side to its place (its elevation over the last `side`), every part eased at both ends: so it
- * passes under Uggeðla's and Grameðla's drawings, not through them (.tools/hatid-17b/risepath.mjs: a straight way crossed a line for
- * a third of the climb). A pure function of the beat, so a seek finds it where its beat has it. With less motion it is at its party
- * place from the start.
+ * right first (its azimuth over the first `side` of the climb), sinking back into the sea of cloud as it goes (`dip` degrees at the
+ * most in the middle: only its hat shows over the cloud as it passes under Grameðla's drawing), and climbs up the right side to its
+ * place (its elevation over the last `side`), every part eased at both ends. No part of it, disc, hat or hand, comes within 3 degrees
+ * of a drawing's line at any beat of the climb (.tools/hatid-17b/risepath.mjs: 3.55 at the nearest; a straight way crossed a line
+ * for a third of the climb, a dip of 6 put its hat on Grameðla's tail). A pure function of the beat, so a seek finds it where its
+ * beat has it. With less motion it is at its party place from the start.
  */
-export const MOON_RISE = { side: 0.75, dip: 6 };
+export const MOON_RISE = { side: 0.8, dip: 12 };
 export function moonPlaceAt(beat, { reduced = false } = {}) {
   const { from, to } = SKY.moonRise;
   const s = reduced ? 1 : Math.min(1, Math.max(0, (beat - from) / (to - from)));

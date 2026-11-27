@@ -412,6 +412,41 @@ test('the moon climbs from its peek to its party place over the intro, smoothly,
   assert.deepEqual(moonPlaceAt(33.3), moonPlaceAt(33.3));
 });
 
+test('on its climb no part of the moon, disc, hat or hand, comes within 3 degrees of a drawing\'s line, from its peek to its party place', async () => {
+  const p = await party();
+  p.frame(30);
+  const dir = ({ azimuth, elevation }) => skyDirection(azimuth, elevation, new THREE.Vector3());
+  const lines = [];
+  for (const key of SIX) {
+    const d = p.c.figures.drawingOf(key);
+    lines.push(...d.map(q => [key, dir(q)]));
+    for (const { near, far } of p.c.figures.linesOf(key)) for (let k = 1; k < 6; k++) {
+      lines.push([key, dir({ azimuth: d[near].azimuth + (d[far].azimuth - d[near].azimuth) * k / 6, elevation: d[near].elevation + (d[far].elevation - d[near].elevation) * k / 6 })]);
+    }
+  }
+  const shot = SHOTS.toppur.party_wide;
+  const camera = new THREE.PerspectiveCamera(shot.fov, 1.6, 0.1, 4000);
+  camera.position.fromArray(shot.position);
+  camera.lookAt(new THREE.Vector3().fromArray(shot.target));
+  camera.updateMatrixWorld();
+  const moon = createMoonFace({ scene: new THREE.Scene(), texture: null, sheet: null, ...SKY.moon });
+  const R = MOON.radiusDeg;
+  const toDir = q => q.clone().sub(camera.position).normalize();
+  let worst = Infinity, where = '';
+  for (let b = 0; b <= SKY.moonRise.to + 1e-9; b += 0.5) {
+    moon.set({ ...moonAt(b), ...moonPlaceAt(b) });
+    moon.update(camera);
+    const centre = toDir(moon.points.centre), tip = toDir(moon.points.hatTip);
+    const parts = [[centre, R], ...Array.from({ length: 11 }, (_, k) => [centre.clone().lerp(tip, 0.4 + 0.06 * k).normalize(), 0.45 * R]), [toDir(moon.points.hand), 0.6 * MOON.hand * R]];
+    for (const [c, r] of parts) for (const [key, d] of lines) {
+      const a = deg(c.angleTo(d)) - r;
+      if (a < worst) { worst = a; where = `${key} at ${b}`; }
+    }
+  }
+  moon.dispose();
+  assert.ok(worst >= 3, `the moon ${worst.toFixed(2)} degrees from ${where}`);
+});
+
 test('nobody\'s feet leave her stand: every root stays within 1.5 m of it through the dance', async () => {
   const p = await party();
   let worst = { d: 0 };
