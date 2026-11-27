@@ -135,6 +135,29 @@ test('floatTo lifts the rider onto the seat, and ride keeps him there while Mosi
   assert.ok(egill.root.getWorldScale(new THREE.Vector3()).distanceTo(unit) < 1e-6);
 });
 
+test('floatTo with sit false ends with him held at the point in his lifted pose', async () => {
+  const { egill, frame } = await stage();
+  const high = egill.root.position.clone().add(new THREE.Vector3(0, 14, 0)); // the festival's seventh star: 14 m over him in 9 s
+  const light = { seat: high, update: () => high, host: { heading: egill.heading, lookYawLimit: Infinity, lookUpLimit: Infinity } };
+  const up = floatTo(egill, light, { duration: 9, sit: false });
+  let fastest = 0;
+  let last = egill.root.position.clone();
+  let frames = 0;
+  for (; frames < 400 && !up.done; frames++) {
+    frame();
+    fastest = Math.max(fastest, egill.root.position.distanceTo(last) * 30);
+    last = egill.root.position.clone();
+  }
+  assert.equal(up.done, true);
+  assert.ok(Math.abs(frames / 30 - 9) < 0.05, `the float took ${(frames / 30).toFixed(2)} s`);
+  assert.ok(fastest <= 2, `slowly: never over 2 m/s (${fastest.toFixed(2)})`);
+  for (let i = 0; i < 60; i++) frame();
+  assert.ok(egill.root.position.distanceTo(high) < 0.01, `held ${mm(egill.root.position.distanceTo(high))} from the point`);
+  const weight = clip => egill.mixer.existingAction(egill.clips.get(clip))?.getEffectiveWeight() ?? 0;
+  assert.ok(weight('lifted') > 0.99, `in his lifted pose (${weight('lifted').toFixed(2)})`);
+  assert.equal(weight('sit'), 0, 'never sat');
+});
+
 test('while riding, each hand holds its grip on the handle, also while Mosi walks', async () => {
   const { mosi, egill, frame } = await stage();
   const saddle = createSaddle(mosi);

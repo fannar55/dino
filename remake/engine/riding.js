@@ -430,8 +430,22 @@ const FLOAT_SIT = 0.6;
  * the seat, facing the host's way; he stays held there until ride() takes over (or another float).
  * With `carryLegs` his legs open astride as they will sit, carried down with him (each place as far over the saddle's as he is
  * over the seat), not reaching down to it ahead of him: for a seat close over skin (createSeat `skin`), where they would go into it.
+ * With `sit` false (the festival's seventh star: a point in its light, no seat) he keeps `lifted` to the end and is held at the
+ * seat's point, not sat on it: straight there with no hover over it, his speed eased in and out over LIFT_RAMP of the float at
+ * each end and even between, so its quickest is only 1 / (1 - LIFT_RAMP) of its mean (a long rise stays slow all the way).
  */
-export function floatTo(rider, saddle, { duration = 2.2, carryLegs = false } = {}) {
+const LIFT_RAMP = 0.18;
+/** 0 to 1 over 0..1, its speed eased in over the first LIFT_RAMP and out over the last, even between (a smooth trapezoid). */
+function evenly(u) {
+  const r = LIFT_RAMP, top = 1 / (1 - r); // the even speed, as a share of the mean
+  if (u <= 0) return 0;
+  if (u >= 1) return 1;
+  // speed v(u) = top * smooth(u / r) in the ramp: its area there is top * r / 2
+  if (u < r) { const x = u / r; return top * r * (x ** 3 - x ** 4 / 2); }
+  if (u > 1 - r) return 1 - evenly(1 - u);
+  return top * (r / 2 + (u - r));
+}
+export function floatTo(rider, saddle, { duration = 2.2, carryLegs = false, sit = true } = {}) {
   const world = rider.world;
   if (!world?.effects) throw new Error('floatTo needs the rider\'s world.effects (engine/effects.js), which main.js updates');
   const handle = new Handle(`${rider.name} floats up`);
@@ -452,6 +466,13 @@ export function floatTo(rider, saddle, { duration = 2.2, carryLegs = false } = {
       legs?.restore();
       const end = saddle.update();
       const u = duration > 0 ? clamp01(t / duration) : 1;
+      if (!sit) {
+        rider.root.position.lerpVectors(start, end, evenly(u));
+        facing.setFromAxisAngle(UP, -THREE.MathUtils.degToRad(saddle.host.heading));
+        rider.root.quaternion.slerpQuaternions(startTurn, facing, smooth(clamp01(u / 0.7)));
+        if (u >= 1 && !handle.done) handle.finish();
+        return;
+      }
       const k = smooth(u);
       rise.set(start.x, end.y + FLOAT_HOVER, start.z);
       hover.copy(end).addScaledVector(UP, FLOAT_HOVER);
@@ -472,7 +493,7 @@ export function floatTo(rider, saddle, { duration = 2.2, carryLegs = false } = {
       }
       if (u >= 1 && !handle.done) handle.finish();
     },
-    pose() { legs?.apply(smooth(clamp01((t - (duration - FLOAT_SIT)) / FLOAT_SIT))); },
+    pose() { if (sit) legs?.apply(smooth(clamp01((t - (duration - FLOAT_SIT)) / FLOAT_SIT))); },
     end() {
       legs?.restore();
       if (!handle.done) handle.cancel(); // a cancelled float leaves him held where he is
