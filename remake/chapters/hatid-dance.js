@@ -743,6 +743,12 @@ export function createDance(c, { reduced = Boolean(c.reduced) } = {}) {
             // and with his hands up he bounces as chapter 5 has him (up between the beats), not down on bent knees: his short arms
             // keep his hands over his head
             if (m.move === 'up') pose.dip *= 1 - m.weight;
+            // in his hop clip his legs are the clip's (bent, kicked, landed): no dip and no reach of his feet (near straight at the
+            // take-off the reach flipped his knees 39 degrees in a frame)
+            if (m.move === 'hop' && !reduced) {
+              pose.dip = pose.dip * (1 - m.weight) - (BODY.egill.soft ?? 0) * m.weight;
+              pose.legs = 1 - m.weight;
+            }
           }
           addPose(pose, scratch, m.weight);
         }

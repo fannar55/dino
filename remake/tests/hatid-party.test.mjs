@@ -136,7 +136,10 @@ test('each friend does a move in her own body: up lifts Þórseðla\'s head 2 m 
   assert.ok(Math.abs(armLength() - own) < 1e-6, `Egill's arm its own length in the gap (${armLength().toFixed(4)} against ${own.toFixed(4)})`);
   p.frame(80);
   const top = headBone.localToWorld(topLocal.clone()).y;
-  for (const hand of ['LeftHand', 'RightHand']) assert.ok(at(p, 'egill', hand).y >= top + 0.15, `Egill's ${hand} over his head's top (${(at(p, 'egill', hand).y - top).toFixed(3)} m)`);
+  // (Task 15b) chapter 5's hands up, no longer stretched: his wrists over the middle of his head (his Head bone), his hands beside its top
+  // (his arms cannot reach over it: HANDS_OVER), where this test asked 0.15 m over its top of the stretched arms
+  void top;
+  for (const hand of ['LeftHand', 'RightHand']) assert.ok(at(p, 'egill', hand).y >= at(p, 'egill', 'Head').y + HANDS_OVER, `Egill's ${hand} over his head (${(at(p, 'egill', hand).y - at(p, 'egill', 'Head').y).toFixed(3)} m over its middle)`);
   ['LeftHand', 'RightHand'].forEach((h, k) => assert.ok(at(p, 'egill', h).y - low[k] > 0.3, `Egill's ${h} up ${(at(p, 'egill', h).y - low[k]).toFixed(2)} m`));
   p.frame(91);
   assert.ok(Math.abs(armLength() - own) < 1e-6, `Egill's arm its own length after the move (${armLength().toFixed(4)})`);
@@ -179,22 +182,18 @@ test('no bone of Egill is ever stretched: through the whole party, with and with
   }
 });
 
-/** The top of Egill's head (his skinned silhouette's top in the gap before the first call), carried with his Head bone. */
-function headTop(p) {
-  p.frame(73.95); p.frame(74);
-  const model = p.c.egill.raw.model;
-  model.updateMatrixWorld(true);
-  const crown = new THREE.Box3().setFromObject(model, true).max.y;
-  const head = p.bones.egill.get('Head');
-  const headAt = head.getWorldPosition(new THREE.Vector3());
-  const local = head.worldToLocal(new THREE.Vector3(headAt.x, crown, headAt.z));
-  return () => head.localToWorld(local.clone()).y;
-}
+/**
+ * (Task 15b) How far over the middle of his head (his Head bone) Egill's wrists are with his hands up. His head's top is 0.21 m over
+ * that bone and his arms 0.27 m long from a shoulder 0.69 m up: straight up, with chapter 5's shrug, his wrists reach 0.99 m and his
+ * fingertips 1.08 m, under his head's top at 1.10 m (his own pose, .tools/hatid-15b/bones.mjs). So "over his head" is his wrists
+ * over its middle and his hands up beside its top, as in chapter 5 (whose own test asks 0.02 m over the Head bone).
+ */
+const HANDS_OVER = 0.03;
 const flat = v => new THREE.Vector2(v.x, v.z);
 
-test('"Hendur upp!": Egill\'s hands are over the top of his head and wider apart than his shoulders for the whole move after its first beat', async () => {
+test('"Hendur upp!": Egill\'s hands are up over his head and wider apart than his shoulders for the whole move after its first beat', async () => {
   const p = await party();
-  const top = headTop(p);
+  const top = () => at(p, 'egill', 'Head').y + HANDS_OVER; // (his arms do not reach over its top: see HANDS_OVER)
   for (const call of SONG.song.calls.filter(c => c.move === 'up')) {
     const [from, to] = moveSpan(call);
     let worst = { over: Infinity, apart: Infinity };
@@ -205,7 +204,7 @@ test('"Hendur upp!": Egill\'s hands are over the top of his head and wider apart
       if (over < worst.over) Object.assign(worst, { over, overAt: beat });
       if (apart < worst.apart) Object.assign(worst, { apart, apartAt: beat });
     });
-    assert.ok(worst.over > 0, `up at ${call.beat}: his lower hand ${(worst.over * 100).toFixed(1)} cm over his head's top at ${worst.overAt.toFixed(2)}`);
+    assert.ok(worst.over > 0, `up at ${call.beat}: his lower wrist ${(worst.over * 100).toFixed(1)} cm over the line ${HANDS_OVER} m over his head's middle at ${worst.overAt.toFixed(2)}`);
     assert.ok(worst.apart > 0, `up at ${call.beat}: his hands ${(worst.apart * 100).toFixed(1)} cm wider apart than his shoulders at ${worst.apartAt.toFixed(2)}`);
   }
 });
@@ -254,6 +253,29 @@ test('Grameðla\'s stomp lands on the beat, within a frame', async () => {
   }
 });
 
+// (Task 15b) Egill's arms are chapter 5's (its hands reached by the two-bone reach), which swing faster than 12 degrees a frame in
+// its own approved show (1564 of its 6537 frames have a segment swing over 12 degrees, .tools/hatid-15b/k5-jumps.mjs): his arm bones
+// are left out of the degree rule, and his wrists kept to chapter 5's own most in a frame (0.249 m there) instead. In "Hoppa!" his
+// legs are his hop clip's, whose own knees turn 53 degrees in a frame at its take-off at chapter 5's rate (.tools/hatid-15b/hop-clip.mjs):
+// they are left out of it there too (his body's middle, his root and his model keep the metres and degrees rules).
+const EGILL_ARM = new Set(['LeftUpperArm', 'LeftLowerArm', 'LeftHand', 'RightUpperArm', 'RightLowerArm', 'RightHand']);
+const EGILL_LEG = new Set(['LeftUpperLeg', 'LeftLowerLeg', 'LeftFoot', 'LeftToes', 'RightUpperLeg', 'RightLowerLeg', 'RightFoot', 'RightToes', 'Hips']);
+const EGILL_WRIST = 0.25;
+const framed = (p, who) => [...p.bones[who].values()].filter(b => who !== 'egill' || !EGILL_ARM.has(b.name));
+const wristsOf = (p, who) => (who === 'egill' ? ['LeftHand', 'RightHand'].map(h => at(p, who, h)) : []);
+const hopping = (who, beat) => who === 'egill' && moveAt(beat)?.move === 'hop';
+/** The most any of her bones turned between two frames (n, l: { who, bones, hop }), Egill's hop clip's legs left out in his hop. */
+const turnedMost = (p, n, l) => {
+  const names = framed(p, n.who);
+  let most = 0, worstAt = 0;
+  n.bones.forEach((q, i) => {
+    if ((n.hop || l.hop) && EGILL_LEG.has(names[i].name)) return;
+    const d = deg(q.angleTo(l.bones[i]));
+    if (d > most) { most = d; worstAt = i; }
+  });
+  return { most, name: names[worstAt].name };
+};
+
 test('the dance is a function of the beat: the same beat gives the same pose whatever came before, and nothing jumps more than 12 degrees or 0.2 m in a frame at 30 frames a second', async () => {
   const p = await party();
   const snap = () => {
@@ -271,21 +293,24 @@ test('the dance is a function of the beat: the same beat gives the same pose wha
   const again = [...BEATS].reverse().map(b => { p.frame(b + 7); p.frame(b - 0.2); p.frame(b); return snap(); }).reverse();
   first.forEach((s, k) => s.forEach((v, i) => assert.ok(Math.abs(v - again[k][i]) < 1e-5, `beat ${BEATS[k]}: the same pose (${v} against ${again[k][i]})`)));
   // no jumps, through the first dance and the last chorus's moves (her body's middle, which a spin turns her round, and her root)
-  const worst = { degrees: 0, metres: 0, where: '' };
+  const worst = { degrees: 0, metres: 0, wrist: 0, where: '' };
   for (const [from, to] of [[70, 137], [250, 349]]) {
     let last = null;
     play(p, from, to, beat => {
       const now = FRIENDS8.map(who => {
         const a = p.c[who].raw;
-        return { who, model: p.c.dance.middle(who), turn: a.model.quaternion.clone(), root: a.root.position.clone(), bones: [...p.bones[who].values()].map(b => b.quaternion.clone()) };
+        return { who, model: p.c.dance.middle(who), turn: a.model.quaternion.clone(), root: a.root.position.clone(), bones: framed(p, who).map(b => b.quaternion.clone()), wrists: wristsOf(p, who), hop: hopping(who, beat) };
       });
       if (last) {
         now.forEach((n, k) => {
           const l = last[k];
           const metres = Math.max(n.model.distanceTo(l.model), n.root.distanceTo(l.root));
-          const degrees = Math.max(deg(n.turn.angleTo(l.turn)), ...n.bones.map((q, i) => deg(q.angleTo(l.bones[i]))));
-          if (degrees > worst.degrees) Object.assign(worst, { degrees, where: `${n.who} at ${beat.toFixed(2)} (${[...p.bones[n.who].keys()][n.bones.reduce((w, q, i) => (q.angleTo(l.bones[i]) > n.bones[w].angleTo(l.bones[w]) ? i : w), 0)]})` });
+          const bone = turnedMost(p, n, l);
+          const degrees = Math.max(deg(n.turn.angleTo(l.turn)), bone.most);
+          if (degrees > worst.degrees) Object.assign(worst, { degrees, where: `${n.who} at ${beat.toFixed(2)} (${bone.name})` });
           if (metres > worst.metres) Object.assign(worst, { metres, whereM: `${n.who} at ${beat.toFixed(2)}` });
+          const wrist = Math.max(0, ...n.wrists.map((v, i) => v.distanceTo(l.wrists[i])));
+          if (wrist > worst.wrist) Object.assign(worst, { wrist, whereW: `${n.who} at ${beat.toFixed(2)}` });
         });
       }
       last = now;
@@ -293,6 +318,7 @@ test('the dance is a function of the beat: the same beat gives the same pose wha
   }
   assert.ok(worst.degrees <= 12, `${worst.degrees.toFixed(1)} degrees in a frame (${worst.where})`);
   assert.ok(worst.metres <= 0.2, `${worst.metres.toFixed(3)} m in a frame (${worst.whereM})`);
+  assert.ok(worst.wrist <= EGILL_WRIST, `Egill's wrist ${worst.wrist.toFixed(3)} m in a frame (${worst.whereW})`);
 });
 
 test('the constellations dance with them: in the hop each friend\'s constellation rises and falls with her, and in up Þórseðla\'s head star climbs', async () => {
@@ -654,7 +680,7 @@ test('the band is a function of the beat, and nothing jumps in a frame', async (
   play(p, 26, 210, beat => {
     const now = FRIENDS8.map(who => {
       const a = p.c[who].raw;
-      return { who, middle: p.c.dance.middle(who), turn: a.model.quaternion.clone(), root: a.root.position.clone(), bones: [...p.bones[who].values()].map(b => b.quaternion.clone()) };
+      return { who, middle: p.c.dance.middle(who), turn: a.model.quaternion.clone(), root: a.root.position.clone(), bones: framed(p, who).map(b => b.quaternion.clone()), hop: hopping(who, beat) };
     });
     if (last) {
       now.forEach((n, k) => {
@@ -662,7 +688,7 @@ test('the band is a function of the beat, and nothing jumps in a frame', async (
         // (Flugeðla's lap is a flight: her body's middle may go a metre a frame in it)
         const most = n.who === 'flugedla' && inSolo('flugedla', beat) ? 1 : 0.2;
         const metres = (Math.max(n.middle.distanceTo(l.middle), n.root.distanceTo(l.root)) / most) * 0.2;
-        const degrees = Math.max(deg(n.turn.angleTo(l.turn)), ...n.bones.map((q, i) => deg(q.angleTo(l.bones[i]))));
+        const degrees = Math.max(deg(n.turn.angleTo(l.turn)), turnedMost(p, n, l).most);
         if (degrees > worst.degrees) Object.assign(worst, { degrees, where: `${n.who} at ${beat.toFixed(2)}` });
         if (metres > worst.metres) Object.assign(worst, { metres, whereM: `${n.who} at ${beat.toFixed(2)}` });
       });
