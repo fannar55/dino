@@ -156,11 +156,13 @@ export function createDirector({ camera, world, shots = {}, lint = true }) {
   function lintShot(label, s, position, target, fov) {
     const [minLens, maxLens] = LIMITS.lens;
     if (fov < minLens || fov > maxLens) warn(`shot "${label}" uses a ${fov.toFixed(0)} degree lens (keep it between ${minLens} and ${maxLens})`);
+    // `aerial` (a shot spec's own word): this one cut may stand high and look down (the festival's last look at the top from over
+    // Egill as the seventh star lifts him, spec 4: "Fjallstoppurinn ljómar lítill fyrir neðan")
     const height = position.y - world.heightAt(position.x, position.z);
-    if (height > LIMITS.maxHeight) warn(`shot "${label}" puts the camera ${height.toFixed(1)} m up (wide shots stay under ${LIMITS.maxHeight} m)`);
+    if (height > LIMITS.maxHeight && !s.aerial) warn(`shot "${label}" puts the camera ${height.toFixed(1)} m up (wide shots stay under ${LIMITS.maxHeight} m)`);
     if (height < 0.2) warn(`shot "${label}" puts the camera ${height.toFixed(2)} m above the ground`);
     const down = -deg(aim(position, target).pitch);
-    if (down > LIMITS.maxDown) warn(`shot "${label}" looks ${down.toFixed(0)} degrees down (no top-down views)`);
+    if (down > LIMITS.maxDown && !s.aerial) warn(`shot "${label}" looks ${down.toFixed(0)} degrees down (no top-down views)`);
     const v = s.frame?.screen?.[1];
     const [top, bottom] = LIMITS.safeV;
     if (v !== undefined && (v < top || v > bottom)) warn(`shot "${label}" frames its subject at v ${v} (keep it between ${top} and ${bottom}, clear of the star counter and captions)`);

@@ -119,7 +119,7 @@ const GATHER = { walk: 7, most: 4, after: 0.6 }; // scene 4: everyone round Egil
 // head up this long before the star shows, it in over `show` s; the constellations' heads to it over `look` s; its light on Egill
 // over `light` s before he rises; the camera over him (lift_follow) rises `follow` of what he does; after the float, the top from
 // above held `above` s before the ride
-const FOUR = { cheer: 2.4, rest: 1 / 3, dim: 3, head: 1, show: 1.2, look: 1.6, light: 1.2, follow: 0.85, above: 1.5, oh: 14 };
+const FOUR = { cheer: 2.4, rest: 1 / 3, dim: 3, head: 1, show: 1.2, look: 1.6, light: 1.2, follow: 0.85, near: 0.65, above: 1.5, oh: 14 };
 /** The party alone: the black lifts over `fadeIn` s with the moon's "Tút!", and the song starts `toot` s after it. */
 export const ALONE = { fadeIn: 0.8, toot: 2 };
 /** The tile's second (from its start) of the party's beat `beat`: for `?chapter=veisla&t=`. */
@@ -996,16 +996,17 @@ function* seventh(s, c) {
   cut(s, c, 'mosi_up');
   c.mosi.raw.lookAt(EGILL_HEAD, { weight: 0.9, maxPitch: 45 });
   for (const who of FRIENDS8) if (!['egill', 'mosi', 'gramedla'].includes(who)) cheer(s, c, who, 4);
-  c.log({ type: 'wave', who: 'mosi' });
+  c.log({ type: 'waved', who: 'mosi' });
   yield* say(s, c, 'mosi', 'h_mosi_where');
   egill.play('wave', { fade: 0.3 });
-  c.log({ type: 'wave', who: 'egill' });
+  c.log({ type: 'waved', who: 'egill' });
   yield* say(s, c, 'egill', 'h_egill_bye');
   egill.play('lifted', { fade: 0.5 });
+  // over him as he comes to the top of his rise, the top glowing below: Mosi's call comes up from there
+  liftCut(s, c, 'rise_above');
   moonAct(s, c, 'wave');
   yield* say(s, c, 'mosi', 'h_mosi_find');
   yield up;
-  liftCut(s, c, 'rise_above');
   yield s.wait(FOUR.above);
   const hand = handOf(s, c);
   c.log({ type: 'hand', at: s.time });
@@ -1080,7 +1081,9 @@ function sceneFour(s, c, { at = null } = {}) {
 function liftCut(s, c, name) {
   const base = c.seventh.base;
   const egill = () => c.egill.raw.root.position;
-  const lens = new THREE.Vector3(...SHOTS.toppur.lift_side.position);
+  // lift_side's lens brought nearer him (FOUR.near of the way), so he is more than a speck in front of Grameðla
+  const side = new THREE.Vector3(...SHOTS.toppur.lift_side.position);
+  const lens = side.clone().sub(base).multiplyScalar(FOUR.near).add(base).setY(side.y);
   const toStage = new THREE.Vector3(STAGE.centre[0] - base.x, 0, STAGE.centre[1] - base.z).normalize();
   const specs = {
     lift_follow: {
@@ -1088,8 +1091,8 @@ function liftCut(s, c, name) {
       target: out => out.copy(egill()).add(new THREE.Vector3(0, 1.4, 0)), fov: SHOTS.toppur.lift_side.fov,
     },
     rise_above: {
-      position: out => out.copy(egill()).addScaledVector(toStage, -9).add(new THREE.Vector3(0, 5, 0)),
-      target: out => out.copy(base).addScaledVector(toStage, 14).add(new THREE.Vector3(0, 0, 0)), fov: 58,
+      position: out => out.copy(egill()).addScaledVector(toStage, -4).add(new THREE.Vector3(0, 3.5, 0)),
+      target: out => out.copy(base).addScaledVector(toStage, 12), fov: 58, aerial: true,
     },
   };
   c.shotLabel = name;
@@ -1121,6 +1124,7 @@ export function* asLifted(s, c) {
   c.lifted = { at: egill.root.position.toArray(), time: s.time };
   const high = c.seventh.lift.clone();
   floatTo(egill, { seat: high, update: () => high, host: { heading: egill.heading, lookYawLimit: Infinity, lookUpLimit: Infinity } }, { duration: 0, sit: false });
+  egill.root.position.copy(high); // there now, not at its first frame (the float holds him there from then on)
   c.moth.follow('egill', s.time - 60); // long on its loop round him
   yield s.wait(0); // a frame: the float puts him there
   liftCut(s, c, 'rise_above');
@@ -1365,6 +1369,8 @@ function setUp(s) {
   c.guests = guestsOf(s, c);
   // (Task 18) the hero butterfly on Mosi's horn from the first frame (hatid-seventh.js createMoth), drawn every frame from here
   c.moth = createMoth(world, { horn: mosiHornOf(c.mosi.raw), heading: () => c.mosi.raw.heading });
+  // after the actors each frame (main.js: the actors, then the effects), so it is where his horn is this frame, not the last
+  world.effects?.add?.({ label: 'hátíð moth', update() { c.moth.update(s.time); return !c.ended; } });
   // the song, held with the game's sound (a book open, a hidden tab) as chapter 5's set is
   const context = world.sound?.context ?? null;
   const output = world.sound?.output ?? null;
@@ -1394,7 +1400,6 @@ function setUp(s) {
     s.after(0, function* songFrames() {
       while (!c.ended) {
         if (ours) c.song.update();
-        c.moth.update(s.time);
         yield;
       }
     });

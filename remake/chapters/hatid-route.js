@@ -285,8 +285,9 @@ const toSky = (from, { azimuth, elevation }, d = 40) => {
 const STOP = { her: { at: [-26.57, 33.04], heading: -85.1 }, mosi: { at: [-21.18, 34.51], heading: -83.2 } };
 
 const S = DARK;
-// the seventh star seen past Þórseðla's head, she the first to see it: 11 m from her head on the sun's side, low, looking up
-const SEVENTH_FROM = (() => { const [x, , z] = headOf('thorsedla', GATHER); const [fx, fz] = way(SKY.seventh.azimuth); return [x - fx * 11, G + 1.2, z - fz * 11]; })();
+// the seventh star seen past Þórseðla's head, she the first to see it: 16 m from her head on the sun's side, low, looking up (Task 18:
+// from 11 m, where Flugeðla's crest stood 3 m from the lens)
+const SEVENTH_FROM = (() => { const [x, , z] = headOf('thorsedla', GATHER); const [fx, fz] = way(SKY.seventh.azimuth); return [x - fx * 16, G + 1.2, z - fz * 16]; })();
 export const SHOTS = {
   toppur: {
     // Scene 1. The top empty and quiet: low from the middle, Grameðla with Egill on her head and Mosi beside her, the sea beyond
