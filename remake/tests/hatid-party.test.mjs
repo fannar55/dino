@@ -93,7 +93,7 @@ const lowestFoot = (p, who) => Math.min(...FEET[who].map(f => at(p, who, f).y));
 
 test('each call is followed by its move: everyone does it on the bar after the gap, once a dance beat for as long as the map says, and it is the move she named', () => {
   assert.deepEqual(MOVES, ['up', 'stomp', 'spin', 'hop']);
-  assert.deepEqual(CALL_LINE, { up: 'h_sloedla_up', stomp: 'h_sloedla_stomp', spin: 'h_sloedla_spin', hop: 'h_sloedla_hop' });
+  assert.deepEqual(CALL_LINE, { up: 'h_flugedla_up', stomp: 'h_flugedla_stomp', spin: 'h_flugedla_spin', hop: 'h_flugedla_hop' });
   assert.equal(SONG.song.calls.length, 8);
   for (const call of SONG.song.calls) {
     const [from, to] = moveSpan(call);

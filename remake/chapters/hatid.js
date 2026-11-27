@@ -65,12 +65,12 @@ export const WORDS = {
   h_mosi_sleep: 'Sólin er að fara að sofa. Vinkaðu henni, Egill!', h_mosi_wave: 'Vinkaðu henni, Egill!', h_mosi_goodnight: 'Góða nótt, sól!',
   h_mosi_first: 'Nú bíðum við eftir fyrstu stjörnunni.', h_thorsedla_there: 'Þarna! Ég sé hana!', h_mosi_now: 'Núna, Egill!',
   h_mosi_light: 'Kveiktu á þeim, Egill!', h_mosi_summer: 'Fyrstu stjörnur sumarsins! Gleðilega Stjörnuhátíð!',
-  h_sloedla_up: 'Hendur upp!', h_sloedla_stomp: 'Stappa!', h_sloedla_spin: 'Snúa!', h_sloedla_hop: 'Hoppa!',
+  h_flugedla_up: 'Hendur upp!', h_flugedla_stomp: 'Stappa!', h_flugedla_spin: 'Snúa!', h_flugedla_hop: 'Hoppa!',
   h_mosi_thanks: 'Takk, Egill. Þetta var besti dagur í heimi.', h_thorsedla_more: 'Bíddu … þarna er ein í viðbót.',
   h_egill_fly: 'Mosi, sjáðu! Ég flýg!', h_mosi_where: 'Egill! Hvert ertu að fara?', h_egill_bye: 'Ég veit það ekki! Sjáumst!', h_mosi_find: 'Ég finn þig, Egill!',
 };
 /** Slóeðla's four calls in the dance (SONG.song.calls' moves), said on the call's beat. */
-const CALL_LINES = CALL_LINE; // hatid-dance.js: Slóeðla's four calls (captions only until chunk 8)
+const CALL_LINES = CALL_LINE; // hatid-dance.js: Flugeðla's four calls (the DJ, as in chapter 5: the owner's word, 2026-11-28)
 const LINES = Object.fromEntries(Object.entries(WORDS).map(([id, text]) => [id, { text, audio: id }]));
 
 const EGILL_HEAD = { actor: 'egill', part: 'head' };
@@ -812,7 +812,7 @@ function onParty(s, c, event) {
     case 'call': {
       const { call } = event;
       c.partyLog.push({ type: 'call', beat: call.beat, move: call.move, at });
-      s.say('sloedla', CALL_LINES[call.move], { hold: 0.15, listen: false });
+      s.say('flugedla', CALL_LINES[call.move], { hold: 0.15, listen: false });
       break;
     }
     case 'cue':
@@ -1389,7 +1389,7 @@ export const party = {
   id: 'veisla',
   title: 'Stjörnuhátíðin',
   next: null,
-  lines: Object.fromEntries(Object.values(CALL_LINES).map(id => [id, LINES[id]])), // only Slóeðla's four calls
+  lines: Object.fromEntries(Object.values(CALL_LINES).map(id => [id, LINES[id]])), // only Flugeðla's four calls
   startShot: 'moon_peek',
   // It starts as a video does: at once where the browser lets sound begin (the tap on its tile), else from a round play button.
   startsItself: true,

@@ -29,7 +29,7 @@ import { reachTwoBones } from '../engine/ik.js';
 import { egillArms, layHands, HOP_CLIP } from '../engine/pose/egill-hands.js';
 
 export const MOVES = ['up', 'stomp', 'spin', 'hop'];
-export const CALL_LINE = { up: 'h_sloedla_up', stomp: 'h_sloedla_stomp', spin: 'h_sloedla_spin', hop: 'h_sloedla_hop' };
+export const CALL_LINE = { up: 'h_flugedla_up', stomp: 'h_flugedla_stomp', spin: 'h_flugedla_spin', hop: 'h_flugedla_hop' };
 /** m off the ground at the top of a hop; the two biggest bounce on bent legs instead (HOP_BOUNCE m down on the beat). */
 export const HOP = { egill: 0.35, mosi: 0.3, kambedla: 0.12, sloedla: 0.2, uggedla: 0.15, flugedla: 0.8, thorsedla: 0, gramedla: 0 };
 export const HOP_BOUNCE = { thorsedla: 0.35, gramedla: 0.3 };

@@ -75,24 +75,36 @@
     "text": "Fyrstu stjörnur sumarsins! Gleðilega Stjörnuhátíð!"
   },
   {
-    "id": "h_sloedla_up",
-    "speaker": "sloedla",
-    "text": "Hendur upp!"
+    "id": "h_flugedla_up",
+    "speaker": "flugedla",
+    "text": "Hendur upp!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla calls the festival's dance over the song, as she called chapter 5's show (the owner, 2026-11-28: \"látum flugeðlu áfram tala í lagi\"): the DJ's party mood as context (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
   },
   {
-    "id": "h_sloedla_stomp",
-    "speaker": "sloedla",
-    "text": "Stappa!"
+    "id": "h_flugedla_stomp",
+    "speaker": "flugedla",
+    "text": "Stappa!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla calls the festival's dance over the song, as she called chapter 5's show (the owner, 2026-11-28: \"látum flugeðlu áfram tala í lagi\"): the DJ's party mood as context (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
   },
   {
-    "id": "h_sloedla_spin",
-    "speaker": "sloedla",
-    "text": "Snúa!"
+    "id": "h_flugedla_spin",
+    "speaker": "flugedla",
+    "text": "Snúa!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla calls the festival's dance over the song, as she called chapter 5's show (the owner, 2026-11-28: \"látum flugeðlu áfram tala í lagi\"): the DJ's party mood as context (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
   },
   {
-    "id": "h_sloedla_hop",
-    "speaker": "sloedla",
-    "text": "Hoppa!"
+    "id": "h_flugedla_hop",
+    "speaker": "flugedla",
+    "text": "Hoppa!",
+    "context": "Jæja krakkar, nú byrjar fjörið!",
+    "fixes": "line",
+    "note": "DJ Flugeðla calls the festival's dance over the song, as she called chapter 5's show (the owner, 2026-11-28: \"látum flugeðlu áfram tala í lagi\"): the DJ's party mood as context (as tools/sloedla-dj.mjs sends it). It fixes the whole line's energy."
   },
   {
     "id": "h_mosi_thanks",

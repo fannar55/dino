@@ -1,6 +1,6 @@
 // The festival's spoken lines (the plan's Task 21): every line of remake/chapters/hatid.js WORDS is a line of the hatid set
 // (assets/audio/hatid/lines-source.json, made by tools/voice-lines.mjs --set hatid), said by its speaker from its own recording.
-// Grameðla has no line. Slóeðla's four calls are said over the song, each on its call's beat, and must be over before the move.
+// Grameðla has no line. Flugeðla's four calls are said over the song, each on its call's beat, and must be over before the move.
 //   node --import ./remake/tests/setup.mjs --test remake/tests/hatid-lines.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -47,7 +47,7 @@ test('every festival line has its recording, in lines.json and in voices-made.js
   assert.deepEqual(unrecorded, [], 'every line has its recording (node remake/tools/voice-lines.mjs --set hatid --only <ids>)');
 });
 
-test("each of Slóeðla's four calls is shorter than its gap in the song", () => {
+test("each of Flugeðla's four calls is shorter than its gap in the song", () => {
   const beat = 60 / SONG.bpm;
   assert.deepEqual(Object.keys(CALL_LINE).sort(), ['hop', 'spin', 'stomp', 'up']);
   for (const [move, id] of Object.entries(CALL_LINE)) {

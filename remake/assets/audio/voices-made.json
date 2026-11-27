@@ -5221,6 +5221,30 @@
    "duration": 2.57,
    "model": "eleven_v4"
   },
+  "hatid/h_flugedla_hop": {
+   "key": "093cbab557b6396bc51d061417cb360acf21acc0fb1b1b711937cc9516d372dc",
+   "mp3": "9e6aef47e16d9b4276572e69a108b9ea3784725a41139c9b034872fe65416944",
+   "duration": 1.21,
+   "model": "eleven_v4"
+  },
+  "hatid/h_flugedla_spin": {
+   "key": "d94c78dd07b5c3291fb636db2a58f510c8dd71a0784d433ddfe3300c52ef8913",
+   "mp3": "e8fe7a4e9191a7a5c2f9bb3ca8bc6cfb1d6bbd5a1656e0fb70d5b6a0abcbf8fa",
+   "duration": 1.13,
+   "model": "eleven_v4"
+  },
+  "hatid/h_flugedla_stomp": {
+   "key": "1eb1e923d140312f0d79205cebf7de9b7456493d585c21067b761703124f44d5",
+   "mp3": "6bf30745ca86cf8e33f5105d2a0c2f6340ad40a850733d239eeb0124f6db309a",
+   "duration": 1.13,
+   "model": "eleven_v4"
+  },
+  "hatid/h_flugedla_up": {
+   "key": "0f3a53e3e492eee281fb75fbc53dae5ff7ff187ae5dde0ca55195d8771bd011c",
+   "mp3": "45fd9ab995c3ef99db36403f51868e519b88a17806d8b58c586b01ec54a42750",
+   "duration": 1.77,
+   "model": "eleven_v4"
+  },
   "hatid/h_kambedla_light": {
    "key": "9fb4270a07820db298804cb91631821bf6dcc15ee333d812342bd7f779c5f70c",
    "mp3": "865458b687ee446996460e68e5206d590bcfe9066e1e4f84bdff68f7ee5dce12",

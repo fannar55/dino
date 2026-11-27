@@ -25,7 +25,7 @@ const { chapter, party, WORDS, partyFrame, ALONE, partyTime, TOOT_GAP } = hatid;
 const FRAME = 1 / 30;
 const LENGTH = secondsAt(END_BEAT) + SONG.song.tail; // the song's file, from its first sound to its last
 const BEATS = [8, 100, 200, 300, 360]; // the party's frames compared (the rulings: 360, as 400 is past the end)
-const CALLS = { up: 'h_sloedla_up', stomp: 'h_sloedla_stomp', spin: 'h_sloedla_spin', hop: 'h_sloedla_hop' };
+const CALLS = { up: 'h_flugedla_up', stomp: 'h_flugedla_stomp', spin: 'h_flugedla_spin', hop: 'h_flugedla_hop' };
 
 const inFrame = (point, camera) => {
   const p = point.clone().project(camera);

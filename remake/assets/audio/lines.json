@@ -6623,5 +6623,25 @@
   "src": "assets/audio/hatid/h_mosi_find.mp3",
   "duration": 2.01,
   "mouth": "9ff80008fddd00cec000000ffdba3000000000000"
+ },
+ "h_flugedla_up": {
+  "src": "assets/audio/hatid/h_flugedla_up.mp3",
+  "duration": 1.77,
+  "mouth": "0dec630dfdb30eff83500650000000000000"
+ },
+ "h_flugedla_stomp": {
+  "src": "assets/audio/hatid/h_flugedla_stomp.mp3",
+  "duration": 1.13,
+  "mouth": "0000fffb0bfec5000000000"
+ },
+ "h_flugedla_spin": {
+  "src": "assets/audio/hatid/h_flugedla_spin.mp3",
+  "duration": 1.13,
+  "mouth": "0000cffdeec820000000000"
+ },
+ "h_flugedla_hop": {
+  "src": "assets/audio/hatid/h_flugedla_hop.mp3",
+  "duration": 1.21,
+  "mouth": "0cfeb804feda4000000000000"
  }
 }
