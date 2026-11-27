@@ -36,6 +36,11 @@ lok, þarf að standast væntingar, hér má mikil vinna eiga sér stað.“
 **Tillögur sem eigandinn hefur ekki svarað** og standa hér þar til hann segir annað: skiptingin í smíðar (11. kafli), að vistunin
 skrái söguna kláraða þegar Egill lyftist (9. kafli), og að veislan fái eigin reit í bókinni (9. kafli).
 
+**Svar 28. nóvember 2026 (orð eigandans: „Já, allar þrjár“):** hann sá vistunina, reitinn og sjöunda sætið smíðuð í búti 7 og
+samþykkti þrennt eins og það er smíðað: hátíðin telst séð um leið og Egill lyftist; reiturinn „Stjörnuhátíðin“ spilar veisluna
+eina og er „?“ þar til hátíðin hefur sést; eftir að hátíðin hefur sést opnar leikurinn á kafla 6 eins og áður og „Áfram“ þar fer
+aftur í hátíðina. Skiptingin í smíðar stendur eins og unnið hefur verið eftir.
+
 ## 1. Staður, tími og birta
 
 - **Staðurinn:** fjallstoppurinn sem kafli 6 endar á (`world/fjall/`). Hann er sléttur og víður, með grasi, lágum gróðri og stökum
@@ -406,7 +411,7 @@ Smiðsagentar smíða í bútum og vista oft. Eigandinn sér myndir eða myndban
 - **Uppstillingin á toppnum:** hvar hver vinur stendur og hvar sviðið rís, ákveðið eftir myndum í búti 2.
 - **Lagið:** valið eftir eyranu í búti 1.
 - **Köllin í dansinum:** hvaða hreyfingar Slóeðla kallar og með hvaða orðum, ákveðið þegar dansinn er saminn í búti 6.
-- **Tillögurnar þrjár** efst í skjalinu bíða svars eigandans.
+- **Tillögurnar þrjár** efst í skjalinu: svarað 28. nóvember 2026 („Já, allar þrjár“), sjá þar.
 - **Hvað opnast þegar hátíðin hefur verið séð:** í dag opnar leikurinn kafla 6 aftur. Eigandinn er spurður í búti 7, þegar hann
-  getur séð það.
+  getur séð það. Svarað 28. nóvember 2026: kafli 6 opnast áfram og „Áfram“ þar fer aftur í hátíðina.
 - **Saga 2** er utan þessa skjals.
