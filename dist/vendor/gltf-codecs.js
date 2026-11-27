@@ -40,17 +40,26 @@ function probeFromOffscreenCanvas(ktx2) {
 	gl.getExtension( 'WEBGL_lose_context' )?.loseContext();
 }
 
+function ensureDetected( ktx2 ) {
+	if ( ! detected && ! ktx2.workerConfig ) {
+		probeFromOffscreenCanvas( ktx2 );
+		detected = true;
+	}
+}
+
 function ensureBrowserKtx2() {
 	if ( ! browserKtx2 ) {
 		browserKtx2 = new KTX2Loader();
 		browserKtx2.setTranscoderPath( BASIS_PATH );
 		browserKtx2.setWorkerLimit( 2 );
+		const rawLoad = browserKtx2.load.bind( browserKtx2 );
+		browserKtx2.load = ( url, onLoad, onProgress, onError ) => {
+			ensureDetected( browserKtx2 );
+			return rawLoad( url, onLoad, onProgress, onError );
+		};
 		const rawParse = browserKtx2.parse.bind( browserKtx2 );
 		browserKtx2.parse = ( buffer, onLoad, onError ) => {
-			if ( ! detected && ! browserKtx2.workerConfig ) {
-				probeFromOffscreenCanvas( browserKtx2 );
-				detected = true;
-			}
+			ensureDetected( browserKtx2 );
 			return rawParse( buffer, onLoad, onError );
 		};
 	}
@@ -71,10 +80,19 @@ export function initKTX2Renderer( renderer ) {
 /** Default KTX2Loader instance for GLTFLoader (real GPU transcoder in browser, lightweight stub in Node.js tests). */
 export function getDefaultKTX2Loader() {
 	if ( typeof window === 'undefined' || typeof document === 'undefined' ) {
+		const stubTex = () => {
+			const tex = new DataTexture( new Uint8Array( [ 255, 255, 255, 255 ] ), 1, 1, RGBAFormat );
+			tex.needsUpdate = true;
+			return tex;
+		};
 		return ( nodeStub ??= {
+			load( _url, onLoad ) {
+				const tex = stubTex();
+				onLoad?.( tex );
+				return tex;
+			},
 			parse( _buffer, onLoad ) {
-				const tex = new DataTexture( new Uint8Array( [ 255, 255, 255, 255 ] ), 1, 1, RGBAFormat );
-				tex.needsUpdate = true;
+				const tex = stubTex();
 				onLoad?.( tex );
 				return Promise.resolve( tex );
 			},

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { initKTX2Renderer } from '../../../dist/vendor/gltf-codecs.js';
 import { pickQuality } from '../quality.js';
 import { pickLook, LOOKS } from '../looks.js';
 import { createLighting, sunDirection } from '../lighting.js';
@@ -89,6 +90,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   const q = { ...preset, trees: preset.trees * .4, grass: preset.grass * .07, plants: preset.plants * .28 };
   const look = pickLook(level.look ?? 'memoryMorning');
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: q.antialias, alpha: false, powerPreference: 'high-performance', stencil: false });
+  initKTX2Renderer(renderer);
   renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.toneMappingExposure = look.exposure; renderer.shadowMap.enabled = q.shadowSize > 0;
   renderer.shadowMap.type = THREE.PCFShadowMap; renderer.info.autoReset = false;
@@ -146,6 +148,14 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   let releaseGifts = null;
   let contactBatch;
   const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2(), projection = new THREE.Vector3();
+  const tCentre = new THREE.Vector3(), tSide = new THREE.Vector3(), tDepth = new THREE.Vector3(), tProbe = new THREE.Vector3();
+  const projA = { x: 0, y: 0 }, projB = { x: 0, y: 0 }, projC = { x: 0, y: 0 }, projD = { x: 0, y: 0 };
+  const projectPt = (point, out) => {
+    projection.copy(point).project(camera);
+    out.x = (projection.x + 1) * .5 * width;
+    out.y = (1 - projection.y) * .5 * height;
+    return out;
+  };
   const pickables = [];
   const hitGeometry = new THREE.SphereGeometry(1, 12, 8);
   const hitMaterial = new THREE.MeshBasicMaterial({ visible: false });
@@ -875,15 +885,6 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     cheerAge = 0; mosi.closeEyes(.2, { duration: .15 });
     for (const nest of nests) if (nest.members.length) playNest(nest.index);
   }
-
-  const tCentre = new THREE.Vector3(), tSide = new THREE.Vector3(), tDepth = new THREE.Vector3(), tProbe = new THREE.Vector3();
-  const projectPt = (point, out) => {
-    projection.copy(point).project(camera);
-    out.x = (projection.x + 1) * .5 * width;
-    out.y = (1 - projection.y) * .5 * height;
-    return out;
-  };
-  const projA = { x: 0, y: 0 }, projB = { x: 0, y: 0 }, projC = { x: 0, y: 0 }, projD = { x: 0, y: 0 };
 
   function updateTargets() {
     renderTargets.length = 0;
