@@ -5317,33 +5317,9 @@
    "duration": 2.65,
    "model": "eleven_v4"
   },
-  "hatid/h_sloedla_hop": {
-   "key": "d36829e1cddba723e463cb8092afed9a43c6a1dd9016e1c53303fa41dea6223f",
-   "mp3": "d40439693377ffeb6424bc1970d8a99cac01b3815c4a980596781bcdf8f62731",
-   "duration": 1.21,
-   "model": "eleven_v4"
-  },
   "hatid/h_sloedla_song": {
    "key": "bd0e776a2f8bbbc865d65b5f8f5029d39a858a9d7e0480b9ad843364b007e13f",
    "mp3": "296c54987332986aec0c880e2d0cd335b0f3a51b5e8b3e812a2edf85a1f7d46e",
-   "duration": 1.61,
-   "model": "eleven_v4"
-  },
-  "hatid/h_sloedla_spin": {
-   "key": "4c143a09f5809c6977a60830651e0ba363f317a015af6287d8bd6da70abd9b0e",
-   "mp3": "602a8a6cfa7461b7ad4be5e270ad1ffa5a1924e4c1f61e73da308058cc879115",
-   "duration": 1.37,
-   "model": "eleven_v4"
-  },
-  "hatid/h_sloedla_stomp": {
-   "key": "00d54df2ea6ff1eb9d21d8c4b7340f5de0344d7eb8f88a01e54b35a878e21e74",
-   "mp3": "eaf1b6d3cdf458779ba9fc29ee82ae0e7d0f3fd04b8535541e35243779868edd",
-   "duration": 1.37,
-   "model": "eleven_v4"
-  },
-  "hatid/h_sloedla_up": {
-   "key": "b42d6686b0ce2b4eed440b57b4f5c642816c91375f8fd3a9ea5dba36e610627e",
-   "mp3": "3ed2f70ffaf5888f0b833a48ea889c4fc1bdb03b4cf487eb0dc2321141c1adbf",
    "duration": 1.61,
    "model": "eleven_v4"
   },

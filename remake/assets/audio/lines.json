@@ -6574,26 +6574,6 @@
   "duration": 4.73,
   "mouth": "00ee5400cd6409fe907ed8755dfeffe909b5000000000000000cfeeffccecdebea400effc0eeeed8388300000000000"
  },
- "h_sloedla_up": {
-  "src": "assets/audio/hatid/h_sloedla_up.mp3",
-  "duration": 1.61,
-  "mouth": "008ffb00ec7fe00000000000000000000"
- },
- "h_sloedla_stomp": {
-  "src": "assets/audio/hatid/h_sloedla_stomp.mp3",
-  "duration": 1.37,
-  "mouth": "00002f70000fc700000000000000"
- },
- "h_sloedla_spin": {
-  "src": "assets/audio/hatid/h_sloedla_spin.mp3",
-  "duration": 1.37,
-  "mouth": "00000dffec760000000000000000"
- },
- "h_sloedla_hop": {
-  "src": "assets/audio/hatid/h_sloedla_hop.mp3",
-  "duration": 1.21,
-  "mouth": "00f60000f9300000000000000"
- },
  "h_mosi_thanks": {
   "src": "assets/audio/hatid/h_mosi_thanks.mp3",
   "duration": 4.01,
