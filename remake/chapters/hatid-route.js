@@ -218,8 +218,8 @@ export const SKY = {
   first: { azimuth: 30, elevation: 50 },
   moon: { azimuth: 45, elevation: 7 }, // behind the stage, peeking up over the sea of cloud
   // (Task 17b, the owner's word of 2026-11-27: "færum tunglið meira uppí hægra hornið, en ekki alveg útí horni") in the party it
-  // hangs up to the right: in party_wide at 1280x800 its middle 0.80 of the way across and 0.22 down, its hand 14 % of the width
-  // from the right edge and its hat's tip 11 % of the height from the top; upright 0.80 across and 0.39 down. It climbs there from
+  // hangs up to the right: in party_wide at 1280x800 its middle 0.81 of the way across and 0.21 down, its hand 13 % of the width
+  // from the right edge and its hat's tip 10 % of the height from the top; upright 0.81 across and 0.39 down. It climbs there from
   // where it peeked over the intro, `rise` beats (hatid-stage.js moonPlaceAt), and is there from the party's first frame with less
   // motion.
   partyMoon: { azimuth: 73.5, elevation: 14.3 },
@@ -229,9 +229,10 @@ export const SKY = {
   // above (Task 10b measured all six whole and apart in stars_wide at 9, at both sizes). In the party (party_wide cuts the sky at
   // about 27 degrees) the six hang at `places` (her star; partyPlace), `span` wide. (Task 17b, the owner: "dreifum aðeins betur úr
   // stjörnumerki eðlana, er smá klesst saman") spread over the sky party_wide sees left of the moon, in three heights, each on her
-  // own side as before (left to right Þórseðla, Kambeðla, Flugeðla, Uggeðla, Slóeðla over Grameðla): the nearest two drawings 5.2
-  // degrees apart (Task 12's were 1.7), no line within 5.5 degrees of the moon's disc and hat, every line inside party_wide at both
-  // sizes, no string of lights across another's drawing (.tools/hatid-17b/spread.mjs, sky.mjs)
+  // own side as before (left to right Þórseðla, Kambeðla, Flugeðla, Uggeðla, Slóeðla over Grameðla): the nearest two drawings 4.5
+  // degrees apart (Task 12's were 1.7), no line within 5.5 degrees of the moon's disc and hat at its party place nor within 3.8 of
+  // it where it peeks (scene 2: the climb starts there), every line inside party_wide at both sizes, no string of lights across
+  // another's drawing (.tools/hatid-17b/spread.mjs, sky.mjs)
   span: 9,
   party: {
     span: 11,

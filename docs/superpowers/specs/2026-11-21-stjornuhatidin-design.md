@@ -277,9 +277,9 @@ Hér gengur skemmtun fyrir raunveruleika. Ekkert af þessu þarf að geta gerst 
   - **Staðurinn:** bak við sviðið, lágt yfir skýjahafinu, svo það sést í víðu skotunum án þess að taka athyglina.
   - **Breyting 27. nóvember 2026 (orð eigandans við veisluna: „dreifum aðeins betur úr stjörnumerki eðlana, er smá klesst saman,
     og færum tunglið meira uppí hægra hornið, en ekki alveg útí horni“):** í veislunni dreifast stjörnumerkin sex yfir himininn
-    vinstra megin við tunglið, í þremur hæðum, hvert á sinni hlið eins og áður (næstu tvö a.m.k. 5 gráður hvort frá öðru, engin
+    vinstra megin við tunglið, í þremur hæðum, hvert á sinni hlið eins og áður (næstu tvö a.m.k. 4,5 gráður hvort frá öðru, engin
     minni en áður). Tunglið gægist enn upp fyrir skýin bak við sviðið eins og samþykkt var, en í forspili lagsins rennur það til
-    hægri, undir teikningunum, og klifrar upp í hægra hornið, ekki alveg út í það: í víða skotinu um 80 % til hægri og fjórðung
+    hægri, sígur ofan í skýin svo aðeins hatturinn sést undir teikningu Grameðlu, og klifrar upp í hægra hornið, ekki alveg út í það: í víða skotinu um 80 % til hægri og fjórðung
     niður. Skotin sem horfa á himininn snúa með.
   - Eigandinn sér kyrrmyndir af því, með öllum svipunum, áður en það fer í hátíðina.
 
