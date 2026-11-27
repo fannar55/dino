@@ -197,3 +197,13 @@ test('the eight fossil cards are the Safnið stickers, one for each fossil of H�
     assert.equal(card.pages[0].text, hals.get(`hals_fossil_${card.id}`)?.text, `${card.id}: page one says what the narrator says of the fossil in Háls og hali`);
   }
 });
+
+test('an unlock by a chapter seen opens with that id in the save\'s seen, and with nothing else', () => {
+  const tile = { unlock: { seen: 'hatid' } };
+  const save = createSave(null);
+  for (const id of ['k1_kambedla', 'k2_uggedla', 'k2_thorsedla', 'k4_flugedla', 'k5_sloedla', 'k6_gramedla']) save.addStar(id);
+  save.addSeen('video:hatid');
+  assert.equal(isUnlocked(tile, bookState(save)), false, 'all six stars and a look-alike id do not open it');
+  save.addSeen('hatid');
+  assert.equal(isUnlocked(tile, bookState(save)), true, 'the festival seen does');
+});

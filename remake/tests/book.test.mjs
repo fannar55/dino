@@ -13,7 +13,7 @@ import { createBookAudio } from '../engine/book/book-audio.js';
 import { createCardViewer } from '../engine/book/card-viewer.js';
 import { createZoom } from '../engine/book/zoom.js';
 import { createShowPlayer, showAddress, leaveShow, SHOW_CLOSE } from '../engine/book/show-player.js';
-import { BOOK_3D } from '../engine/book/videos.js';
+import { BOOK_3D, BOOK_VIDEOS, BOOK_SHOWS, videoSeenId } from '../engine/book/videos.js';
 import { endCard } from '../chapters/fidrildi3d.js';
 import { playStart } from '../engine/book/show-cards.js';
 import { ICONS } from '../engine/book/icons.js';
@@ -2380,7 +2380,7 @@ test('the Myndbönd page has thirteen videos, nine on the left page and four on 
   const onPage = side => leaf.findAll(e => e.classList.contains('book-page') && e.classList.contains(side))[0]
     .findAll(e => e.classList.contains('video-tile')).map(e => e.getAttribute('data-video'));
   assert.deepEqual(onPage('left'), ['heimur', 'grannar', 'thorsedla', 'gramedla', 'landrek', 'loftsteinn', 'fundur', 'mary', 'krakkar'], 'nine on the left page, three rows of three: the three about finders are its last row');
-  assert.deepEqual(onPage('right'), ['fuglar', 'raf', 'steinn', 'tennur', 'djamm', 'fidrildi3d', 'gramedla3d', 'flugedla3d', 'tjorn3d'], 'and four on the right, the game\'s own show under them, then the 3D column');
+  assert.deepEqual(onPage('right'), ['fuglar', 'raf', 'steinn', 'tennur', 'djamm', 'veisla', 'fidrildi3d', 'gramedla3d', 'flugedla3d', 'tjorn3d'], 'and four on the right, the game\'s own two shows under them, then the 3D column');
 
   const vtile = id => leaf.findAll(e => e.getAttribute('data-video') === id)[0];
   const videoRibbonDots = () => root.findAll(e => e.classList.contains('ribbon') && e.getAttribute('data-tab') === 'videos')[0]
@@ -2519,9 +2519,9 @@ test('"Djamm skógarins" stands under the right Myndbönd page\'s four videos: c
   const grid = page('right').findAll(e => e.classList.contains('video-tiles'))[0];
   assert.ok(grid.classList.contains('with-show'), 'the right page is laid for a show under its videos (book.css)');
   const beside = grid.children.filter(e => e.classList.contains('video-tile'));
-  const show = beside.at(-1);
-  assert.equal(beside.length, 5, 'four videos and the show after them');
-  assert.ok(grid.children.at(-1).classList.contains('video-3d-column'), 'and the 3D column after the show');
+  const show = beside.at(-2);
+  assert.equal(beside.length, 6, 'four videos and the two shows after them (Djamm skógarins, then Stjörnuhátíðin)');
+  assert.ok(grid.children.at(-1).classList.contains('video-3d-column'), 'and the 3D column after the shows');
   assert.equal(show.getAttribute('data-video'), 'djamm');
   assert.ok(show.classList.contains('video-tile-show'), 'marked as a show of the game');
   assert.equal(show.classList.contains('video-tile-3d'), false, 'not a 3D show');
@@ -2561,6 +2561,52 @@ test('"Djamm skógarins" stands under the right Myndbönd page\'s four videos: c
   assert.deepEqual(shows, [true, false]);
   assert.equal(book.isOpen, true, 'the book is there again');
   assert.equal(book.tab, 'videos', 'on Myndbönd');
+});
+
+test('the tile Stjörnuhátíðin is a "?" until hatid is seen, opens with Nýtt! after, and plays the chapter veisla', () => {
+  const SIX = ['k1_kambedla', 'k2_uggedla', 'k2_thorsedla', 'k4_flugedla', 'k5_sloedla', 'k6_gramedla'];
+  const others = [...BOOK_VIDEOS, ...BOOK_SHOWS, ...BOOK_3D].filter(v => v.id !== 'veisla'); // watched already: only this tile can be new
+  const { save, book, root, tap, shows } = fenRig({ fill: s => { SIX.forEach(id => s.addStar(id)); others.forEach(v => s.addSeen(videoSeenId(v.id))); } });
+  const tile = () => root.findAll(e => e.getAttribute('data-video') === 'veisla')[0];
+  const name = () => tile().findAll(e => e.classList.contains('tile-name'))[0].textContent;
+  const dots = () => root.findAll(e => e.classList.contains('ribbon') && e.getAttribute('data-tab') === 'videos')[0]
+    .findAll(e => e.classList.contains('ribbon-new')).length;
+  const djamm = root.findAll(e => e.getAttribute('data-video') === 'djamm')[0];
+  const row = djamm.parentNode.children;
+  assert.equal(row[row.indexOf(djamm) + 1], tile(), 'beside Djamm skógarins');
+  assert.ok(tile().classList.contains('video-tile-show') && !tile().classList.contains('video-tile-3d'), 'a show of the game, no glasses');
+  assert.equal(name(), '?', 'all six stars, but the festival not seen: a "?"');
+  assert.ok(tile().classList.contains('unfound'));
+  assert.equal(tile().findAll(e => e.classList.contains('video-play-badge'))[0].hidden, true, 'with no play mark');
+  assert.equal(dots(), 0, 'nothing new on the Myndbönd ribbon for it');
+  book.open('videos', 'child');
+  tap(tile());
+  assert.equal(book.showPlayer.isOpen, false, 'a tap on the "?" plays nothing (it wiggles)');
+  assert.equal(save.get().seen.includes('video:veisla'), false);
+  book.close();
+
+  save.addSeen('hatid'); // Egill lifts (journal.seen)
+  book.refresh();
+  assert.equal(name(), 'Stjörnuhátíðin', 'open once the festival has been seen');
+  assert.ok(tile().classList.contains('new'), 'and new');
+  assert.equal(tile().findAll(e => e.classList.contains('badge-new'))[0]?.textContent, 'Nýtt!');
+  assert.ok(dots() > 0, 'with Nýtt! on the Myndbönd ribbon, as a video earned');
+  assert.equal(tile().getAttribute('aria-label'), 'Stjörnuhátíðin, veislan úr leiknum');
+  assert.match(tile().findAll(e => e.tagName === 'IMG')[0].src, /assets\/book\/videos\/veisla-thumb\.webp$/, 'its picture a still of the party');
+  assert.ok(fs.existsSync(new URL('../assets/book/videos/veisla-thumb.webp', import.meta.url)), 'which is there');
+
+  book.open('videos', 'child');
+  const before = JSON.stringify({ ...save.get(), seen: null });
+  tap(tile());
+  assert.equal(book.showPlayer.isOpen, true, 'the show player opens');
+  const frame = book.showPlayer.frame;
+  const address = new URLSearchParams(frame.src.slice(frame.src.indexOf('?')));
+  assert.equal(address.get('chapter'), 'veisla', 'the party alone');
+  assert.equal(address.get('gler'), null, 'without the glasses');
+  assert.deepEqual(shows, [true]);
+  assert.ok(save.get().seen.includes('video:veisla'), 'seen: Nýtt! goes');
+  assert.equal(JSON.stringify({ ...save.get(), seen: null }), before, 'and nothing else in the save changed');
+  assert.ok(tile().classList.contains('found') && !tile().classList.contains('new'));
 });
 
 test('cards linked to an unlocked video show the card-video button and open the video player from the card', () => {

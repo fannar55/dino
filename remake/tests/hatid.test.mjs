@@ -1008,3 +1008,61 @@ test('no tap changes anything after the song: a child tapping through scene 4 ge
   const d = Math.hypot(...taps.world.chapterState.handState.actors.egill.map((v, i) => v - calm.world.chapterState.handState.actors.egill[i]));
   assert.ok(d < 0.01, 'Egill handed over in the same place');
 });
+
+// -----------------------------------------------------------------------------------------------
+// The save (Task 19): the festival marks itself seen as Egill lifts, gives no star, and an old save loses nothing.
+// A child from chapter 6's end: the six stars, the places, finds, the map's pieces and a video seen, a fossil and stickers.
+const OLD = {
+  stars: EARNED, findings: ['beetle', 'frog'], places: ['fen', 'sloedla', 'flugedla', 'uggedla'],
+  seen: ['map-route-a', 'map-route-f', 'video:djamm'], fossils: ['skull'], stickers: { sloedla: 2 },
+};
+const fromChapter6 = save => {
+  OLD.stars.forEach(id => save.addStar(id));
+  OLD.findings.forEach(id => save.addFinding(id));
+  OLD.places.forEach(id => save.addPlace(id));
+  OLD.seen.forEach(id => save.addSeen(id));
+  OLD.fossils.forEach(id => save.addHalsFound(id));
+  save.setStickers(OLD.stickers);
+};
+/** The festival untouched over the old save, watching the save each frame: when hatid came into seen, and the save 2 s after the lift. */
+const kept = () => play('old save', () => {
+  let save = null;
+  return playIt(hatid, {
+    savedWith: s => { fromChapter6(s); save = s; },
+    child(c, frame, seen) {
+      const now = save.get();
+      seen.savedAt ??= now.seen.includes('hatid') ? c.s.time : null;
+      if (c.lifted && !seen.twoAfter && c.s.time >= c.lifted.time + 2) seen.twoAfter = now;
+    },
+  }).then(run => ({ ...run, saveAtEnd: save }));
+});
+
+test('the festival gives no star: six before, the same six after, in the same order; hatid is in seen once, from the moment Egill lifts', async () => {
+  const run = await kept();
+  assert.equal(run.task.failed, false, String(run.task.error?.stack ?? run.task.error));
+  assert.deepEqual(JSON.parse(run.watched.saved).stars, EARNED, 'six before');
+  const end = run.saveAtEnd.get();
+  assert.deepEqual(end.stars, EARNED, 'the same six after, in the same order');
+  assert.equal(end.seen.filter(id => id === 'hatid').length, 1, 'hatid once');
+  const lift = run.world.chapterState.lifted.time;
+  assert.ok(Math.abs(run.watched.savedAt - lift) <= FRAME + 1e-6, `seen at ${run.watched.savedAt?.toFixed(2)} s, as he lifts at ${lift.toFixed(2)} s`);
+});
+
+test('a child who leaves during the ride has still seen the festival', async () => {
+  const run = await kept();
+  const left = run.watched.twoAfter;
+  assert.ok(left, 'the save 2 s after the lift');
+  assert.ok(left.seen.includes('hatid'), 'has the festival seen: the book\'s tile and the seventh slot are open, and the next visit opens chapter 6');
+  assert.deepEqual(left.stars, EARNED, 'and its six stars');
+});
+
+test('an old save loses nothing: its stars, places, finds and seen are all there at the end', async () => {
+  const run = await kept();
+  const end = run.saveAtEnd.get();
+  assert.deepEqual(end.stars, OLD.stars);
+  assert.deepEqual(end.places, OLD.places);
+  assert.deepEqual(end.findings.slice(0, OLD.findings.length), OLD.findings, `the finds first, in their order: ${end.findings}`);
+  assert.deepEqual(end.seen.slice(0, OLD.seen.length), OLD.seen, `what was seen first, in its order: ${end.seen}`);
+  assert.deepEqual(run.saveAtEnd.getHals().found, OLD.fossils, 'the fossils');
+  assert.equal(run.saveAtEnd.getStickers().sloedla, 2, 'the stickers');
+});
