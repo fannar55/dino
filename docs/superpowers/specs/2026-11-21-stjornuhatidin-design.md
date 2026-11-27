@@ -286,6 +286,10 @@ Hér gengur skemmtun fyrir raunveruleika. Ekkert af þessu þarf að geta gerst 
 ## 8. Hljóð og raddir
 
 - **Til nú þegar:** öskrið hennar, lúðurinn, vængjasláttur og hljóð smádýranna.
+- **27.11.2026, orð eigandans:** „það er ekkert öskur í grameðlu“. Bætt við í veisluna, öll í einni töflu sem má strika út línu
+  fyrir línu (`PARTY_SOUNDS` í `hatid-score.js`): öskur Grameðlu á fjórum öskrum síðasta viðlagsins og í sólóinu hennar, dynkur
+  hennar á stappinu í sólóinu, og vængjasláttur Flugeðlu og fagnaðaróp hennar í sólóinu hennar. Litlu hljóð hinna sólóanna eru
+  aðeins tillögur enn.
 - **Hljóðheimur toppsins** er annar en skógarins: mjúkur fjallavindur og kyrrð, og skógurinn heyrist aðeins dauft langt fyrir neðan.
 - **Þögnin** þegar sólin er sest er alger: enginn tónn, aðeins vindurinn.
 - **Nýtt:** hljómurinn þegar stjarna kviknar (sex tónar), partíflautan, fögnuður dýranna, stjörnuhröpin sem springa, og stef
