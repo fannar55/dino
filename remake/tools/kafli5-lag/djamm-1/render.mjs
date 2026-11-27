@@ -19,12 +19,15 @@ import { sectionStats, callCheck, barRms, mono, lowpassed, biggestJump, fft } fr
 import { steady, cents } from './lib/pitch.mjs';
 import { renderDj, readLines, SLOT } from './lib/dj.mjs';
 import { PRUFA, dropLayers, highpass4, deEss, limitFx } from './lib/prufa.mjs';
+import { polishMix } from './lib/mix-polish.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, '../../../..');
 const HLJOD = join(ROOT, 'remake/assets/audio/kafli5/hljod');
 // --prufa: the trial with the mix review's three fixes (lib/prufa.mjs), into its own folder; without it, the shipped set
 const TRIAL = process.argv.includes('--prufa');
+// --polish: apply the Mix B polish stage (lib/mix-polish.mjs) before final -16 LUFS mastering
+const POLISH = process.argv.includes('--polish');
 // --out=<dir under the repo>: write somewhere else (to check that the shipped render is still made byte for byte)
 const OUT_ARG = process.argv.find(a => a.startsWith('--out='))?.slice(6);
 const OUT = join(ROOT, OUT_ARG ?? (TRIAL ? PRUFA.out : 'qa/remake/kafli5/lag/djamm/1'));
@@ -150,7 +153,12 @@ for (const st of Object.values(stems)) for (let i = 0; i < easeN; i++) {
   st.R[n - 1 - i] *= g;
 }
 say(`dj: ${dj.info.filter(i => i.take).length}/${dj.info.length} lines with takes, her limiter at most ${db(djLim.most).toFixed(1)} dB`);
-const pre = sumOf(Object.values(stems));
+let pre = sumOf(Object.values(stems));
+if (POLISH) {
+  const polished = polishMix(stems, SECTIONS, SPB);
+  pre = polished.mix;
+  say(`mix-polish applied: ${JSON.stringify(polished.metrics)}`);
+}
 say(`pre-master ${lufs(pre.L, pre.R).toFixed(2)} LUFS`);
 const stemPeaks = {};
 for (const [k, st] of Object.entries(stems)) stemPeaks[k] = +db(peakOf(st)).toFixed(2);
