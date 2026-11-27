@@ -14,6 +14,7 @@ import { SONG } from './kafli5-set.js';
 import { BENDS } from './kafli5-video.js';
 import { CHOIR, SPOTS, WADE, around, headingTo } from './kafli5-pool.js';
 import { FAR_POOL } from './kafli4-route.js';
+import { HOP_CLIP } from '../engine/pose/egill-hands.js'; // (2026-11-27) his hop clip's facts, shared with Stjörnuhátíðin
 
 const SET = SONG.set;
 /** Seconds a beat (125 beats a minute: 0.48 s). */
@@ -165,8 +166,8 @@ function lookAt(keys, b, turn = 1.5) {
 // Egill: a happy six-year-old. He bounces on every beat (in the air between two beats, down on the beat), twists and pumps his arms,
 // and jumps with his hop clip where the song jumps; his hands go up, clap or cup his mouth where Flugeðla asks.
 
-/** His hop clip (egill.glb, 1.15 s): he leaves the ground `off` s into it and is down `down` s into it. */
-export const HOP = { seconds: 1.15, off: 0.42, down: 0.94, rate: 0.85 };
+/** His hop clip (egill.glb, 1.15 s): he leaves the ground `off` s into it and is down `down` s into it (engine/pose/egill-hands.js). */
+export const HOP = HOP_CLIP;
 const HOP_AIR = (HOP.down - HOP.off) / (BEAT * HOP.rate); // beats in the air
 const phraseHops = (from, to) => { const out = []; for (let b = from + 6.75; b < to; b += 8) out.push(b); return out; };
 const FROZEN = 0.55; // beats into a jump "Stopp!" catches him

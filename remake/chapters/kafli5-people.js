@@ -16,6 +16,8 @@
 import * as THREE from 'three';
 import { egillAt, mosiAt, flugedlaAt, sloedlaAt, mosiTurn, mosiTurnFoot, HER_DUCK } from './kafli5-people-score.js';
 import { BODY_HEIGHT } from './kafli4-route.js';
+// (2026-11-27) Egill's hands, the arm reach and turnBone live in engine/pose/egill-hands.js, shared with Stjörnuhátíðin's dance
+import { HANDS, CUP, turnBone, egillArms, layHands } from '../engine/pose/egill-hands.js';
 
 const V3 = THREE.Vector3;
 const Q = THREE.Quaternion;
@@ -26,17 +28,8 @@ const AHEAD = new V3(1, 0, 0); // a model faces +X
 const RIGHT = new V3(0, 0, 1); // and its right side is +Z
 const HER_HEAD = { actor: 'sloedla', part: 'head' }; // whom they looked at when the set began (kafli5.js theWholeSong)
 
-/** Where Egill's hands go, in his own frame ([ahead, up, to that hand's side], m): his arms are 0.27 m long. */
-export const HANDS = {
-  up: [0.02, 1.2, 0.3], // up and apart, a V over his head
-  pump: [0.17, 0.82, 0.13], // a fist in front of his shoulder
-  open: [0.16, 0.7, 0.21], // apart in front of him, between two claps
-  clap: [0.2, 0.68, 0.012], // together
-};
-/** His hands cupped at his mouth: from his head bone, in his own frame ([ahead, up, to that hand's side], m). */
-export const CUP = [0.115, 0.015, 0.075];
-const SHRUG = 0.035; // m his shoulders come up as his hands go up (his arms are short: his hands just clear his head)
-const ELBOW = [-0.25, -0.55, 0.8]; // the way his elbows point as his arms bend (his own frame: back, down and out)
+/** Where Egill's hands go, and cupped at his mouth (engine/pose/egill-hands.js). */
+export { HANDS, CUP };
 /** Mosi's hind feet from his root, along him (m): he rears about them. */
 const HIND = -0.05;
 /** How high his feet come off the ground as he steps round in his turn (m): his forefeet, his hind feet. */
@@ -46,18 +39,7 @@ const HIPS = new V3(0.06, BODY_HEIGHT, 0);
 const WING = ['UpperArm', 'Forearm', 'Wrist', 'Claws', 'Finger1', 'Finger2', 'Finger3'];
 const NECK = [['Neck', 0.2], ['Neck2', 0.25], ['Neck3', 0.25], ['Head', 0.3]]; // her bow, shared down her neck
 
-const HAND_NAMES = ['up', 'pump', 'open', 'clap'];
-const parentQ = new Q();
-const localQ = new Q();
 const scratchCue = new V3();
-/** Turn `bone` by `q`, a turn in the world's frame, about its own joint without recursing untouched subtrees. */
-function turnBone(bone, q) {
-  bone.parent.updateWorldMatrix(true, false);
-  bone.parent.getWorldQuaternion(parentQ);
-  localQ.copy(parentQ).invert().multiply(q).multiply(parentQ);
-  bone.quaternion.premultiply(localQ);
-  bone.updateWorldMatrix(false, false);
-}
 
 /**
  * The bones a dance lays a pose on: `hold()` right after the clips keeps what the clips gave them, `restore()` before the next
@@ -199,34 +181,6 @@ function faceTo({ root, neck, head, forward }, point, weight, yaw = 70, pitch = 
 /** The way `head` faces in its own frame when the model, in its own pose, faces +X. */
 const forwardOf = head => (head ? AHEAD.clone().applyQuaternion(head.getWorldQuaternion(new Q()).invert()) : AHEAD.clone());
 
-const S = new V3();
-const E = new V3();
-const H = new V3();
-const along = new V3();
-const lower = new V3();
-const bend = new V3();
-const armQ = new Q();
-/** Bends an arm (`upper`, `lower`, `hand` bones) so its hand is at `goal` (world), the elbow pointing the way `pole` (world) does. */
-function reach(arm, goal, pole) {
-  arm.upper.getWorldPosition(S);
-  arm.lower.getWorldPosition(E);
-  arm.hand.getWorldPosition(H);
-  const [l1, l2] = [S.distanceTo(E), E.distanceTo(H)];
-  const far = clamp(S.distanceTo(goal), Math.abs(l1 - l2) + 1e-4, l1 + l2 - 1e-4);
-  // the forearm straight on from the upper arm, then bent at the elbow as far as the reach asks, away from the pole
-  along.copy(E).sub(S).normalize();
-  lower.copy(H).sub(E).normalize();
-  turnBone(arm.lower, armQ.setFromUnitVectors(lower, along));
-  const inside = Math.acos(clamp((l1 * l1 + l2 * l2 - far * far) / (2 * l1 * l2), -1, 1));
-  bend.copy(pole).cross(along);
-  if (bend.lengthSq() > 1e-8) turnBone(arm.lower, armQ.setFromAxisAngle(bend.normalize(), Math.PI - inside));
-  // and the whole arm turned so the hand is on the line to the goal
-  arm.hand.getWorldPosition(H);
-  H.sub(S).normalize();
-  along.copy(goal).sub(S).normalize();
-  turnBone(arm.upper, armQ.setFromUnitVectors(H, along));
-}
-
 // ---------------------------------------------------------------------------------------------
 
 /**
@@ -259,15 +213,11 @@ function egillRig(c, clock, options) {
   const head = bone('Head');
   const neck = bone('Neck');
   const spine = bone('Spine');
-  const arms = [['Right', 1], ['Left', -1]].map(([side, sign]) => ({ key: side.toLowerCase(), sign, upper: bone(`${side}UpperArm`), lower: bone(`${side}LowerArm`), hand: bone(`${side}Hand`) }))
-    .filter(arm => arm.upper && arm.lower && arm.hand);
+  const arms = egillArms(model);
   const forward = inOwnPose(actor, () => forwardOf(head));
   const layer = overlay([spine, neck, head, ...arms.flatMap(arm => [arm.upper, arm.lower])]);
   const clips = holdClips(actor, ['idle', 'hop', 'wave']);
   const q = new Q();
-  const goal = new V3();
-  const to = new V3();
-  const pole = new V3();
   const side = new V3();
   let p = null;
   actor.lookAt(null);
@@ -287,34 +237,7 @@ function egillRig(c, clock, options) {
     // he leans into a shout from his waist
     if (spine && p.lean) turnBone(spine, q.setFromAxisAngle(side.copy(RIGHT).applyQuaternion(root.quaternion), -rad(p.lean)));
     faceTo({ root, neck, head, forward }, p.look, p.looking, 70, 40);
-    for (const arm of arms) {
-      const poses = p.arms[arm.key];
-      let sum = 0;
-      if (poses.up > 0) {
-        arm.upper.getWorldPosition(to).y += SHRUG * poses.up;
-        arm.upper.position.copy(arm.upper.parent.worldToLocal(to));
-        arm.upper.updateWorldMatrix(false, false);
-      }
-      arm.hand.getWorldPosition(H);
-      goal.set(0, 0, 0);
-      for (let i = 0; i < HAND_NAMES.length; i++) {
-        const name = HAND_NAMES[i];
-        const weight = poses[name];
-        if (!(weight > 0)) continue;
-        const h = HANDS[name];
-        root.localToWorld(to.set(h[0], h[1], h[2] * arm.sign));
-        goal.addScaledVector(to.sub(H), weight);
-        sum += weight;
-      }
-      if (poses.cup > 0) {
-        head.getWorldPosition(to).add(pole.set(CUP[0], CUP[1], CUP[2] * arm.sign).applyQuaternion(root.quaternion));
-        goal.addScaledVector(to.sub(H), poses.cup);
-        sum += poses.cup;
-      }
-      if (sum < 0.002) continue;
-      goal.multiplyScalar(1 / Math.max(1, sum)).add(arm.hand.getWorldPosition(H));
-      reach(arm, goal, pole.set(ELBOW[0], ELBOW[1], ELBOW[2] * arm.sign).applyQuaternion(root.quaternion));
-    }
+    layHands({ matrix: root.matrixWorld, quaternion: root.quaternion, head }, arms, p.arms);
   });
   return {
     name: 'egill',

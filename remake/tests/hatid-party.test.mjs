@@ -27,12 +27,12 @@ const SIX = FRIENDS.map(f => f.key);
 const deg = THREE.MathUtils.radToDeg;
 
 /** The eight at their party stands, their six drawings at their party places (held in their traced pose, as scene 2 leaves them). */
-let made = null;
-function party() {
-  made ??= (async () => {
+const made = new Map();
+function party({ reduced = false } = {}) {
+  if (!made.has(reduced)) made.set(reduced, (async () => {
     const world = emptyWorld();
     const stands = partyStands();
-    const c = { world, reduced: false, stands: { party: stands } };
+    const c = { world, reduced, stands: { party: stands } };
     for (const who of FRIENDS8) {
       const actor = await createActor(world, { name: who, gltf: await loadCharacter(who) });
       world.actors.set(who, actor);
@@ -65,8 +65,8 @@ function party() {
       c.band.place();
     };
     return { world, c, stands, bones, frame };
-  })();
-  return made;
+  })());
+  return made.get(reduced);
 }
 const at = (p, who, bone) => p.bones[who].get(bone).getWorldPosition(new THREE.Vector3());
 /** Every frame from `from` to `to` (beats), each frame's beat to `see`. */
@@ -155,6 +155,76 @@ test('each friend does a move in her own body: up lifts Þórseðla\'s head 2 m 
       return JSON.stringify(Object.keys(pose.turns ?? {}).sort()) + (pose.spin ? 's' : '') + (pose.lift ? 'l' : '') + (pose.dip ? 'd' : '');
     });
     assert.ok(new Set(ways).size >= 5, `${move}: ${new Set(ways).size} ways among the eight`);
+  }
+});
+
+// (Task 15b, the owner's word of 2026-11-27: his arms stretched read as ruined) Egill dances with his own moves from chapter 5's show
+const ARM = { Left: ['LeftUpperArm', 'LeftLowerArm', 'LeftHand'], Right: ['RightUpperArm', 'RightLowerArm', 'RightHand'] };
+test('no bone of Egill is ever stretched: through the whole party, with and without less motion, shoulder to elbow and elbow to hand are as long as in his own pose', async () => {
+  const own = (await loadCharacter('egill')).scene;
+  own.updateMatrixWorld(true);
+  const w = name => own.getObjectByName(name).getWorldPosition(new THREE.Vector3());
+  const rest = Object.fromEntries(Object.entries(ARM).map(([side, [s, e, h]]) => [side, [w(s).distanceTo(w(e)), w(e).distanceTo(w(h))]]));
+  for (const reduced of [false, true]) {
+    const p = await party({ reduced });
+    let worst = { d: 0 };
+    play(p, 0, 364, beat => {
+      for (const [side, [s, e, h]] of Object.entries(ARM)) {
+        const [S, E, H] = [s, e, h].map(n => at(p, 'egill', n));
+        const d = Math.max(Math.abs(S.distanceTo(E) - rest[side][0]), Math.abs(E.distanceTo(H) - rest[side][1]));
+        if (d > worst.d) worst = { d, side, beat };
+      }
+    });
+    assert.ok(worst.d < 0.001, `${reduced ? 'less motion: ' : ''}Egill's ${worst.side} arm ${(worst.d * 1000).toFixed(1)} mm off its own length at beat ${worst.beat?.toFixed(2)}`);
+  }
+});
+
+/** The top of Egill's head (his skinned silhouette's top in the gap before the first call), carried with his Head bone. */
+function headTop(p) {
+  p.frame(73.95); p.frame(74);
+  const model = p.c.egill.raw.model;
+  model.updateMatrixWorld(true);
+  const crown = new THREE.Box3().setFromObject(model, true).max.y;
+  const head = p.bones.egill.get('Head');
+  const headAt = head.getWorldPosition(new THREE.Vector3());
+  const local = head.worldToLocal(new THREE.Vector3(headAt.x, crown, headAt.z));
+  return () => head.localToWorld(local.clone()).y;
+}
+const flat = v => new THREE.Vector2(v.x, v.z);
+
+test('"Hendur upp!": Egill\'s hands are over the top of his head and wider apart than his shoulders for the whole move after its first beat', async () => {
+  const p = await party();
+  const top = headTop(p);
+  for (const call of SONG.song.calls.filter(c => c.move === 'up')) {
+    const [from, to] = moveSpan(call);
+    let worst = { over: Infinity, apart: Infinity };
+    play(p, from + 1, to, beat => {
+      const [L, R] = ['LeftHand', 'RightHand'].map(h => at(p, 'egill', h));
+      const over = Math.min(L.y, R.y) - top();
+      const apart = flat(L).distanceTo(flat(R)) - flat(at(p, 'egill', 'LeftUpperArm')).distanceTo(flat(at(p, 'egill', 'RightUpperArm')));
+      if (over < worst.over) Object.assign(worst, { over, overAt: beat });
+      if (apart < worst.apart) Object.assign(worst, { apart, apartAt: beat });
+    });
+    assert.ok(worst.over > 0, `up at ${call.beat}: his lower hand ${(worst.over * 100).toFixed(1)} cm over his head's top at ${worst.overAt.toFixed(2)}`);
+    assert.ok(worst.apart > 0, `up at ${call.beat}: his hands ${(worst.apart * 100).toFixed(1)} cm wider apart than his shoulders at ${worst.apartAt.toFixed(2)}`);
+  }
+});
+
+test('"Hoppa!": Egill is off the ground between the dance beats and down on them', async () => {
+  const p = await party();
+  for (const call of SONG.song.calls.filter(c => c.move === 'hop')) {
+    const [from, to] = moveSpan(call);
+    p.frame(from - 2.05); p.frame(from - 2); // the groove's feet are down on a beat
+    const rest = lowestFoot(p, 'egill');
+    for (let k = 0; k < (to - from) / DANCE_BEAT; k++) {
+      const top = from + (k + 0.5) * DANCE_BEAT;
+      p.frame(top - 0.05); p.frame(top);
+      assert.ok(lowestFoot(p, 'egill') - rest >= 0.25, `hop at ${call.beat}: off the ground at ${top} (${(lowestFoot(p, 'egill') - rest).toFixed(2)} m)`);
+      if (k === 0) continue;
+      const down = from + k * DANCE_BEAT;
+      p.frame(down - 0.05); p.frame(down);
+      assert.ok(lowestFoot(p, 'egill') - rest < 0.03, `hop at ${call.beat}: down on ${down} (${(lowestFoot(p, 'egill') - rest).toFixed(3)} m)`);
+    }
   }
 });
 
