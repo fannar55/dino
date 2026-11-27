@@ -499,10 +499,10 @@ const TALL = {
   chorus_sky: shot(fp(0, -40, 3), toSky(fp(0, -40, 3), { azimuth: 43.5, elevation: 30 }), 54), // (Task 17b: 43.5, 30 up, on 54: the six drawings and the moon whole)
   // (fix 1) upright: the quiet part's first two shots looking higher (half the frame was floor), quiet_egill nearer him (Egill was a
   // speck between Mosi and the edge)
-  quiet_wide: shot(fp(0, -32, 1.2), toSky(fp(0, -32, 1.2), { azimuth: 47, elevation: 24 }), 54), // (Task 17b: as the wide one)
+  quiet_wide: shot(fp(0, -32, 1.2), toSky(fp(0, -32, 1.2), { azimuth: 45.5, elevation: 10 }), 54), // (Task 17b: 45.5, 10 up: the moon above the middle at 0.82 across, 0.46 down, the six whole; lower puts half the frame on floor again)
   quiet_egill: shot(fp(5.5, -13.5, 0.5), fp(-1.5, -8.5, 3.2), 30),
   // (fix 1) upright: the same lens looking higher, so the narrow frame's long height is sky over them, not floor under them
-  final_pose: shot(fp(1, -24.5, 2), toSky(fp(1, -24.5, 2), { azimuth: 44.8, elevation: 21 }), 51), // (Task 17b: as the wide one)
+  final_pose: shot(fp(1, -24.5, 2), toSky(fp(1, -24.5, 2), { azimuth: 44.8, elevation: 10 }), 51), // (Task 17b: 10 up: the moon above the middle at 0.85 across, 0.46 down, the six and the eight whole)
 };
 /** The upright frame of shot `name`, where one is needed (else null: the wide frame holds upright too). */
 export function tallShot(name) {
