@@ -956,7 +956,7 @@ export function createStage(c) {
   const dusk = createDusk(world);
   const flies = reduced ? FIREFLIES.count / 2 : FIREFLIES.count;
   const matrix = new THREE.Matrix4(), quaternion = new THREE.Quaternion(), position = new THREE.Vector3(), scale = new THREE.Vector3();
-  const fly = {};
+  const bug = {}; // a firefly of the frame
   const feetOf = () => {
     const figures = c.figures;
     if (!figures?.pointsOf) return null;
@@ -975,7 +975,7 @@ export function createStage(c) {
   let now = null;
 
   const deckAt = STAGE.stones;
-  function update(beat) {
+  function update(beat, { dim = 1, fly = beat } = {}) {
     const parts = partsAt(beat);
     const band = c.band?.lights ? c.band.lights(beat) : null; // (Task 16) the band's: Þórseðla's neck, Flugeðla's lap, the prints
     // the stones
@@ -1018,11 +1018,11 @@ export function createStage(c) {
     const spots = spotsAt(beat, o);
     for (const b of [cone, ...spots]) {
       if (!(b.level > 0)) continue;
-      beams.beam(b.from, b.to, b.width, ...b.colour, b.level);
-      rings.disc(b.to[0], b.to[1] + 0.06, b.to[2], b.width / 2 + 1, ...b.colour, b.level * (b === cone ? RINGS.cone : RINGS.spot));
+      beams.beam(b.from, b.to, b.width, ...b.colour, b.level * dim);
+      rings.disc(b.to[0], b.to[1] + 0.06, b.to[2], b.width / 2 + 1, ...b.colour, b.level * dim * (b === cone ? RINGS.cone : RINGS.spot));
     }
     const floorRgb = rgbOf(f.colour);
-    for (const [x, z, radius, level] of f.steps) rings.disc(x, heightAt(x, z) + 0.06, z, radius * 0.75, ...floorRgb, level * RINGS.step);
+    for (const [x, z, radius, level] of f.steps) rings.disc(x, heightAt(x, z) + 0.06, z, radius * 0.75, ...floorRgb, level * dim * RINGS.step);
     feet.begin();
     for (const p of band?.prints ?? []) {
       if (!(p.level > 0.003)) continue;
@@ -1035,7 +1035,7 @@ export function createStage(c) {
     // the light points: the spotlights' swarms, the strings, the fireflies
     let swarms = 0;
     spots.forEach((s, k) => {
-      const level = parts.spots * (0.35 + 0.65 * spotGate(beat)) * (reduced ? 1 + burstFlash(beat) : 1);
+      const level = dim * parts.spots * (0.35 + 0.65 * spotGate(beat)) * (reduced ? 1 + burstFlash(beat) : 1);
       for (let j = 0; j < SPOTS.swarm; j++) {
         const i = k * SPOTS.swarm + j;
         const a = rnd(i, 11) * Math.PI * 2 + beat * (0.5 + 0.5 * rnd(i, 12));
@@ -1045,15 +1045,15 @@ export function createStage(c) {
       }
     });
     let fireworks = 0;
-    for (const p of fireworksAt(beat, o)) { points.add(...p.at, p.size, ...p.colour, p.level, 0); fireworks++; }
+    for (const p of fireworksAt(beat, o)) { points.add(...p.at, p.size, ...p.colour, p.level * dim, 0); fireworks++; }
     const lights = stringsAt(beat, { ...o, feet: feetOf() ?? undefined });
     let strings = 0;
-    for (const l of lights) { points.add(...l.at, l.size, ...l.colour, l.level); if (l.level > 0.003) strings++; }
+    for (const l of lights) { points.add(...l.at, l.size, ...l.colour, l.level * dim); if (l.level > 0.003) strings++; }
     let fireflies = 0;
     for (let i = 0; i < flies; i++) {
-      firefliesAt(beat, i, fly, band ? { ...o, neck: band.neck, lap: band.lap } : o);
-      points.add(fly.x, fly.y, fly.z, fly.size, fly.r, fly.g, fly.b, fly.level);
-      if (fly.level > 0.003) fireflies++;
+      firefliesAt(fly, i, bug, band ? { ...o, neck: band.neck, lap: band.lap } : o);
+      points.add(bug.x, bug.y, bug.z, bug.size, bug.r, bug.g, bug.b, bug.level);
+      if (bug.level > 0.003) fireflies++;
     }
     points.end();
     // the sea
@@ -1076,7 +1076,8 @@ export function createStage(c) {
       spots: spots.map(s => ({ from: s.from.map(r2), to: s.to.map(r2), colour: hexOf(s.colour), level: r3(s.level) })),
       sea: { glow: sea.glow === null ? null : r3(sea.glow), colour: sea.colour, ripples: sea.ripples.length },
       look: { weights: look.parts.map(([, w]) => r3(w)), lift: r3(look.lift) },
-      light: r3(stageLightAt(beat, o)), // (Task 17) all of it summed
+      light: r3(stageLightAt(beat, o) * dim), // (Task 17) all of it summed; (Task 18) at rest, dimmed
+      dim: r3(dim),
       counts: { points: points.count, fireflies, strings, swarms, fireworks, beams: beams.count, rings: rings.count },
     };
   }
@@ -1089,6 +1090,11 @@ export function createStage(c) {
 
   return {
     update,
+    /**
+     * (Task 18) After the song, the stage at rest: as it stood on `beat` (the last chord's), its beams, pools and lights at `level`
+     * of that (scene 4: a third), its fireflies drifting on at `fly` (a beat that goes on with the scene's clock).
+     */
+    rest(level, beat, fly = beat) { update(beat, { dim: Math.max(0, Math.min(1, level)), fly }); },
     state: () => (now ? structuredClone(now) : null),
     /** The stage's own triangles: the stones', the floor's (a test's, the bench's). */
     get triangles() { return stones.triangles * (STAGE.stones + (c.band?.deck ? 1 : 0)) + (floor.mesh.geometry.index.count / 3) * floor.mesh.geometry.instanceCount; },

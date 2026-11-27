@@ -11,7 +11,8 @@ import * as veisla from '../chapters/veisla.js';
 import { playUnattended } from './chapter-harness.mjs';
 import { createFakeContext } from './fake-audio.mjs';
 import { topEnd } from '../chapters/kafli6-route.js';
-import { ARRIVALS, BUDGET, FRIENDS8, LENGTH as BODY, STAGE, FLOOR } from '../chapters/hatid-route.js';
+import { ARRIVALS, BUDGET, FRIENDS8, LENGTH as BODY, STAGE, FLOOR, SKY } from '../chapters/hatid-route.js';
+import { SEVENTH, hornOf } from '../chapters/hatid-seventh.js';
 import { GUESTS, guestSeat, createGuests, hideSpot } from '../chapters/hatid-guests.js';
 import { SUNSET, lookAt, HATID_LOOKS } from '../chapters/hatid-looks.js';
 import { DRAW_SECONDS } from '../chapters/hatid-stars.js';
@@ -85,6 +86,7 @@ function playIt(module, { aspect = 1.6, reduced = false, child = null, pauses = 
       }
       watchArrival(world, c, frame, seen);
       watchNight(world, c, seen);
+      watchFour(world, c, frame, seen);
       child?.(c, frame, seen);
     },
   }).then(run => ({ ...run, watched: seen }));
@@ -253,6 +255,34 @@ function watchNight(world, c, seen) {
     n.egill.push({ time, y: egill.y, ground: world.heightAt(egill.x, egill.z), floating: Boolean(c.floating) });
   }
   if (c.moon) n.moon.push({ time, rise: c.moon.pose.rise, mouth: c.moon.pose.mouth });
+}
+
+// (Task 18) Scene 4 and the moth, frame by frame: the moth and Mosi's horn from the first frame; from the song's end Egill, Mosi,
+// the seventh star, the moon's mouth, each constellation's turn toward the seventh (degrees between her neck-to-star and her
+// neck-to-it on the sky) and the black.
+const HORN = hornOf;
+function watchFour(world, c, { ui }, seen) {
+  const f = (seen.four ??= { moth: [], frames: [] });
+  if (c.moth && world.actors.get('mosi')) {
+    const horn = world.resolvePoint(HORN(world.actors.get('mosi')), new THREE.Vector3());
+    const egill = world.actors.get('egill').centre(new THREE.Vector3());
+    f.moth.push({ time: c.s.time, scene: c.scene, horn: c.moth.at.distanceTo(horn), egill: c.moth.at.distanceTo(egill) });
+  }
+  if (c.scene !== 'seventh' && c.scene !== 'end') return;
+  const turns = {};
+  if (c.figures) {
+    for (const { key } of FRIENDS) {
+      try {
+        const p = c.figures.lookPivotOf(key), q = c.figures.starOf(key);
+        const a = Math.atan2(q.elevation - p.elevation, q.azimuth - p.azimuth), b = Math.atan2(SKY.seventh.elevation - p.elevation, SKY.seventh.azimuth - p.azimuth);
+        turns[key] = Math.abs(THREE.MathUtils.radToDeg(Math.atan2(Math.sin(a - b), Math.cos(a - b))));
+      } catch { /* not in the sky */ }
+    }
+  }
+  f.frames.push({
+    time: c.s.time, egill: world.actors.get('egill').root.position.clone(), mosi: world.actors.get('mosi').root.position.clone(),
+    seventh: c.seventh?.state() ?? null, mouth: c.moon?.pose?.mouth ?? null, turns, black: ui?.fadeLevel ?? 0,
+  });
 }
 
 function firstFrame(world, c, { sunFace }) {
@@ -875,4 +905,101 @@ test('the party is lit by the real stage: by beat 100 every part is on at full, 
   assert.equal(solo.spots.length, 4);
   for (const s of solo.spots) assert.ok(Math.hypot(s.to[0] - her[0], s.to[2] - her[1]) < 1.5 && s.level > 0.2, `a spotlight on her: ${s.to}`);
   assert.equal(run.world.scene.getObjectByName('Hátíð grey stage'), undefined, 'the grey stage is gone');
+});
+
+// -----------------------------------------------------------------------------------------------
+// Scene 4 (Task 18): the seventh star, the lift, Mosi staying, and the hand-over to the ride.
+const hueOf = hex => { const hsl = {}; new THREE.Color(hex).getHSL(hsl); return hsl.h * 360; };
+const hueGap = (a, b) => Math.abs(((hueOf(a) - hueOf(b) + 540) % 360) - 180);
+const fourOf = run => run.watched.four;
+const liftedAt = run => logOf(run, 'lifted')[0].at;
+const liftedRun = () => play('lifted', () => playIt({ chapter: hatid.lifted }, { limit: 30 }));
+
+test('the seventh star is none of the six friends\' hues, and it shows only after Mosi\'s thanks', async () => {
+  for (const { key, colour } of FRIENDS) assert.ok(hueGap(SEVENTH.colour, colour) > 15, `${key}'s ${colour} is ${hueGap(SEVENTH.colour, colour).toFixed(0)} degrees from it`);
+  const run = await untouched();
+  const thanks = lineAt(run, 'h_mosi_thanks');
+  assert.ok(thanks, 'Mosi thanks him');
+  const shown = fourOf(run).frames.find(f => f.seventh?.level > 0.003);
+  assert.ok(shown, 'it shows');
+  assert.ok(shown.time > thanks.at, `at ${shown.time.toFixed(1)} s, after his thanks at ${thanks.at.toFixed(1)} s`);
+  assert.equal(run.world.chapterState.chapterLog.filter(e => e.type === 'seventh' && e.scene !== 'seventh').length, 0, 'nowhere but in scene 4');
+});
+
+test('every constellation\'s head turns to it and the moon\'s mouth is "o"', async () => {
+  const run = await untouched();
+  const [shown] = logOf(run, 'seventh');
+  const frame = fourOf(run).frames.find(f => f.time > shown.at + 2.5);
+  assert.equal(Object.keys(frame.turns).length, 6, 'all six in the sky');
+  for (const [key, off] of Object.entries(frame.turns)) assert.ok(off < 3, `${key}'s head ${off.toFixed(1)} degrees off it`);
+  const before = fourOf(run).frames.find(f => f.time > shown.at - 1);
+  assert.ok(Object.values(before.turns).some(off => off > 10), 'they turn: before it shows they look elsewhere');
+  assert.equal(frame.mouth, 'oh');
+});
+
+test('Egill rises slowly (never over 2 m/s), waves, and says his two lines; Mosi stays on the ground, waves and says he will find him', async () => {
+  const run = await untouched();
+  const at = liftedAt(run);
+  const frames = fourOf(run).frames.filter(f => f.time >= at);
+  let fastest = 0;
+  for (let i = 1; i < frames.length; i++) fastest = Math.max(fastest, frames[i].egill.distanceTo(frames[i - 1].egill) / (frames[i].time - frames[i - 1].time));
+  assert.ok(fastest <= 2, `his quickest ${fastest.toFixed(2)} m/s`);
+  const rose = frames.at(-1).egill.y - frames[0].egill.y;
+  assert.ok(Math.abs(rose - SEVENTH.height) < 0.05, `he rises ${rose.toFixed(2)} m`);
+  const said = id => run.seen.said.filter(e => e.id === id && e.at >= at);
+  for (const id of ['h_egill_fly', 'h_egill_bye', 'h_mosi_where', 'h_mosi_find']) assert.equal(said(id).length, 1, `${id} once, after the lift`);
+  assert.deepEqual(logOf(run, 'wave').filter(e => e.scene === 'seventh').map(e => e.who).sort(), ['egill', 'mosi']);
+  const ys = frames.map(f => f.mosi.y);
+  assert.ok(Math.max(...ys) - Math.min(...ys) < 0.3, 'Mosi stays on the ground');
+});
+
+test('the moth sits on Mosi\'s horn from the first frame to the lift and is within 3 m of Egill from then on', async () => {
+  const run = await untouched();
+  const at = liftedAt(run);
+  const { moth } = fourOf(run);
+  const sitting = moth.filter(m => m.time < at);
+  assert.ok(sitting.length > 1000 && sitting[0].time < 0.1, 'watched from the first frame');
+  const off = Math.max(...sitting.map(m => m.horn));
+  assert.ok(off < 0.05, `on his horn, at the most ${off.toFixed(3)} m off`);
+  const flying = moth.filter(m => m.time >= at + 2.2); // its flight to him: 2.2 s (hatid-seventh.js MOTH.fly)
+  assert.ok(flying.length > 100);
+  const far = Math.max(...flying.map(m => m.egill));
+  assert.ok(far < 3, `with Egill, at the most ${far.toFixed(2)} m from him`);
+});
+
+test('the ride is handed everything it needs (egill, moth, mosi, top, sky, constellations, moon, the seventh\'s place and hue) and the screen is never black between the lift and the ride', async () => {
+  const run = await untouched();
+  const { hand } = run.world.chapterState;
+  for (const key of ['egill', 'moth', 'mosi', 'top', 'sky', 'constellations', 'moon']) assert.ok(hand[key], `the hand has ${key}`);
+  assert.equal(hand.seventh.colour, SEVENTH.colour);
+  assert.deepEqual([hand.seventh.azimuth, hand.seventh.elevation], [SKY.seventh.azimuth, SKY.seventh.elevation]);
+  const [ride] = logOf(run, 'ride');
+  assert.ok(ride && ride.at > liftedAt(run), 'the ride takes over after the lift');
+  const black = Math.max(...fourOf(run).frames.filter(f => f.time >= liftedAt(run) && f.time <= ride.at + 1).map(f => f.black));
+  assert.ok(black < 0.01, `never black (${black.toFixed(2)})`);
+});
+
+test('asLifted gives the state the played festival has at the hand-over: everyone within 0.2 m and the same light', async () => {
+  const [played, alone] = await Promise.all([untouched(), liftedRun()]);
+  assert.equal(alone.task.failed, false, String(alone.task.error?.stack ?? alone.task.error));
+  const a = played.world.chapterState.handState, b = alone.world.chapterState.handState;
+  assert.ok(a && b, 'both handed over');
+  for (const who of FRIENDS8) {
+    const d = Math.hypot(...a.actors[who].map((v, i) => v - b.actors[who][i]));
+    assert.ok(d < 0.2, `${who} ${d.toFixed(2)} m from where the played festival has her`);
+  }
+  assert.deepEqual(b.light, a.light, 'the same light');
+  assert.ok(Math.hypot(...a.seventh.at.map((v, i) => v - b.seventh.at[i])) < 0.01, 'the seventh star in the same place');
+  assert.ok(b.seventh.light > 0.99 && b.seventh.level > 0.99, 'and shining');
+});
+
+test('no tap changes anything after the song: a child tapping through scene 4 gets the untouched play', async () => {
+  const [calm, taps] = await Promise.all([untouched(), busy()]);
+  assert.ok(taps.watched.partyTaps > 300, `${taps.watched.partyTaps} taps from the party on`);
+  const four = run => run.world.chapterState.chapterLog.filter(e => e.scene === 'seventh').map(e => ({ type: e.type, who: e.who ?? e.act ?? e.name ?? '', off: e.at - liftedAt(run) }));
+  const [x, y] = [four(taps), four(calm)];
+  assert.deepEqual(x.map(e => `${e.type} ${e.who}`), y.map(e => `${e.type} ${e.who}`), 'the same things in scene 4');
+  assert.deepEqual(x.filter((e, k) => Math.abs(e.off - y[k].off) > FRAME + 1e-6).slice(0, 5), [], 'each at the same moment of it');
+  const d = Math.hypot(...taps.world.chapterState.handState.actors.egill.map((v, i) => v - calm.world.chapterState.handState.actors.egill[i]));
+  assert.ok(d < 0.01, 'Egill handed over in the same place');
 });

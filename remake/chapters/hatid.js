@@ -23,7 +23,7 @@
 import * as THREE from 'three';
 import { createTop } from '../world/fjall/index.js';
 import {
-  FRIENDS8, MODELS, standsOf, arrivalOf, ARRIVALS, SKY, STAR_TAP, SUN_TAP, SHOTS, tallShot, BUDGET, partyPlace,
+  FRIENDS8, MODELS, standsOf, arrivalOf, ARRIVALS, SKY, STAR_TAP, SUN_TAP, SHOTS, tallShot, BUDGET, partyPlace, STAGE,
 } from './hatid-route.js';
 import { createOneTap, createStars, createSkyStars, starTone, TAP_HELP } from './hatid-stars.js';
 import { BEAT, END_BEAT, beatAt, secondsAt, CAMERA, PARTY_SOUNDS } from './hatid-score.js';
@@ -33,6 +33,7 @@ import { HEAD_SEAT } from './kafli6-seat.js';
 import { beckon, unbeckon, BECKON } from './kafli6-glitter.js';
 import { lineQueue } from './kafli4-flight-play.js';
 import { ride as rideBack } from './hatid-ride.js';
+import { createSeventh, createMoth, hornOf as mosiHornOf, SEVENTH } from './hatid-seventh.js';
 import { demoAsked, startDemoChild } from './hatid-demo.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
 import { createSeat, ride, floatTo, floatDown } from '../engine/riding.js';
@@ -114,7 +115,11 @@ const MOON_HEAPS = [[42, 175, 34, 70], [48, 195, 36, 76], [45, 225, 40, 64]];
 /** The moon's "Tút!" to the song's first sound (s). */
 export const TOOT_GAP = 1.2;
 const GATHER = { walk: 7, most: 4, after: 0.6 }; // scene 4: everyone round Egill
-const LIFT = { seconds: 6, up: 9, star: 1 }; // Egill floats `up` m over `seconds`; the seventh star shows this long before
+// scene 4 (Task 18): the cheer as the song is over (s, before they walk), the stage's lights to `rest` of theirs over `dim` s; Þórseðla's
+// head up this long before the star shows, it in over `show` s; the constellations' heads to it over `look` s; its light on Egill
+// over `light` s before he rises; the camera over him (lift_follow) rises `follow` of what he does; after the float, the top from
+// above held `above` s before the ride
+const FOUR = { cheer: 2.4, rest: 1 / 3, dim: 3, head: 1, show: 1.2, look: 1.6, light: 1.2, follow: 0.85, above: 1.5, oh: 14 };
 /** The party alone: the black lifts over `fadeIn` s with the moon's "Tút!", and the song starts `toot` s after it. */
 export const ALONE = { fadeIn: 0.8, toot: 2 };
 /** The tile's second (from its start) of the party's beat `beat`: for `?chapter=veisla&t=`. */
@@ -126,6 +131,7 @@ const SONG_BASE = new URL('../assets/audio/hatid/song/', import.meta.url).href;
 // ---------------------------------------------------------------------------------------------
 
 function* story(s, c) {
+  c.restAfter = true; // the stage stays after the song, at rest, for scene 4 (theParty)
   yield* arrival(s, c);
   yield* theStars(s, c);
   yield* theParty(s, c);
@@ -787,7 +793,11 @@ function* theParty(s, c) {
     unshake();
     c.band.dispose();
     c.dance.dispose();
-    c.stage.dispose();
+    if (c.restAfter) {
+      // (Task 18) the stage stays for scene 4, at rest (its band and dance gone with the song)
+      c.band = null;
+      c.dance = null;
+    } else c.stage.dispose();
   }
 }
 
@@ -919,11 +929,30 @@ export function partyFrame(c) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// 4. The seventh star: everyone round Egill, his thanks, a star of another colour, and he is lifted away.
+// 4. The seventh star (spec scene 4, Task 18): the song over, everyone cheers and the stage's lights sink to a third, the fireflies
+// drift; everyone round Egill, "Takk, Egill"; Þórseðla sees one more, a star of a hue none of the six has comes near while its
+// motif plays, every constellation turns her head to it and the moon's mouth is "o"; its light falls on Egill and he rises slowly
+// SEVENTH.height m, laughing and waving, with his two lines and Mosi's two; Mosi stays on the ground and waves (his head after him,
+// the friends their glad clips), the moth leaves his horn and flies round Egill, the moon waves; the camera follows him up and looks
+// down on the top, and with no fade the ride back takes over (hatid-ride.js). No tap does anything here: there are no targets.
+/** The stage at rest after the song: the beat of its last frame (its last chord's tail). */
+const REST_BEAT = beatAt(SONG_LENGTH);
+
 function* seventh(s, c) {
   mark(c, 'seventh');
   const { stands } = c;
+  unaim(s, c);
+  const four = sceneFour(s, c);
+  // the song over: everyone cheers (the five their glad clip, Grameðla a nod, Egill a hop) while the stage sinks to rest
+  four.dim(FOUR.rest, FOUR.dim);
+  for (const who of FRIENDS8) {
+    if (who === 'gramedla') c.her.nod();
+    else if (who === 'egill') c.egill.raw.play('hop', { fade: 0.2, once: true });
+    else if (who !== 'mosi') cheer(s, c, who, FOUR.cheer);
+  }
+  c.log({ type: 'cheer' });
   cut(s, c, 'gather');
+  yield s.wait(FOUR.cheer);
   const walks = FRIENDS8.map(who => {
     const actor = c[who].raw;
     const { at: to, heading } = stands.gather[who];
@@ -936,35 +965,178 @@ function* seventh(s, c) {
   yield s.all(...walks);
   yield s.wait(GATHER.after);
   yield* say(s, c, 'mosi', 'h_mosi_thanks');
+  // Þórseðla sees it first, her head high (her liftUp, as when she saw the first star)
   cut(s, c, 'seventh_sky');
-  c.sky.show('seventh', SKY.seventh, { colour: '#c8b6ff', size: 12, fade: LIFT.star });
+  const thor = c.thorsedla.raw;
+  thor.play('liftUp', { fade: 0.6, timeScale: FIRST.rate, once: true });
+  yield s.wait(FOUR.head);
+  four.appear();
+  sound(s, c, 'seventh', { rate: 1 }); // its motif (seventh.mp3: render.mjs --stef, the pick)
+  moonAct(s, c, 'oh', { seconds: FOUR.oh });
   yield* say(s, c, 'thorsedla', 'h_thorsedla_more');
-  yield s.wait(LIFT.star);
-  // the soft light lifts him (grey: floatTo a point LIFT.up m over him), and he laughs and waves
-  cut(s, c, 'lift_side');
+  yield s.until(() => four.nearDone);
+  // its light falls on him, and lifts him slowly
+  liftCut(s, c, 'lift_follow');
+  four.shine();
+  yield s.wait(FOUR.light);
+  thor.play('idle', { fade: 1.2 });
   const egill = c.egill.raw;
   const from = egill.root.position.clone();
-  const high = from.clone().addScaledVector(UP, LIFT.up);
+  const high = c.seventh.lift.clone();
   const holder = { heading: egill.heading, lookYawLimit: Infinity, lookUpLimit: Infinity };
   const light = { seat: high, update: () => high, host: holder };
   c.log({ type: 'lifted', at: from.toArray() });
-  if (typeof s.journal?.seen === 'function') s.journal.seen('hatid'); // Task 19 makes it real; until then it is not there
+  c.lifted = { at: from.toArray(), time: s.time };
+  if (typeof s.journal?.seen === 'function') s.journal.seen('hatid'); // as his feet leave the ground (Task 19 makes it real)
   sound(s, c, 'float');
-  const up = floatTo(egill, light, { duration: LIFT.seconds });
+  c.moth.follow('egill', s.time);
+  c.log({ type: 'moth', act: 'follow' });
+  const up = floatTo(egill, light, { duration: SEVENTH.seconds.lift, sit: false });
   yield* say(s, c, 'egill', 'h_egill_fly');
   cut(s, c, 'mosi_up');
+  c.mosi.raw.lookAt(EGILL_HEAD, { weight: 0.9, maxPitch: 45 });
+  for (const who of FRIENDS8) if (!['egill', 'mosi', 'gramedla'].includes(who)) cheer(s, c, who, 4);
+  c.log({ type: 'wave', who: 'mosi' });
   yield* say(s, c, 'mosi', 'h_mosi_where');
+  egill.play('wave', { fade: 0.3 });
+  c.log({ type: 'wave', who: 'egill' });
   yield* say(s, c, 'egill', 'h_egill_bye');
+  egill.play('lifted', { fade: 0.5 });
+  moonAct(s, c, 'wave');
   yield* say(s, c, 'mosi', 'h_mosi_find');
   yield up;
-  const hand = {
-    egill, moth: null, mosi: c.mosi.raw, top: c.top, sky: c.night ?? null, constellations: c.figures ?? null, moon: c.moon?.face ?? null,
-    seventh: { ...SKY.seventh, colour: '#c8b6ff' }, lifted: { at: from.toArray(), time: s.time },
-  };
+  liftCut(s, c, 'rise_above');
+  yield s.wait(FOUR.above);
+  const hand = handOf(s, c);
+  c.log({ type: 'hand', at: s.time });
+  c.handState = liftedState(c);
+  c.hand = hand;
   yield* rideBack(s, c, hand);
   mark(c, 'end');
   s.journal.open('dinosaurs');
   yield s.wait(1);
+}
+
+/** What the ride is handed as it takes over (hatid-ride.js): everyone and everything it goes on with. */
+function handOf(s, c) {
+  return {
+    egill: c.egill.raw, moth: c.moth, mosi: c.mosi.raw, top: c.top, sky: c.night ?? null, constellations: c.figures ?? null,
+    moon: c.moon?.face ?? null, seventh: { ...SKY.seventh, colour: SEVENTH.colour, point: c.seventh.point, star: c.seventh },
+    lifted: c.lifted ?? { at: c.seventh.base.toArray(), time: s.time },
+  };
+}
+
+/**
+ * Scene 4's frame (from its first frame to the chapter's end): the stage at rest (its lights eased to `dim`'s level, the fireflies
+ * drifting on), the seventh star showing, nearing and shining, the constellations' heads turning to it. Returns its levers.
+ */
+function sceneFour(s, c, { at = null } = {}) {
+  c.seventh ??= createSeventh(c);
+  const start = s.time;
+  const st = { dim: { from: 1, to: 1, at: start, seconds: 0 }, shown: null, near: null, shine: null, look: null, ...(at ?? {}) };
+  const eased = (since, seconds) => (since == null ? 0 : smooth((s.time - since) / seconds));
+  const keys = FRIENDS.map(f => f.key);
+  const stars = {};
+  const frame = () => {
+    const d = st.dim;
+    const level = d.from + (d.to - d.from) * (d.seconds > 0 ? smooth((s.time - d.at) / d.seconds) : 1);
+    c.stage?.rest(level, REST_BEAT, REST_BEAT + (s.time - (st.restFrom ?? start)) / BEAT);
+    c.seventh.show(eased(st.shown, FOUR.show));
+    c.seventh.near(st.near == null ? 0 : Math.min(1, (s.time - st.near) / SEVENTH.seconds.near));
+    c.seventh.light(eased(st.shine, FOUR.light));
+    const look = eased(st.look, FOUR.look);
+    if (look > 0 && c.figures) {
+      for (const key of keys) {
+        try {
+          stars[key] ??= c.figures.starOf(key);
+          const from = stars[key];
+          c.figures.set(key, { drawn: 1, level: 1, look: { azimuth: from.azimuth + (SKY.seventh.azimuth - from.azimuth) * look, elevation: from.elevation + (SKY.seventh.elevation - from.elevation) * look } });
+        } catch { /* not in the sky */ }
+      }
+    }
+  };
+  frame();
+  s.after(0, function* fourFrames() {
+    while (!c.ended) {
+      frame();
+      yield;
+    }
+  });
+  const four = {
+    dim(to, seconds) { st.dim = { from: st.dim.to, to, at: s.time, seconds }; },
+    appear() { st.shown = s.time; st.near = s.time; st.look = s.time; c.log({ type: 'seventh', colour: SEVENTH.colour }); },
+    shine() { st.shine = s.time; c.log({ type: 'shine' }); },
+    get nearDone() { return st.near != null && s.time - st.near >= SEVENTH.seconds.near; },
+    frame,
+  };
+  c.four = four;
+  return four;
+}
+
+/**
+ * Scene 4's shots that follow Egill up (point specs as functions: engine/points.js): `lift_follow` from lift_side's lens, rising
+ * FOUR.follow of what he rises, on him; `rise_above` over him and behind, looking down past him at the top glowing below.
+ */
+function liftCut(s, c, name) {
+  const base = c.seventh.base;
+  const egill = () => c.egill.raw.root.position;
+  const lens = new THREE.Vector3(...SHOTS.toppur.lift_side.position);
+  const toStage = new THREE.Vector3(STAGE.centre[0] - base.x, 0, STAGE.centre[1] - base.z).normalize();
+  const specs = {
+    lift_follow: {
+      position: out => out.copy(lens).add(new THREE.Vector3(0, (egill().y - base.y) * FOUR.follow, 0)),
+      target: out => out.copy(egill()).add(new THREE.Vector3(0, 1.4, 0)), fov: SHOTS.toppur.lift_side.fov,
+    },
+    rise_above: {
+      position: out => out.copy(egill()).addScaledVector(toStage, -9).add(new THREE.Vector3(0, 5, 0)),
+      target: out => out.copy(base).addScaledVector(toStage, 14).add(new THREE.Vector3(0, 0, 0)), fov: 58,
+    },
+  };
+  c.shotLabel = name;
+  return s.camera.cut({ ...specs[name], label: name }, { check: false });
+}
+
+/**
+ * Everything as it is the moment the ride takes over, set at once behind the black (chapters/ferdin.js calls it before `ride`):
+ * the night, the full sky with the six constellations at their party places looking at the seventh star, the moon up at its party
+ * place, the stage's lights at rest, everyone at `gather` (the friends glad, Mosi looking up after him), Egill in the light at
+ * SEVENTH.height in his lifted pose, the moth with him. Returns the hand the ride is given.
+ */
+export function* asLifted(s, c) {
+  c.restAfter = true; // its stage is the chapter's to dispose at the end, as after the song
+  asParty(s, c); // the night, the sky, the six lit at their places, the moon up, everyone at the party
+  c.partyOver = true;
+  c.moon.update(s.time);
+  c.stage ??= createStage(c);
+  for (const who of FRIENDS8) {
+    const actor = c[who].raw;
+    const { at, heading } = c.stands.gather[who];
+    actor.place(at[0], at[1], heading);
+    actor.play(who === 'egill' ? 'lifted' : actor.clips.has('happy') ? 'happy' : 'idle', { fade: 0 });
+  }
+  const four = sceneFour(s, c, { at: { dim: { from: FOUR.rest, to: FOUR.rest, at: s.time, seconds: 0 }, shown: -Infinity, near: -Infinity, shine: -Infinity, look: -Infinity } });
+  four.frame();
+  c.mosi.raw.lookAt(EGILL_HEAD, { weight: 0.9, maxPitch: 45 });
+  const egill = c.egill.raw;
+  c.lifted = { at: egill.root.position.toArray(), time: s.time };
+  const high = c.seventh.lift.clone();
+  floatTo(egill, { seat: high, update: () => high, host: { heading: egill.heading, lookYawLimit: Infinity, lookUpLimit: Infinity } }, { duration: 0, sit: false });
+  c.moth.follow('egill', s.time - 60); // long on its loop round him
+  yield s.wait(0); // a frame: the float puts him there
+  liftCut(s, c, 'rise_above');
+  return handOf(s, c);
+}
+
+/** What the tests compare at the hand-over: where everyone is (root), the light (the sun's, the sky's, the fog's) and the stage's. */
+export function liftedState(c) {
+  const { world } = c;
+  const actors = Object.fromEntries(FRIENDS8.map(who => [who, world.actors.get(who).root.position.toArray()]));
+  const { sun = null, hemi = null } = world.lighting ?? {};
+  const light = {
+    sun: sun ? [sun.intensity, sun.color.getHexString()] : null, hemi: hemi ? [hemi.intensity, hemi.color.getHexString(), hemi.groundColor.getHexString()] : null,
+    fog: world.scene.fog?.color?.getHexString() ?? null, stage: c.stage?.state()?.light ?? null, dim: c.stage?.state()?.dim ?? null,
+  };
+  return { actors, light, moth: c.moth.at.toArray(), seventh: c.seventh.state() };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1178,7 +1350,7 @@ function setUp(s) {
   c.footfall = () => sound(s, c, 'gramedlaThump', { level: 0.5 });
   // (Task 20) the recordings the festival plays, decoded before they are wanted: her roar and breath, her footfall, the wind, and
   // the party's table (hatid-score.js PARTY_SOUNDS)
-  preloadSamples(world.sound?.context ?? null, [...new Set(['gramedlaRoar', 'gramedlaExhale', 'gramedlaThump', 'mountainWind', ...PARTY_SOUNDS.map(r => r.sample)])]);
+  preloadSamples(world.sound?.context ?? null, [...new Set(['gramedlaRoar', 'gramedlaExhale', 'gramedlaThump', 'mountainWind', 'seventh', ...PARTY_SOUNDS.map(r => r.sample)])]);
   c.her = gramedlaLife(s, c);
   c.sky = greySky(c);
   c.seat = createSeat(c.gramedla.raw, HEAD_SEAT); // Egill's place on her head (the party alone has it too, unused)
@@ -1191,6 +1363,8 @@ function setUp(s) {
   const horn = hornOf(world);
   c.horn = seconds => { c.log({ type: 'sound', name: 'sloedlaHorn', clear: true }); horn(seconds); };
   c.guests = guestsOf(s, c);
+  // (Task 18) the hero butterfly on Mosi's horn from the first frame (hatid-seventh.js createMoth), drawn every frame from here
+  c.moth = createMoth(world, { horn: mosiHornOf(c.mosi.raw), heading: () => c.mosi.raw.heading });
   // the song, held with the game's sound (a book open, a hidden tab) as chapter 5's set is
   const context = world.sound?.context ?? null;
   const output = world.sound?.output ?? null;
@@ -1220,6 +1394,7 @@ function setUp(s) {
     s.after(0, function* songFrames() {
       while (!c.ended) {
         if (ours) c.song.update();
+        c.moth.update(s.time);
         yield;
       }
     });
@@ -1231,6 +1406,9 @@ function setUp(s) {
       for (const off of releases.values()) off();
       releases.clear();
       c.sky.dispose();
+      c.moth.dispose();
+      c.seventh?.dispose();
+      if (c.restAfter) c.stage?.dispose();
       c.unhang?.();
       c.skyStars?.dispose();
       c.figures?.dispose();
@@ -1438,6 +1616,32 @@ export const party = {
         c.levers();
         far = noShadows(c, BUDGET.noShadow);
       }
+    } finally {
+      close();
+    }
+  },
+};
+
+// ---------------------------------------------------------------------------------------------
+// The festival from the lift (Task 18): everything as the ride takes over (asLifted), then the ride. What chapters/ferdin.js will
+// play on the book's tile, and what the tests hold against the played festival's hand-over.
+export const lifted = {
+  ...chapter,
+  id: 'hatid-lifted',
+  lines: {},
+  startShot: 'gather',
+  *script(s) {
+    const c = setUp(s);
+    const close = c.run();
+    try {
+      mark(c, 'seventh');
+      const hand = yield* asLifted(s, c);
+      c.log({ type: 'hand', at: s.time });
+      c.handState = liftedState(c);
+      c.hand = hand;
+      yield s.ready();
+      yield* rideBack(s, c, hand);
+      mark(c, 'end');
     } finally {
       close();
     }

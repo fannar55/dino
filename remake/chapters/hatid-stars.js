@@ -184,7 +184,7 @@ let whiteTexture = null;
  * The star's own picture (star-sprite.js) with its gold taken out: each pixel its brightest channel in grey, so the sprite's colour
  * is the colour it shows (dim pale blue, then hers). None where there is no page.
  */
-function whiteStar(texture) {
+export function whiteStar(texture) {
   if (whiteTexture || !texture?.image || typeof document === 'undefined') return whiteTexture ?? texture ?? null;
   const from = texture.image;
   const canvas = document.createElement('canvas');
