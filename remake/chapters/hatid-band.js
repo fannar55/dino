@@ -18,7 +18,7 @@ import * as THREE from 'three';
 import { BEAT, END_BEAT, cuesIn, entered, soloAt } from './hatid-score.js';
 import { SONG } from './hatid-song.js';
 import { HEAD, partyStands } from './hatid-route.js';
-import { BODY, grooveOf, grooveSize, moveAt, moveOf } from './hatid-dance.js';
+import { BODY, addHands, grooveOf, grooveSize, moveAt, moveOf } from './hatid-dance.js';
 import { FRIENDS } from '../engine/scene/journal-data.js';
 import { addPlateGlow } from '../engine/plate-glow.js';
 import { createModel } from '../world/critters/models.js';
@@ -677,7 +677,7 @@ export function endPoseOf(who, out = { turns: {}, feet: { L: 0, R: 0 } }) {
   out.feet.L += up.feet.L;
   out.feet.R += up.feet.R;
   out.lift = (out.lift ?? 0) + up.lift;
-  out.reach = (out.reach ?? 0) + (up.reach ?? 0);
+  out.hands = up.hands; // (Task 15b) Egill's hands up in chapter 5's V, still (moveOf's up at its first beat: no sway)
   return out;
 }
 
@@ -989,13 +989,13 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
       clips[who] ??= clipsOf(actors[who]);
       dance.take(who, (b, out) => {
         const w = endAt(b);
-        grooveOf(who, b, out, grooveSize(who, b) * (1 - w)); // what is left of her groove as she comes into it
+        grooveOf(who, b, out, grooveSize(who, b) * (1 - w), { reduced }); // what is left of her groove as she comes into it
         const end = endPoseOf(who);
         for (const [bone, t] of Object.entries(end.turns)) turn(out, bone, t[0], t[1], t[2], w);
         out.feet.L += end.feet.L * w;
         out.feet.R += end.feet.R * w;
         out.lift += (end.lift ?? 0) * w;
-        out.reach += (end.reach ?? 0) * w;
+        if (end.hands) addHands(out, end, w);
         out.legs = 1 - w; // her jointed legs let go of the groove's footing as she comes in (they snapped 15 degrees on the chord)
         clips[who].set(Math.min(b, END_POSE.from), {}); // her idle stopped where the chord's first beat had it
       });

@@ -2,7 +2,10 @@
 // ("Hendur upp!", "Stappa!", "Snúa!", "Hoppa!": CALL_LINE, captions only in this chunk) and on the bar after it everyone does it,
 // once a dance beat (SONG.danceBeats song beats) for as long as the map's callAt says, each in her own body; between calls each
 // grooves in her own way (a bob, a sway on the bar and a foot that taps down on every beat). Everything is a pure function of the
-// song's beat: the same beat gives the same pose whatever came before (a pause, `?t=`, the book's tile). Nothing here is chapter 5's.
+// song's beat: the same beat gives the same pose whatever came before (a pause, `?t=`, the book's tile). Nothing here is chapter 5's
+// but Egill's own moves (Task 15b, the owner's word of 2026-11-27): his hands, his shrug, his elbows, his arm reach and his hop clip
+// are engine/pose/egill-hands.js, shared with chapter 5's music show, and his bounce, twist and sway are its numbers (EGILL). None
+// of his bones is ever made longer.
 //
 //   MOVES, CALL_LINE, HOP         the four moves, the calls' line ids, each one's hop (m off the ground)
 //   moveAt(beat)                  { move, call, n, length, weight, from, to } while a call's move runs (n: dance beats into it;
@@ -14,13 +17,16 @@
 // A pose (`out`): { lift (m: her model off the ground), spin (degrees about the up, round her body's middle), dip (m: her body
 // down on bent legs, feet kept), turns { bone: [pitch, roll, yaw] } (degrees about her own side, front and up: pitch + noses and
 // arms up, a tail down; roll + tips toward her right; yaw + to her left), feet { L, R } (m: a foot lifted, in front a little),
-// glow (0..1: Kambeðla's plates' run, null: not hers) }.
+// glow (0..1: Kambeðla's plates' run, null: not hers); and Egill's own: hands { right, left: { up, pump, open, clap, cup } } (0..1:
+// how far each hand is on its way to that pose, egill-hands.js), roll (degrees: his whole body tipped to his right about his feet, as
+// chapter 5 sways him), clip (null, or { weight, time }: his hop clip) }.
 import * as THREE from 'three';
 import { BEAT, END_BEAT, callAt, entered, soloAt } from './hatid-score.js';
 import { SONG } from './hatid-song.js';
 import { FRIENDS8 } from './hatid-route.js';
 import { rotateBoneWorld } from '../engine/actor.js';
 import { reachTwoBones } from '../engine/ik.js';
+import { egillArms, layHands, HOP_CLIP } from '../engine/pose/egill-hands.js';
 
 export const MOVES = ['up', 'stomp', 'spin', 'hop'];
 export const CALL_LINE = { up: 'h_sloedla_up', stomp: 'h_sloedla_stomp', spin: 'h_sloedla_spin', hop: 'h_sloedla_hop' };
@@ -98,6 +104,7 @@ const FOOT_BONE = {
 
 // ---------------------------------------------------------------------------------------------
 // Poses
+const HAND_POSES = ['up', 'pump', 'open', 'clap', 'cup'];
 function clear(out) {
   out.lift = 0;
   out.spin = 0;
@@ -108,7 +115,10 @@ function clear(out) {
   out.feet.L = 0;
   out.feet.R = 0;
   out.glow = null;
-  out.reach = 0; // (Egill's up) his arms this much longer than they are: a cheat for the look, eased with the move
+  if (!out.hands) out.hands = { right: {}, left: {} };
+  for (const side of ['right', 'left']) for (const name of HAND_POSES) out.hands[side][name] = 0;
+  out.roll = 0;
+  out.clip = null;
   out.offset = null; // (Task 16, a solo's taker) [x, z] m her body is moved in her root's frame: Flugeðla's lap
   out.sky = null; // (Task 16, a solo's taker) { rise, turn } for her drawing in place of the dance's own
   out.legs = null; // (Task 16) 0 to 1: how much her jointed legs keep her feet (eased in with the groove at her entry; null: all)
@@ -145,7 +155,56 @@ const onBeat = u => 0.5 + 0.5 * Math.cos(TAU * u); // 1 on the beat, 0 between
 /** A foot lifted through a beat and set down on the next: 0 at both ends. */
 const tapShape = u => Math.sin(Math.PI * clamp01(u)) ** 2;
 
-export function grooveOf(who, beat, out = {}, size = 1) {
+/**
+ * (Task 15b) Egill's own dance, chapter 5's numbers (its show's egillAt): his bounce (m: up between two beats, down on the beat), his
+ * twist and his tip to the side (degrees, right on one beat and left on the next), the sway of his hands up (upRoll degrees, over
+ * two beats), and with less motion only a slow small roll (reducedRoll degrees over four beats) and his hands up at reducedUp.
+ * hop: his hop clip in the party's hop, a hop on every dance beat: `ground` of each dance beat round the beat itself he is on the
+ * ground (the clip's landing and its crouch for the next, quicker than the clip's own), the rest he is in the air (the clip's air,
+ * slower), lifted `more` m over the clip's own as chapter 5 lifts him.
+ */
+export const EGILL = { bounce: 0.075, twist: 15, roll: 5, upRoll: 4, reducedRoll: 2.5, reducedUp: 0.7, hop: { ground: 0.4, more: 0.1 } };
+/** 0 on the ground at the ends, 1 at the top. */
+const arc = (u, from, to) => { const k = (u - from) / (to - from); return k <= 0 || k >= 1 ? 0 : 4 * k * (1 - k); };
+/** 1 from `from` to `to`, rising over `rise` beats and falling over `fall` beats before `to`. */
+const span = (b, from, to, rise, fall) => (b <= from || b >= to ? 0 : smooth((b - from) / rise) * (1 - smooth((b - (to - fall)) / fall)));
+/** The last chorus's call gaps, where Egill claps on the beat while Slóeðla calls: [from, to] beats. */
+const CLAP_GAPS = SONG.song.calls.filter(call => call.beat >= SONG.song.sections.find(s => s.id === 'chorus').startBeat).map(call => [call.beat, call.doBeat]);
+/** His hands together on the beat (chapter 5's clap: in over 0.4 beat before it, apart again 0.35 after). */
+const clapShape = u => (u >= 0.6 ? smooth((u - 0.6) / 0.4) : u < 0.35 ? 1 - smooth(u / 0.35) : 0);
+/** His hop clip and lift `n` dance beats into the party's hop: { time (s into the clip), lift (m over the clip's own) }. */
+export function egillHopAt(n) {
+  const { ground, more } = EGILL.hop;
+  const v = fract(n + ground / 2);
+  if (v < ground) {
+    // down: the clip's landing to its end, then from its start through its crouch to where it leaves the ground
+    const land = HOP_CLIP.seconds - HOP_CLIP.down;
+    const t = (v / ground) * (land + HOP_CLIP.off);
+    return { time: t < land ? HOP_CLIP.down + t : t - land, lift: 0 };
+  }
+  const k = (v - ground) / (1 - ground);
+  return { time: HOP_CLIP.off + (HOP_CLIP.down - HOP_CLIP.off) * k, lift: more * arc(k, 0, 1) };
+}
+function egillGroove(beat, out, size, reduced) {
+  const k = size * (1 - lookUpAt(beat)); // still in the quiet part, where he looks up
+  if (!(k > 0)) return;
+  if (reduced) { out.roll += EGILL.reducedRoll * k * Math.sin((TAU * beat) / 4); return; }
+  const side = Math.sin(Math.PI * beat); // right on one beat, left on the next
+  out.lift += EGILL.bounce * k * arc(fract(beat), 0.1, 0.9);
+  out.spin += EGILL.twist * k * side;
+  out.roll += EGILL.roll * k * side;
+  // his fists pump, one up as the other comes down; in the last chorus's gaps he claps on the beat
+  let clapping = 0;
+  for (const [from, to] of CLAP_GAPS) clapping = Math.max(clapping, span(beat, from, to, 1, 0.5));
+  const clap = clapShape(fract(beat));
+  const { right, left } = out.hands;
+  right.pump = k * (1 - clapping) * (0.5 + 0.5 * side);
+  left.pump = k * (1 - clapping) * (0.5 - 0.5 * side);
+  right.clap = left.clap = k * clapping * clap;
+  right.open = left.open = k * clapping * (1 - clap);
+}
+
+export function grooveOf(who, beat, out = {}, size = 1, { reduced = false } = {}) {
   clear(out);
   const g = GROOVE[who];
   if (!g || !(size > 0)) return out;
@@ -158,8 +217,7 @@ export function grooveOf(who, beat, out = {}, size = 1) {
   chain(out, body.tail, 0, 0, g.sway * 1.2, sway * size);
   if (who === 'egill') {
     turn(out, 'Spine', 0, g.sway, 0, sway * size); // his hips and shoulders rock with the bar
-    turn(out, 'LeftUpperArm', 12, 0, 0, sway * size);
-    turn(out, 'RightUpperArm', -12, 0, 0, sway * size);
+    egillGroove(beat, out, size, reduced); // and his own bounce, twist and fists
   }
   if (who === 'uggedla') { turn(out, 'LeftUpperArm', 10, 0, 0, sway * size); turn(out, 'RightUpperArm', -10, 0, 0, sway * size); }
   if (who === 'flugedla') { turn(out, 'LeftUpperArm', 0, 8, 0, onBeat(u) * size); turn(out, 'RightUpperArm', 0, -8, 0, onBeat(u) * size); }
@@ -185,12 +243,11 @@ function spinAngle(n) {
   const f = fract(k);
   return 360 * (Math.floor(k) + f - Math.sin(TAU * f) / TAU);
 }
-// Egill's "Hendur upp!" (fix 1: it read as hands on his ears): his arms are short against his big head, so for the move they are
-// made longer (reach: forearm and hand moved out along the arm, the skin stretched, his hands their own size), rolled out and up
-// (arm: degrees, out and up) into a V over his head and back over his crown (forward: degrees; his idle arms hang a little in
-// front), elbows as they hang (fore), head level (head: tipped back it met his hands), pumped on the beat less deep than the
-// others (pump: 0.07 of the turn, against 0.15). Fun before realism: his wrists 0.17 m over his head's top, his fingers 0.26.
-export const EGILL_UP = { arm: 150, forward: 15, fore: 0, head: 0, reach: 1.25, pump: 0.07 };
+/** Egill's hands on their way to `pose` (egill-hands.js HANDS: up, pump, open, clap), `right` and `left` of the way. */
+function egillHands(out, pose, right, left = right) {
+  out.hands.right[pose] += right;
+  out.hands.left[pose] += left;
+}
 export const STAMP = { egill: 0.22, mosi: 0.4, thorsedla: 0.7, sloedla: 0.35, kambedla: 0.3, uggedla: 0.55, gramedla: 0.7, flugedla: 0.3 };
 
 /**
@@ -213,14 +270,10 @@ export function moveOf(who, move, n, out = {}, { reduced = false } = {}) {
   switch (move) {
     case 'up': {
       if (who === 'egill') {
-        const e = EGILL_UP;
-        const reach = 1 - e.pump + e.pump * Math.cos(TAU * u); // his long arms pump less deep: his hands stay up
-        turn(out, 'LeftUpperArm', e.forward, e.arm, 0, reach);
-        turn(out, 'RightUpperArm', e.forward, -e.arm, 0, reach);
-        turn(out, 'LeftLowerArm', 0, e.fore);
-        turn(out, 'RightLowerArm', 0, -e.fore);
-        turn(out, 'Head', e.head);
-        out.reach = e.reach;
+        // (Task 15b) chapter 5's "Hendur upp, Egill!": his hands up in a V over his head with a shrug, held up through the move and
+        // swaying side to side over two beats (his bounce is the groove's, under it)
+        egillHands(out, 'up', reduced ? EGILL.reducedUp : 1);
+        if (!reduced) out.roll = EGILL.upRoll * Math.sin(Math.PI * n * DB);
       } else if (who === 'mosi') {
         turn(out, 'Neck', 18, 0, 0, pump);
         turn(out, 'Head', 24, 0, 0, pump);
@@ -267,8 +320,9 @@ export function moveOf(who, move, n, out = {}, { reduced = false } = {}) {
       out.dip = 0.06 * landed;
       if (who === 'egill') {
         turn(out, 'Spine', 0, 6 * lean);
-        turn(out, 'LeftUpperArm', side === 'L' ? -25 : 25, 0, 0, stampShape(u)); // the other arm swings forward
-        turn(out, 'RightUpperArm', side === 'R' ? -25 : 25, 0, 0, stampShape(u));
+        // (Task 15b) his fists pump as in chapter 5, one up as the other comes down, with his feet: the fist over the other foot up
+        const s = Math.sin(Math.PI * n);
+        if (!reduced) egillHands(out, 'pump', 0.5 + 0.5 * s, 0.5 - 0.5 * s);
       } else if (who === 'mosi') {
         turn(out, 'Neck', -8 * landed);
         turn(out, 'Head', -10, 0, 0, landed);
@@ -307,8 +361,11 @@ export function moveOf(who, move, n, out = {}, { reduced = false } = {}) {
         break;
       }
       out.spin = reduced ? DANCE.reducedSpin * swing : spinAngle(n);
-      if (who === 'egill') { turn(out, 'LeftUpperArm', 0, 85); turn(out, 'RightUpperArm', 0, -85); out.reach = 0.4; } // arms out, longer
-      else if (who === 'flugedla') { turn(out, 'LeftUpperArm', 0, 75); turn(out, 'RightUpperArm', 0, -75); }
+      if (who === 'egill') {
+        // (Task 15b) as chapter 5 turns him on the spot: his fists pumping, one up as the other comes down on each beat
+        const s = Math.sin(Math.PI * n * DB);
+        if (!reduced) egillHands(out, 'pump', 0.5 + 0.5 * s, 0.5 - 0.5 * s);
+      } else if (who === 'flugedla') { turn(out, 'LeftUpperArm', 0, 75); turn(out, 'RightUpperArm', 0, -75); }
       else if (who === 'uggedla') { turn(out, 'LeftUpperArm', 60, 30); turn(out, 'RightUpperArm', 60, -30); }
       else if (who === 'mosi') chain(out, body.tail, -5, 0, 0);
       else if (who === 'kambedla') chain(out, body.tail, -4, 0, 0);
@@ -324,8 +381,12 @@ export function moveOf(who, move, n, out = {}, { reduced = false } = {}) {
         break;
       }
       out.lift = HOP[who] * air * (reduced ? DANCE.reducedHop : 1);
-      if (who === 'egill') { turn(out, 'LeftUpperArm', 10, 100, 0, air); turn(out, 'RightUpperArm', 10, -100, 0, air); out.reach = 0.4 * air; }
-      else if (who === 'flugedla') { turn(out, 'LeftUpperArm', 10, 70, 0, air); turn(out, 'RightUpperArm', 10, -70, 0, air); }
+      if (who === 'egill' && !reduced) {
+        // (Task 15b) his own hop clip (its arms flung up), off the ground and down again with the party's hop, lifted as chapter 5 lifts it
+        const h = egillHopAt(n);
+        out.clip = { weight: 1, time: h.time };
+        out.lift = h.lift;
+      } else if (who === 'flugedla') { turn(out, 'LeftUpperArm', 10, 70, 0, air); turn(out, 'RightUpperArm', 10, -70, 0, air); }
       else if (who === 'uggedla') { turn(out, 'LeftUpperArm', 50, 0, 0, air); turn(out, 'RightUpperArm', 50, 0, 0, air); }
       else if (who === 'mosi') { turn(out, 'Head', 12, 0, 0, air); chain(out, body.tail, -4, 0, 0, air); }
       else if (who === 'kambedla') chain(out, body.tail, -5, 0, 0, air);
@@ -338,6 +399,16 @@ export function moveOf(who, move, n, out = {}, { reduced = false } = {}) {
   return out;
 }
 
+/** Egill's hands of b x k into a's (poses). */
+export function addHands(a, b, k = 1) {
+  if (!b.hands || !a.hands) return a;
+  for (const side of ['right', 'left']) for (const name of HAND_POSES) a.hands[side][name] += (b.hands[side][name] ?? 0) * k;
+  return a;
+}
+/** Egill's hands in a pose times k. */
+function scaleHands(a, k) {
+  for (const side of ['right', 'left']) for (const name of HAND_POSES) a.hands[side][name] *= k;
+}
 /** a + b x k into a (poses). */
 function addPose(a, b, k = 1, spin = true) {
   a.lift += b.lift * k;
@@ -346,7 +417,9 @@ function addPose(a, b, k = 1, spin = true) {
   for (const [bone, t] of Object.entries(b.turns)) turn(a, bone, t[0], t[1], t[2], k);
   a.feet.L += b.feet.L * k;
   a.feet.R += b.feet.R * k;
-  a.reach += (b.reach ?? 0) * k;
+  addHands(a, b, k);
+  a.roll += (b.roll ?? 0) * k;
+  if (b.clip && k > 0) a.clip = { weight: b.clip.weight * k, time: b.clip.time };
   if (b.glow !== null && k > 0) a.glow = b.glow;
   return a;
 }
@@ -386,6 +459,11 @@ const LEG_EASE = 0.05;
 const FRONT = new THREE.Vector3(1, 0, 0);
 const UP = new THREE.Vector3(0, 1, 0);
 const SIDE = new THREE.Vector3(0, 0, 1);
+const ONE = new THREE.Vector3(1, 1, 1);
+/** (Task 15b) degrees Egill's upper arms are rolled out and up (and pitched back over his head) before the reach takes his hands up. */
+const UP_SWING = { out: 150, forward: 15 };
+const handFrame = new THREE.Matrix4();
+const handQ = new THREE.Quaternion();
 
 /** Bones whose turn and place a pose changes: put back as the clip left them where the mixer has not set them since. */
 function guard(bones) {
@@ -430,7 +508,9 @@ function rigOf(who, actor) {
   const order = new Map();
   let k = 0;
   actor.model.traverse(o => { if (o.isBone) order.set(o.name, k++); });
-  return { who, actor, body, byName, bones, guard: guard(bones), middle, order };
+  const arms = who === 'egill' ? egillArms(actor.model) : null; // (Task 15b) his arms, posed by his hands (egill-hands.js)
+  const hipsRest = byName.get(body.hips)?.position.clone() ?? null; // (Task 15b) his hips' place as the dance found it (his hop clip moves it)
+  return { who, actor, body, byName, bones, guard: guard(bones), middle, order, arms, hipsRest };
 }
 
 /** Lay `pose` on her (in her overlay): model lift and spin, the dip with her feet kept, the turns, the feet lifted. */
@@ -443,6 +523,7 @@ function lay(rig, pose) {
   const c = rig.middle;
   const cs = Math.cos(a), sn = Math.sin(a);
   model.rotation.set(0, a, 0);
+  if (pose.roll) model.quaternion.multiply(qa.setFromAxisAngle(FRONT, rad(pose.roll))); // (Task 15b) Egill tipped about his feet
   model.position.set(c.x - (cs * c.x + sn * c.z), pose.lift, c.z - (-sn * c.x + cs * c.z));
   if (pose.offset) { model.position.x += pose.offset[0]; model.position.z += pose.offset[1]; } // (Task 16) her lap
   root.updateMatrixWorld(true);
@@ -462,12 +543,6 @@ function lay(rig, pose) {
     hips.position.copy(p);
     hips.updateMatrixWorld(true);
   }
-  // (Egill's up) his arms longer: his forearm and hand moved out along the bone they hang from, so the skin between stretches and
-  // his hand keeps its size
-  if (pose.reach) {
-    for (const side of ['Left', 'Right']) for (const part of ['LowerArm', 'Hand']) byName.get(side + part)?.position.multiplyScalar(1 + pose.reach);
-    root.updateMatrixWorld(true);
-  }
   // the turns, parents first
   const names = Object.keys(pose.turns).filter(n => byName.has(n)).sort((x, y) => rig.order.get(x) - rig.order.get(y));
   for (const name of names) {
@@ -477,6 +552,22 @@ function lay(rig, pose) {
     qb.setFromAxisAngle(side, rad(pitch));
     qc.setFromAxisAngle(front, rad(roll));
     rotateBoneWorld(byName.get(name), qa.multiply(qb).multiply(qc));
+  }
+  // (Task 15b) Egill's hands where his pose has them, in his own frame (his model's place and turn under his root, his feet's middle
+  // at its origin), each arm bent to its goal by chapter 5's reach: no bone longer
+  if (rig.arms && pose.hands) {
+    // his arms swung up and out in an arc as his hands go up (UP_SWING), so the reach starts near the V and bends each arm the last
+    // of the way: from his hanging arms the reach turned them 60 degrees in a frame as the goal swept up past his shoulder
+    for (const arm of rig.arms) {
+      const w = pose.hands[arm.key].up;
+      if (!(w > 0)) continue;
+      qb.setFromAxisAngle(side, rad(UP_SWING.forward * w));
+      qc.setFromAxisAngle(front, rad(-arm.sign * UP_SWING.out * w));
+      rotateBoneWorld(arm.upper, qb.multiply(qc));
+    }
+    handFrame.compose(model.position, model.quaternion, ONE).premultiply(root.matrixWorld);
+    root.getWorldQuaternion(handQ).multiply(model.quaternion);
+    layHands({ matrix: handFrame, quaternion: handQ, head: byName.get('Head') }, rig.arms, pose.hands);
   }
   // the feet: a jointed leg reaches its foot back to where it stood (lifted, a little forward); a pivot leg is lifted as it is
   for (const s of ['L', 'R']) {
@@ -579,7 +670,8 @@ export function createDance(c, { reduced = Boolean(c.reduced) } = {}) {
       const mixer = actor.mixer;
       const idle = actor.clips.get('idle');
       const own = actor.clips.get('happy') ?? actor.clips.get('roar') ?? null;
-      state = { idle: idle ? mixer.clipAction(idle) : null, own: own ? mixer.clipAction(own) : null, slot: SOLOS.find(s => s.who === who) ?? null };
+      const hop = who === 'egill' ? actor.clips.get('hop') : null; // (Task 15b) his hop clip in "Hoppa!"
+      state = { idle: idle ? mixer.clipAction(idle) : null, own: own ? mixer.clipAction(own) : null, hop: hop ? mixer.clipAction(hop) : null, slot: SOLOS.find(s => s.who === who) ?? null };
       mixer.stopAllAction();
       held.set(who, state);
     }
@@ -598,10 +690,33 @@ export function createDance(c, { reduced = Boolean(c.reduced) } = {}) {
     if (state.own) put(state.own, w, slot ? slot.startBeat : 0);
     return w;
   }
+  /**
+   * (Task 15b) Egill's hop clip at the pose's weight and time (held: its time is the pose's, not the mixer's), his idle under it the
+   * rest; off when the pose has none (and his idle left to whoever has him).
+   */
+  function hopClipFor(who, clip) {
+    const state = held.get(who);
+    const action = state?.hop;
+    if (!action) return;
+    const w = clip ? clamp01(clip.weight) : 0;
+    // always playing, at no weight between hops: the mixer then puts back what the clip moves (his hips' place, which his idle does
+    // not move) as it stood when the dance began, so a hop leaves nothing behind and the same beat is the same pose
+    if (!action.isRunning()) {
+      const rig = rigs.get(who);
+      rig.byName.get(rig.body.hips)?.position.copy(rig.hipsRest);
+      action.reset();
+      action.play();
+    }
+    action.enabled = true;
+    action.setEffectiveTimeScale(0);
+    action.setEffectiveWeight(w);
+    if (clip) action.time = Math.min(clip.time, action.getClip().duration - 1e-4); // (its end would loop round to its start)
+    if (w > 0) state.idle?.setEffectiveWeight(Math.max(0, 1 - w));
+  }
 
   let on = true;
   function update(beat) {
-    if (!on) { for (const who of who8) { clipFor(who, beat); clear(poses.get(who)); } now = { beat, move: null, weight: 0 }; return; }
+    if (!on) { for (const who of who8) { clipFor(who, beat); clear(poses.get(who)); hopClipFor(who, null); } now = { beat, move: null, weight: 0 }; return; }
     const m = moveAt(beat);
     for (const who of who8) {
       const actor = c[who].raw;
@@ -614,19 +729,28 @@ export function createDance(c, { reduced = Boolean(c.reduced) } = {}) {
       } else {
         const solo = clipFor(who, beat); // 0 to 1: her own solo has her
         actor.root.position.set(at[0], heightAt(at[0], at[1]), at[1]);
-        grooveOf(who, beat, pose, (1 - solo) * grooveSize(who, beat));
+        grooveOf(who, beat, pose, (1 - solo) * grooveSize(who, beat), { reduced });
         pose.legs = smooth(Math.min(1, grooveSize(who, beat) / 0.1));
         if (m && solo < 1 && m.weight > 0) {
           const n = Math.min(m.n, m.length);
           moveOf(who, m.move, n, scratch, { reduced });
           // in a stomp or a hop the feet are the move's, not the groove's taps
           if (m.move === 'stomp' || m.move === 'hop') { pose.feet.L *= 1 - m.weight; pose.feet.R *= 1 - m.weight; }
+          if (who === 'egill') {
+            // (Task 15b) his hands are the move's; in a stomp or a hop so are his feet, so his bounce and twist give way to it
+            scaleHands(pose, 1 - m.weight);
+            if (m.move === 'stomp' || m.move === 'hop') { pose.lift *= 1 - m.weight; pose.spin *= 1 - m.weight; }
+            // and with his hands up he bounces as chapter 5 has him (up between the beats), not down on bent knees: his short arms
+            // keep his hands over his head
+            if (m.move === 'up') pose.dip *= 1 - m.weight;
+          }
           addPose(pose, scratch, m.weight);
         }
         const up = LOOK_UP[who] ? lookUpAt(beat) : 0;
         if (up > 0) for (const [bone, d] of Object.entries(LOOK_UP[who])) turn(pose, bone, d, 0, 0, up);
       }
       for (const fn of layers) fn(who, beat, pose);
+      hopClipFor(who, taker ? null : pose.clip);
     }
     // the drawings dance with them
     const figures = c.figures;
@@ -714,6 +838,7 @@ export function createDance(c, { reduced = Boolean(c.reduced) } = {}) {
     },
     dispose() {
       for (const rig of rigs.values()) { rig.actor.setOverlay(null); rig.guard.release(); if (rig.actor.controlled) rig.actor.control(null); }
+      for (const state of held.values()) state.hop?.stop(); // (Task 15b) Egill's hop clip off
       if (plateGlow) c.plates?.setAll?.(1, { duration: 0 });
       for (const who of who8) { try { c.figures?.follow?.(who, { live: 0, carry: false }); } catch { /* no drawing */ } }
       takers.clear();
