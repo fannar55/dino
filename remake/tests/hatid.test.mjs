@@ -261,6 +261,11 @@ function watchNight(world, c, seen) {
 // the seventh star, the moon's mouth, each constellation's turn toward the seventh (degrees between her neck-to-star and her
 // neck-to-it on the sky) and the black.
 const HORN = hornOf;
+/** The way from sky place p to sky place q as it leaves p (a great circle's bearing, radians). */
+const bearing = (p, q) => {
+  const r = Math.PI / 180, d = (q.azimuth - p.azimuth) * r, e1 = p.elevation * r, e2 = q.elevation * r;
+  return Math.atan2(Math.sin(d) * Math.cos(e2), Math.cos(e1) * Math.sin(e2) - Math.sin(e1) * Math.cos(e2) * Math.cos(d));
+};
 function watchFour(world, c, { ui }, seen) {
   const f = (seen.four ??= { moth: [], frames: [] });
   if (c.moth && world.actors.get('mosi')) {
@@ -274,7 +279,7 @@ function watchFour(world, c, { ui }, seen) {
     for (const { key } of FRIENDS) {
       try {
         const p = c.figures.lookPivotOf(key), q = c.figures.starOf(key);
-        const a = Math.atan2(q.elevation - p.elevation, q.azimuth - p.azimuth), b = Math.atan2(SKY.seventh.elevation - p.elevation, SKY.seventh.azimuth - p.azimuth);
+        const a = bearing(p, q), b = bearing(p, SKY.seventh); // on the sphere, from her neck's base
         turns[key] = Math.abs(THREE.MathUtils.radToDeg(Math.atan2(Math.sin(a - b), Math.cos(a - b))));
       } catch { /* not in the sky */ }
     }

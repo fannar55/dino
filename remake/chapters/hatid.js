@@ -1381,11 +1381,11 @@ function setUp(s) {
   let ours = false; // nothing holds it (no page): the script gives it its frame itself
   const make = () => {
     const song = createSong({ context, output, clock, src: SONG.song.src, base: SONG_BASE, ...(world.sound?.createElement ? { createElement: world.sound.createElement } : {}) });
-    if (!s.seeking) {
-      const off = world.sound?.hold?.(song) ?? null;
-      if (off) releases.set(song, off);
-      else ours = true;
-    } else ours = true;
+    // held by the page also when the scene was sought to a time (?t=..&play=1): the tap that starts play is the touch a browser
+    // wants before it lets the song begin, and only a held song is told of it (main.js: chapterSound.touch)
+    const off = world.sound?.hold?.(song) ?? null;
+    if (off) releases.set(song, off);
+    else ours = true;
     return song;
   };
   c.song = make();
