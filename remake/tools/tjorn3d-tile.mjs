@@ -306,9 +306,9 @@ export const SHELF_SIZES = '1280x800,1024x768,820x1180,800x1280';
 /** The states the shelf is measured in: which of the shows have been seen (the rest wear "Nýtt!", rock and glow). */
 export const SHELF_STATES = {
   'all-new': [],
-  'none-new': ['fidrildi3d', 'safn3d', 'gramedla3d', 'flugedla3d', 'tjorn3d'],
-  'mix': ['safn3d', 'flugedla3d'],
-  'mix-other': ['fidrildi3d', 'gramedla3d', 'tjorn3d'],
+  'none-new': ['fidrildi3d', 'gramedla3d', 'flugedla3d', 'tjorn3d'],
+  'mix': ['gramedla3d', 'flugedla3d'],
+  'mix-other': ['fidrildi3d', 'tjorn3d'],
 };
 
 /**

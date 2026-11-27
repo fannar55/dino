@@ -164,11 +164,11 @@ test("the show: Flugeðla's three lines are in lines.json and cued inside the ta
   assert.ok(Math.abs(LINES[1][0] - W.real(TIP)) < 0.25, '"Jibbí!" as she noses over into the dive');
 });
 
-test('the show: its tile in the book, the fourth under "3D myndbönd", with a poster of its own', async () => {
+test('the show: its tile in the book, the third under "3D myndbönd", with a poster of its own', async () => {
   const fs = await import('node:fs');
   const { BOOK_3D } = await import('../engine/book/videos.js');
-  assert.deepEqual(BOOK_3D.map(v => v.id).slice(0, 4), ['fidrildi3d', 'safn3d', 'gramedla3d', 'flugedla3d']);
-  const tile = BOOK_3D[3];
+  assert.deepEqual(BOOK_3D.map(v => v.id).slice(0, 3), ['fidrildi3d', 'gramedla3d', 'flugedla3d']);
+  const tile = BOOK_3D[2];
   assert.equal(tile.title, 'Flugeðla og fiðrildið');
   assert.equal(tile.chapter, 'flugedla3d');
   assert.match(tile.poster, /flugedla3d-thumb\.webp$/);

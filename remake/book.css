@@ -527,11 +527,15 @@
 }
 .video-3d-column:has(> .video-tile-3d:nth-of-type(3)) .video-tile-3d .tile-name { font-size: clamp(14px, var(--tile-w) * .12, 24px); min-height: 1.3em; }
 .video-3d-column:has(> .video-tile-3d:nth-of-type(3)) .video-tile-3d .badge-new { font-size: clamp(16px, var(--tile-w) * .13, 26px); } /* clear of the 3D mark */
-/* Four (Flugeðla og fiðrildið the fourth): smaller again and closer, so heading + four tiles fit the page's height. */
-.video-3d-column:has(> .video-tile-3d:nth-of-type(4)) { gap: calc(var(--gap) * .22); }
+/* Four (Fiðrildadansinn, Grameðla kemur!, Flugeðla og fiðrildið, Uggeðla í tjörninni): 16:9 pictures with generous gap so badges and two-line titles stay clear. */
+.video-3d-column:has(> .video-tile-3d:nth-of-type(4)) { gap: calc(var(--gap) * .48); padding-top: calc(var(--gap) * .35 + 6px); }
 .video-3d-column:has(> .video-tile-3d:nth-of-type(4)) .video-tile-3d {
-  --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 2.4) / 3, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap) * 1.1 - 30px) / 4.2);
+  --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 2.4) / 3, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap) * 1.9 - 36px) / 4.05);
 }
+.video-3d-column:has(> .video-tile-3d:nth-of-type(4)) .video-tile-3d .tile-picture { aspect-ratio: 16 / 9; flex: 1 0 auto; }
+.video-3d-column:has(> .video-tile-3d:nth-of-type(4)) .video-tile-3d .tile-name { min-height: 2.16em; font-size: clamp(12px, var(--tile-w) * .125, 22px); }
+.video-3d-column:has(> .video-tile-3d:nth-of-type(4)) .video-tile-3d .badge-new { font-size: clamp(13px, var(--tile-w) * .13, 24px); }
+.video-3d-column:has(> .video-tile-3d:nth-of-type(4)) .video-tile-3d.new::after { box-shadow: 0 0 0 3px var(--book-gold), 0 0 5px 1px rgb(242 182 48 / .9); }
 /* Five (Uggeðla í tjörninni the fifth): laid so that every name is read whole. A tile is a sticker that rocks and glows while it is
    new, so the tiles stand as far apart as that takes: no card, tape, badge or glow of one reaches the name of another, new or
    seen (tools/tjorn3d-tile.mjs --shelf measures it as painted, over a whole round of the rocking). To be as large as that allows,

@@ -180,16 +180,6 @@ export const BOOK_3D = [
     label: 'Fiðrildadansinn, þrívíddarmyndband, með rauðum og bláum gleraugum',
   },
   {
-    id: 'safn3d',
-    name: 'Þrívíddarsafnið',
-    title: 'Þrívíddarsafnið',
-    chapter: 'safn3d',
-    poster: videoUrl('safn3d-thumb.webp'),
-    hue: '#47908a',
-    unlock: { start: true },
-    label: 'Þrívíddarsafnið, þrívíddarsýning, með rauðum og bláum gleraugum',
-  },
-  {
     id: 'gramedla3d',
     name: 'Grameðla kemur!',
     title: 'Grameðla kemur!',

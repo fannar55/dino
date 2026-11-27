@@ -214,7 +214,7 @@ test('the whole screen is given back when the page took it, and left alone when 
 test('the show: its tile in the book, the last under "3D myndbönd", with a picture of the show itself; "Hætta" gives the whole screen back and leaves', () => {
   const tile = BOOK_3D.find(entry => entry.id === 'tjorn3d');
   assert.ok(tile, 'the pond show has a tile');
-  assert.equal(BOOK_3D.at(-1), tile, 'after the four shows that were there');
+  assert.equal(BOOK_3D.at(-1), tile, 'after the three shows that were there');
   assert.equal(tile.chapter, 'tjorn3d', 'the tile plays the chapter of the show (show-player.js: ?chapter=tjorn3d&syning=1, from the glasses)');
   assert.deepEqual(tile.unlock, { start: true }, 'open from the start, as the other shows');
   const source = fs.readFileSync(new URL('../chapters/tjorn3d.js', import.meta.url), 'utf8');
@@ -289,9 +289,9 @@ test('the shelf\'s judge: a name under another tile\'s card, tape, badge or twin
   assert.deepEqual(said((a, m) => { m.page = [0, 0, 400, 250]; m.videos = []; }), ['the column reaches out of its page', 'b reaches out of its page']);
 });
 
-test('the shelf is laid for the five shows it has: the measure\'s states name every one, and the page\'s rules are the ones measured', () => {
+test('the shelf is laid for the four shows it has: the measure\'s states name every one, and the page\'s rules are the ones measured', () => {
   const ids = BOOK_3D.map(entry => entry.id);
-  assert.equal(ids.length, 5, 'a sixth show needs an arrangement of its own: book.css lays up to five, and tools/tjorn3d-tile.mjs --shelf must read');
+  assert.equal(ids.length, 4, 'four 3D shows in the book column');
   assert.deepEqual(SHELF_STATES['none-new'], ids, 'the state with every show seen');
   assert.deepEqual(SHELF_STATES['all-new'], []);
   for (const [state, seen] of Object.entries(SHELF_STATES)) assert.ok(seen.every(id => ids.includes(id)), `${state} names only shows of the book`);
