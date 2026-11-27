@@ -70,7 +70,7 @@ export const WORDS = {
   h_egill_fly: 'Mosi, sjáðu! Ég flýg!', h_mosi_where: 'Egill! Hvert ertu að fara?', h_egill_bye: 'Ég veit það ekki! Sjáumst!', h_mosi_find: 'Ég finn þig, Egill!',
 };
 /** Slóeðla's four calls in the dance (SONG.song.calls' moves), said on the call's beat. */
-const CALL_LINES = CALL_LINE; // hatid-dance.js: Flugeðla's four calls (the DJ, as in chapter 5: the owner's word, 2026-11-28)
+const CALL_LINES = CALL_LINE; // hatid-dance.js: Flugeðla's four calls (the DJ, as in chapter 5: the owner's word, 2026-11-27)
 const LINES = Object.fromEntries(Object.entries(WORDS).map(([id, text]) => [id, { text, audio: id }]));
 
 const EGILL_HEAD = { actor: 'egill', part: 'head' };

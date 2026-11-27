@@ -235,7 +235,7 @@ Hér gengur skemmtun fyrir raunveruleika. Ekkert af þessu þarf að geta gerst 
     upp í V, hnefar, klapp, hopp, snúningur); bein hans eru aldrei teygð.
   - **Slóeðla kallar hreyfingarnar** og allir gera þær saman: „Hendur upp!“, „Stappa!“, „Snúa!“, „Hoppa!“. Þær eru einfaldar,
     svo sex ára barn geti dansað með heima í stofu.
-  - **Breyting 28. nóvember 2026 (orð eigandans: „látum flugeðlu áfram tala í lagi, eins og snúa, stappa“):** Flugeðla kallar
+  - **Breyting 27. nóvember 2026 (orð eigandans: „látum flugeðlu áfram tala í lagi, eins og snúa, stappa“):** Flugeðla kallar
     hreyfingarnar, ekki Slóeðla. Hún er plötusnúðurinn eins og í tónlistaratriði kafla 5 og köllin eru í sömu veislurödd.
     Slóeðla á áfram lúðurinn í laginu og línuna sína þegar hún kemur.
   - **Hver vinur gerir hreyfinguna á sinn hátt,** eftir líkamanum: Þórseðla sveiflar hálsinum, Uggeðla veifar seglinu, Flugeðla
