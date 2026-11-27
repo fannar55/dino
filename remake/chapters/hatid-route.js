@@ -569,6 +569,9 @@ export const BUDGET = {
   // `hideGuests` groups of guests not drawn (only ones neither in the frame nor missed)
   shots: {
     final_pose: { noShadow: ['uggedla', 'thorsedla'] },
+    // (Task 17b closing round) the party opens on it: Mosi far at the back and Egill out of sight cast no shadow while it holds
+    // (the party alone had 284k triangles at beat 1 with them; the chapter's own way there has every shadow off on it already)
+    moon_peek: { noShadow: ['mosi', 'egill'] },
   },
   measured: {
     '1280x800': { gpuMs: 5.39, drawCalls: 50, triangles: 238029 },

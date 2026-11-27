@@ -748,21 +748,7 @@ function* theParty(s, c) {
       breathing = breath > 0;
     }
   };
-  // (Task 17 fix 1) a shot's own levers (hatid-route.js BUDGET.shots) while the camera holds it, by the shot's label (cut() sets it):
-  // more friends without a shadow, guest groups not drawn; all given back on the next cut
-  let leverShot = null, leverUndo = null;
-  const levers = () => {
-    if (c.shotLabel === leverShot) return;
-    leverUndo?.();
-    leverUndo = null;
-    leverShot = c.shotLabel ?? null;
-    const lever = BUDGET.shots?.[leverShot];
-    if (!lever) return;
-    const dark = noShadows(c, (lever.noShadow ?? []).filter(who => c[who]?.raw && !BUDGET.noShadow.includes(who)));
-    const away = (lever.hideGuests ?? []).filter(group => c.guests?.phaseOf?.(group) === 'there');
-    for (const group of away) c.guests.set(group, 'away');
-    leverUndo = () => { dark.restore(); for (const group of away) c.guests.set(group, 'there'); };
-  };
+  const levers = (c.levers ??= shotLevers(c));
   const frame = () => {
     const beat = beatAt(s.time - start);
     c.partyBeat = beat;
@@ -795,7 +781,7 @@ function* theParty(s, c) {
     c.night?.shoot([]);
     c.night?.aurora(0, 0);
     if (breathing) for (const key of keys) { try { c.figures.set(key, { drawn: 1, level: 1, breath: 0 }); } catch { /* not in the sky */ } }
-    leverUndo?.();
+    levers.undo();
     shadows.restore();
     unshake();
     c.band.dispose();
@@ -834,6 +820,30 @@ function onParty(s, c, event) {
     default:
       break;
   }
+}
+
+/**
+ * (Task 17 fix 1) a shot's own levers (hatid-route.js BUDGET.shots) while the camera holds it, by the shot's label (cut() sets it):
+ * more friends without a shadow, guest groups not drawn; all given back on the next cut. Returns update() (call it each frame;
+ * update.undo() gives all back). (Task 17b) One per chapter state (c.levers), so the party alone applies moon_peek's before its
+ * first beat too.
+ */
+function shotLevers(c) {
+  let leverShot = null, leverUndo = null;
+  const update = () => {
+    if (c.shotLabel === leverShot) return;
+    leverUndo?.();
+    leverUndo = null;
+    leverShot = c.shotLabel ?? null;
+    const lever = BUDGET.shots?.[leverShot];
+    if (!lever) return;
+    const dark = noShadows(c, (lever.noShadow ?? []).filter(who => c[who]?.raw && !BUDGET.noShadow.includes(who)));
+    const away = (lever.hideGuests ?? []).filter(group => c.guests?.phaseOf?.(group) === 'there');
+    for (const group of away) c.guests.set(group, 'away');
+    leverUndo = () => { dark.restore(); for (const group of away) c.guests.set(group, 'there'); };
+  };
+  update.undo = () => { leverUndo?.(); leverUndo = null; leverShot = null; };
+  return update;
 }
 
 /**
@@ -1374,7 +1384,8 @@ export const party = {
     const close = c.run();
     try {
       asParty(s, c);
-      yield s.camera.cut('moon_peek', { check: false });
+      yield cut(s, c, 'moon_peek'); // (Task 17b) by its label, so its lever (BUDGET.shots) holds from the first frame
+      (c.levers ??= shotLevers(c))();
       yield s.ready(); // the tap on the tile, or on the play button; immediate in captures
       for (;;) {
         mark(c, 'moon');
@@ -1394,7 +1405,8 @@ export const party = {
         yield s.fade(1, 0.6);
         c.newSong();
         asParty(s, c);
-        yield s.camera.cut('moon_peek', { check: false });
+        yield cut(s, c, 'moon_peek');
+        c.levers();
       }
     } finally {
       close();
