@@ -575,7 +575,15 @@ export const BUDGET = {
     // Þórseðla's shadows, the two in the sun's shadow box (Mosi far and Egill out of sight drew none into it); and the six flyers on
     // their rocks, all out of its frame to the left at both sizes, and the five frogs at its left edge, behind Uggeðla's body at both
     // sizes, not drawn while it holds (the stage's stones coming up over the toot took it to 250.7k without them)
-    moon_peek: { noShadow: ['uggedla', 'thorsedla', 'mosi', 'egill'], hideGuests: ['flyers', 'frogs'] },
+    moon_peek: { noShadow: ['uggedla', 'thorsedla', 'mosi', 'egill'], hideGuests: ['flyers', 'frogs', 'lizards'] },
+    // (Task 22) scene 4 casts every sun shadow again after the party, and its shots came to 255k-345k triangles wide (gather 344,675,
+    // mosi_up 295,102, lift_follow 284,271, seventh_sky 271,193, rise_above 255,620): as scene 2 from egill_down on (the sun is
+    // down), nobody casts a sun shadow while they hold. lift_follow and rise_above are hatid.js liftCut's (no SHOTS.toppur frame).
+    // moon_peek's lizards (above): the peek came to 252,476 at beat -0.3 wide; the six on the horizon are not drawn while it holds.
+    ...Object.fromEntries(['gather', 'seventh_sky', 'lift_follow', 'mosi_up', 'rise_above'].map(name => [name, { noShadow: ['mosi', 'egill', 'kambedla', 'uggedla', 'thorsedla', 'flugedla', 'sloedla', 'gramedla'] }])),
+    // gather still came to 267,017 without the friends' shadows: seven big friends stand near its lens; the top's stones and stage
+    // (12.7k) and the guests' crowds (4.6k) cast none either while it holds (`shadowless`; hatid.js shotLevers)
+    gather: { noShadow: ['mosi', 'egill', 'kambedla', 'uggedla', 'thorsedla', 'flugedla', 'sloedla', 'gramedla'], shadowless: true },
   },
   measured: {
     '1280x800': { gpuMs: 5.39, drawCalls: 50, triangles: 238029 },

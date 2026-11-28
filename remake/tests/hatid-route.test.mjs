@@ -475,12 +475,15 @@ test('BUDGET says what was measured: its three numbers are inside the budget at 
   assert.ok(BUDGET.wideBars >= 1 && BUDGET.wideBars <= 4);
 });
 
-test('a shot\'s own levers (Task 17 fix 1) name the party\'s shots, friends whose shadow the party keeps, and groups of guests', () => {
+test('a shot\'s own levers (Task 17 fix 1) name the party\'s shots or scene 4\'s (Task 22), friends whose shadow the party keeps, and groups of guests', () => {
   assert.ok(Object.keys(BUDGET.shots).length > 0);
+  const four = ['lift_follow', 'rise_above']; // hatid.js liftCut's: no SHOTS.toppur frame
   for (const [name, lever] of Object.entries(BUDGET.shots)) {
-    assert.equal(SCENE[name], 'party', `${name} is the party's`);
-    assert.deepEqual(Object.keys(lever).filter(k => !['noShadow', 'hideGuests'].includes(k)), [], `${name}: only the two kinds`);
-    for (const who of lever.noShadow ?? []) assert.ok(FRIENDS8.includes(who) && !BUDGET.noShadow.includes(who), `${name}: ${who}`);
+    const party = SCENE[name] === 'party';
+    assert.ok(party || SCENE[name] === 'gather' || four.includes(name), `${name} is the party's or scene 4's`);
+    assert.deepEqual(Object.keys(lever).filter(k => !['noShadow', 'hideGuests', 'shadowless'].includes(k)), [], `${name}: only the three kinds`);
+    if ('shadowless' in lever) assert.ok(!party && lever.shadowless === true, `${name}: shadowless only in scene 4`);
+    for (const who of lever.noShadow ?? []) assert.ok(FRIENDS8.includes(who) && !(party && BUDGET.noShadow.includes(who)), `${name}: ${who}`);
     for (const group of lever.hideGuests ?? []) assert.ok(['flyers', 'frogs', 'turtles', 'lizards', 'grazers'].includes(group), `${name}: ${group}`);
   }
 });

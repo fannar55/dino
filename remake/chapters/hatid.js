@@ -854,13 +854,31 @@ function shotLevers(c) {
     leverShot = c.shotLabel ?? null;
     const lever = BUDGET.shots?.[leverShot];
     if (!lever) return;
-    const dark = noShadows(c, (lever.noShadow ?? []).filter(who => c[who]?.raw && !BUDGET.noShadow.includes(who)));
+    // (Task 22) the party's far four are held already while the song plays (the holds count, so a second is harmless); scene 4's
+    // shots name all eight, the party's hold given back by then
+    const dark = noShadows(c, (lever.noShadow ?? []).filter(who => c[who]?.raw && !(c.inParty && BUDGET.noShadow.includes(who))));
     const away = (lever.hideGuests ?? []).filter(group => c.guests?.phaseOf?.(group) === 'there');
     for (const group of away) c.guests.set(group, 'away');
-    leverUndo = () => { dark.restore(); for (const group of away) c.guests.set(group, 'there'); };
+    // (Task 22) `shadowless`: nothing but the friends casts a sun shadow either (the top's stones and stage, the guests' crowds)
+    const cast = lever.shadowless ? shadowlessWorld(c) : [];
+    for (const mesh of cast) mesh.castShadow = false;
+    leverUndo = () => { dark.restore(); for (const group of away) c.guests.set(group, 'there'); for (const mesh of cast) mesh.castShadow = true; };
   };
   update.undo = () => { leverUndo?.(); leverUndo = null; leverShot = null; };
   return update;
+}
+
+/** (Task 22) The meshes outside the actors that cast a sun shadow now (the friends' own are noShadows'). */
+function shadowlessWorld(c) {
+  const actors = new Set([...(c.world.actors?.values?.() ?? [])].map(actor => actor.root));
+  const found = [];
+  const walk = o => {
+    if (actors.has(o)) return;
+    if (o.isMesh && o.castShadow) found.push(o);
+    for (const child of o.children) walk(child);
+  };
+  walk(c.world.scene);
+  return found;
 }
 
 /**
@@ -1056,9 +1074,12 @@ function sceneFour(s, c, { at = null } = {}) {
       }
     }
   };
+  const levers = (c.levers ??= shotLevers(c)); // (Task 22) scene 4's shots have their own (BUDGET.shots: no sun shadows)
+  levers();
   frame();
   s.after(0, function* fourFrames() {
     while (!c.ended) {
+      levers();
       frame();
       yield;
     }
