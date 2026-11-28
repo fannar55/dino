@@ -892,7 +892,7 @@ test('the party\'s first frame builds no shader: everything new from the walk to
           const meshes = (world.forest?.guests?.meshes ?? []).filter(m => m.onBeforeShadow);
           if (w.cast === null && meshes.length) {
             const before = meshes.map(m => m.castShadow);
-            const warm = played.warmUp(world);
+            const warm = played.warmUp(world, { place: world.location }); // as main.js asks before the start button shows
             const during = meshes.every(m => m.castShadow);
             warm.dispose();
             w.cast = during && meshes.every((m, i) => m.castShadow === before[i]);

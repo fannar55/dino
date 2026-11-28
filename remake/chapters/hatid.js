@@ -1604,13 +1604,15 @@ export const chapter = {
   // compileAsync (warmParty), then the chapter's warm-up drawn again in parts; a tap before that makes them at the tap, under the black
   later: { make: world => world.chapterState?.warmLater?.() },
 
-  warmUp(world) {
+  warmUp(world, { place } = {}) {
     const objects = [...world.actors.values()].map(actor => actor.root);
-    // (Task 22 fix 3) the sun's pieces, wherever they stand (their first frame in view built them, 0.13 s at 84 s), and the guests'
-    // crowds casting: a crowd casts only once it has guests near, so the shadow pass first built its depth programs as they came
-    // (the flyers' far level 0.55 s as Kambeðla came)
-    for (const name of SUN_DECOR) { const sun = world.scene?.getObjectByName?.(name); if (sun) objects.push(sun); }
-    const crowds = crowdsCasting(world);
+    // (Task 22 fix 3) before the start button shows (not again in parts while it waits, main.js prepareLater's place null: they
+    // would be hidden behind it for a frame a part): the sun's pieces, wherever they stand (their first frame in view built them,
+    // 0.13 s at 84 s), and the guests' crowds casting (a crowd casts only once it has guests near, so the shadow pass first built
+    // its depth programs as they came: the flyers' far level 0.55 s as Kambeðla came)
+    const before = place !== null;
+    if (before) for (const name of SUN_DECOR) { const sun = world.scene?.getObjectByName?.(name); if (sun) objects.push(sun); }
+    const crowds = before ? crowdsCasting(world) : { restore() {} };
     return {
       objects, shots: ['top_empty', ...ARRIVALS.flatMap(({ friend }) => [`arrive_${friend}`, `home_${friend}`])],
       dispose: crowds.restore,
@@ -1623,11 +1625,14 @@ export const chapter = {
     const close = c.run();
     try {
       asChapter6Left(s, c);
-      // (Task 22 fix 3) behind the start button, not in a frame of the play: her plates (all rows at 0 with dull 0 draw as her own
-      // skin, and she is hidden until she comes), whose program her first frame built (0.8 to 1 s as she came), and the party's
-      // things (warmParty: made and handed to compileAsync as they walked to it, a frame of up to 1 s 20 s before the song)
+      // (Task 22 fix 3) not in a frame of the play: her plates (all rows at 0 with dull 0 draw as her own skin, and she is hidden
+      // until she comes), whose program her first frame built (0.8 to 1 s as she came), made now and handed to compileAsync, so it
+      // links off the frame before the warm-up draws her behind the start button; and the party's things (warmParty: made and
+      // handed to compileAsync as they walked to it, a frame of up to 1 s 20 s before the song) while the button waits
+      // (chapter.later), not before it shows
       if (!c.plates && c.kambedla?.raw && c.world.effects) c.plates = c.world.effects.add(addPlateGlow(c.kambedla.raw, { colour: '#ab85c1', dull: 0 }));
-      c.warmLater = () => warmParty(c, c.kambedla?.raw ? [c.kambedla.raw.root] : [])?.settled; // while the button waits (chapter.later)
+      if (c.kambedla?.raw && c.world.renderer?.compileAsync) c.world.renderer.compileAsync(c.kambedla.raw.root, c.world.camera, c.world.scene).catch(() => {});
+      c.warmLater = () => warmParty(c)?.settled;
       yield s.camera.cut('top_empty', { check: false });
       yield s.ready(); // the start button; immediate in captures
       c.warmLater(); // a tap before the button's wait made them: at the tap, under the black (else it is the one already made)
