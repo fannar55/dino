@@ -585,9 +585,12 @@ export const BUDGET = {
     // (12.7k) and the guests' crowds (4.6k) cast none either while it holds (`shadowless`; hatid.js shotLevers)
     gather: { noShadow: ['mosi', 'egill', 'kambedla', 'uggedla', 'thorsedla', 'flugedla', 'sloedla', 'gramedla'], shadowless: true },
   },
+  // (Task 22, qa/remake/hatid/butur8/maeling.md) party_wide at beat 76.5 on the finished party: wide 5.77 ms in a kept pair (its
+  // reference 4.50), 53 calls, 241,827 triangles; upright 53 calls, 216,874 triangles, its GPU not measured calmly (the pair's
+  // reference read 6.01), so Task 6's 4.66 ms stands for it
   measured: {
-    '1280x800': { gpuMs: 5.39, drawCalls: 50, triangles: 238029 },
-    '800x1280': { gpuMs: 4.66, drawCalls: 50, triangles: 213325 },
+    '1280x800': { gpuMs: 5.77, drawCalls: 53, triangles: 241827 },
+    '800x1280': { gpuMs: 4.66, drawCalls: 53, triangles: 216874 },
   },
 };
 
