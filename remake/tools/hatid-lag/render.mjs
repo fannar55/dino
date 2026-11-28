@@ -381,8 +381,10 @@ for (const ch of [pre.L, pre.R]) for (const q of [0.5412, 1.3066]) new Biquad('h
 const easeN = Math.round(0.3 * SR);
 for (let i = 0; i < easeN; i++) { pre.L[n - 1 - i] *= i / easeN; pre.R[n - 1 - i] *= i / easeN; }
 say(`sections before the lift (LUFS) ${JSON.stringify(before)}; chorus +${up.toFixed(2)} dB, dance -${down.toFixed(2)} dB; under 30 Hz ${sub30Before.toFixed(1)} dB of the whole, cut`);
+let stemScale = 1;
 if (process.argv.includes('--polish')) {
   const preGain = 10 ** ((-16 - lufs(pre.L, pre.R)) / 20);
+  stemScale = preGain;
   const scaled = (list, src = null) => {
     const st = stereo(n);
     if (src) for (let i = 0; i < n; i++) { st.L[i] = src.L[i] * lift[i] * preGain; st.R[i] = src.R[i] * lift[i] * preGain; }
@@ -432,7 +434,7 @@ const keptLoud = {};
 for (const [name, list] of Object.entries(keep)) {
   const st = stereo(n);
   for (const s of list) for (let i = 0; i < n; i++) {
-    const g = stemGain[s][i] * lift[i] * gain;
+    const g = stemGain[s][i] * lift[i] * stemScale * gain;
     st.L[i] += stem[s].L[i] * g;
     st.R[i] += stem[s].R[i] * g;
   }
@@ -441,7 +443,7 @@ for (const [name, list] of Object.entries(keep)) {
 }
 {
   const st = stereo(n);
-  for (let i = 0; i < n; i++) { st.L[i] = friends.L[i] * lift[i] * gain; st.R[i] = friends.R[i] * lift[i] * gain; }
+  for (let i = 0; i < n; i++) { st.L[i] = friends.L[i] * lift[i] * stemScale * gain; st.R[i] = friends.R[i] * lift[i] * stemScale * gain; }
   writeWav(path.join(WORK, 'friends.wav'), st.L, st.R);
   encodeMp3(path.join(WORK, 'friends.wav'), path.join(H, 'stems', 'friends.mp3'));
 }

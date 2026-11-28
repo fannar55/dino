@@ -420,8 +420,8 @@ function* theStars(s, c) {
   });
 }
 
-/** The moon's party blower: the sign the party starts on (`sound`: the chapter's blower, the tile's horn). */
-function toot(s, c, name = 'horn') {
+/** The moon's party blower: the sign the party starts on (the recorded partyBlower, with the made blower standing in until decoded). */
+function toot(s, c, name = 'partyBlower') {
   if (c.moon) moonAct(s, c, 'toot');
   sound(s, c, name);
   c.log({ type: 'toot' });

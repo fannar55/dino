@@ -121,7 +121,7 @@ function spotGate(beat) {
 
 // ---------------------------------------------------------------------------------------------
 // What lights with whom (the brief; ruling 1 of chunk 5: beats from the map). Each part comes in eased over a bar from its friend's
-// entry (entered), at STAGE_LIGHT.intro of its light, and everything goes to full over the bar from the choir's entry (beat 76).
+// entry (entered), at STAGE_LIGHT.intro of its light, and everything goes to full over the bar from the choir's entry (beat 72).
 // Slóeðla has two: the stones rise over the bar from her horn, then her cone lights over the next.
 export const STAGE_PARTS = [
   { part: 'stones', with: 'sloedla' },
@@ -182,7 +182,7 @@ export function stonesAt(beat) {
   return STONE_PLACES.map((_, k) => smooth((beat - from - k * gap) / STONES.rise));
 }
 // Each stone's light (Task 14b): dark until its one comes into the song (entered: the six friends' entries; Mosi, Egill and the
-// choir with the choir, beat 76, where everything is on), then it lights in a flash over half a beat that settles to `on`, beating a
+// choir with the choir, beat 72, where everything is on), then it lights in a flash over half a beat that settles to `on`, beating a
 // little with the pulse; in a solo the soloist's at `solo` and the others down to `others`; dim in the quiet part (`quiet`).
 export const STONE_LIGHT = { on: 0.75, flash: 1, beat: 0.2, solo: 1, others: 0.4, quiet: 0.35 };
 const ENTRY_OF = who => SONG.song.entries.find(e => e.who === who)?.beat ?? entryOf('choir');
@@ -730,7 +730,7 @@ export function partyLook(beat, { reduced = false } = {}) {
 // smile, the toot, which stay), and MOON_MOVES, in order, each (beat, pose) -> pose, put the dance over it: the hat bobs on every
 // beat (tipped forward MOON_DANCE.bob degrees and lifted `lift` radii, at once on the beat and down by the next), it rocks a little
 // with the bar (`rock` degrees one way on the bar's second beat, the other on its fourth), it opens its mouth on the beat ("o") and
-// shuts it between while the choir sings (from its entry, beat 76, but not in the quiet part), unless an act has the mouth, and it
+// shuts it between while the choir sings (from its entry, beat 72, but not in the quiet part), unless an act has the mouth, and it
 // blinks every 3 to 6 seconds of the song. All of it calm (`quiet` of itself) in the quiet part. Chunk 6 adds its moves to
 // MOON_MOVES (after these): the roar knocking the hat askew and the hand fixing it (as moonPose's 'askew' and 'fixHat' do, from the
 // roar cues' beats), and the slow rock in the quiet part (a move that scales `rock` by quietAt); nothing else changes.

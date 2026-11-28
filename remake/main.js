@@ -925,12 +925,13 @@ if (shotName || !chapter.script) {
     // pressed as the finger comes down (style.css .start.pressed), before the click: the press shows in the next frame
     button.addEventListener('pointerdown', () => button.classList.add('pressed'));
     button.addEventListener('pointercancel', () => button.classList.remove('pressed'));
-    button.addEventListener('click', () => {
+    button.addEventListener('click', async () => {
       button.hidden = true;
       forrit.started();
       ui.setFade(1); // the scene opens from black, the same as in captures
-      stage.begin();
       music.start(); // the first touch: the browser lets sound begin, and the theme with it
+      await soundAwake(audio); // wait for context.resume() so frame-0 sfx (e.g. veisla's partyBlower) are never dropped while waking
+      stage.begin();
     }, { once: true });
     getReady().catch(error => console.error('[warm-up]', error)).finally(async () => {
       warmedPlace = world.location; // from now on a place the scene comes to is drawn once before it shows

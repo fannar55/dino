@@ -163,7 +163,7 @@ test('the stage lights a part with each friend who comes into the song, in the i
     for (const b of beatsOf(-2, entry(who))) assert.equal(partsAt(b)[part], 0, `${part} is dark at ${b}, before ${who}`);
   }
   const choir = entry('choir');
-  assert.equal(choir, 76, 'the map\'s choir');
+  assert.equal(choir, 72, 'the map\'s choir');
   for (const { part } of STAGE_PARTS) if (part !== 'full') assert.ok(partsAt(choir)[part] > 0, `${part} is on when the choir comes in`);
   for (const { part } of STAGE_PARTS) if (part !== 'full') assert.ok(partsAt(choir + 4)[part] > 1 - 1e-9, `${part} at full a bar after`);
   assert.ok(partsAt(choir - 1).floor < 1, 'and not at full before the choir');

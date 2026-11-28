@@ -127,16 +127,15 @@ export function roarsOf() {
 
 /**
  * The stems' gains over time, as breakpoints [beat, gain] (linear between them): what the stems are for.
- *   calls   the tune (vocals and the "other" stem) 12 dB down for the call's bar, the rhythm kept
+ *   calls   no ducking (the owner's word, 2026-11-28: dipping the choir under Flugeðla's calls broke the song's groove)
  *   solos   the band a little lighter (music 3 dB, drums 2 dB), the dance's chant tail out; in Slóeðla's slot her horn ("other") up
  *   quiet   no drums: the closing hit of the solos rings one beat, then nothing until the chorus
  * Ramps are short (in beats): RAMP_IN to go down, RAMP_OUT to come back, so no bar starts late and nothing clicks.
  */
-const DUCK = 10 ** (-12 / 20), RAMP = 0.06;
+const RAMP = 0.06;
 export function gainsOf() {
   const g = { drums: [], bass: [], guitar: [], piano: [], other: [], vocals: [] };
   const step = (stem, from, to, gain, ramp = RAMP) => g[stem].push({ from, to, gain, ramp });
-  for (const call of callsOf()) for (const stem of ['vocals', 'other']) step(stem, call.beat, call.doBeat, DUCK);
   const solos = part('solos');
   const solosEnd = solos.startBeat + solos.beats;
   for (const stem of ['guitar', 'piano', 'other']) step(stem, solos.startBeat, solosEnd, 10 ** (-3 / 20), 0.5);

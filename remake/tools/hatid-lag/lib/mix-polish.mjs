@@ -4,7 +4,7 @@
 //   1. Core Mid/Side phase tightening (mono <140 Hz, balanced 140-4800 Hz body, wide starry top >4800 Hz) + opening EQ.
 //   2. Small-speaker upper-bass harmonics (145-560 Hz) synthesized cleanly from bass stem alone.
 //   3. New York parallel drum punch & snare/hat snap from drums stem alone (off in intro opening, quiet, and final chord).
-//   4. Choir center anchor + angelic presence/shimmer from choir stem alone (automatically keeps Flugeðla's 8 call gaps ducked).
+//   4. Choir center anchor + angelic presence/shimmer from choir stem alone (unbroken through Flugeðla's calls).
 //   5. Friends' spotlight across the 6 solos (especially Kambeðla's plates, Uggeðla's splashes, Þórseðla's tone, Grameðla's stomps)
 //      + golden horn glow from music stem in intro opening, Slóeðla's solo, and Kyrra stundin.
 //   6. Smooth section rebalancing + SSL-style master bus glue + subtle warm analog polish.

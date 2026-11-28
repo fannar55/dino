@@ -838,9 +838,9 @@ test('the party\'s sounds are its table\'s: each row on its beat at its level (n
 test('the tile plays from the moon\'s Tút to the last chord, says only the four calls, gives no star and leaves the save as it was', async () => {
   const run = await tile();
   const c = run.world.chapterState;
-  const horns = run.soundLog.filter(e => e.name === 'horn');
+  const horns = run.soundLog.filter(e => e.name === 'partyBlower');
   const began = run.world.chapterTimeline[0].at;
-  assert.equal(horns.length, 1, 'the moon\'s Tút once');
+  assert.equal(horns.length, 2, 'the moon\'s Tút at the start, and again on the last chord');
   assert.ok(Math.abs(horns[0].at - began) < FRAME + 1e-6, 'as the black lifts');
   assert.ok(Math.abs(c.partyStart - horns[0].at - ALONE.toot) < FRAME + 1e-6, 'and the song after it');
   const card = run.doc.body.children.find(element => element.classList.contains('dans-end'));
