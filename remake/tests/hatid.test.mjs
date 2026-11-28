@@ -911,7 +911,9 @@ test('the party\'s first frame builds no shader: everything new from the walk to
     assert.ok(w.at < w.party, `${what}: warmed at ${w.at?.toFixed(2)} s, the song at ${w.party.toFixed(2)} s`);
     assert.deepEqual(w.fresh, [], `${what}: drawn with a shader nobody built before`);
     if (what === 'chapter') {
-      assert.equal(w.at, 0, 'chapter: warmed before its first frame (behind the start button)');
+      // (the page makes it while the start button waits, chapter.later; the harness presses the button at once: at the tap)
+      assert.equal(typeof played.later?.make, 'function', 'chapter: made while its start button waits');
+      assert.ok(w.at < 0.05, `chapter: warmed at the start, not at ${w.at.toFixed(2)} s`);
       assert.equal(w.plates, true, 'chapter: her plate skin was handed to compileAsync with the party');
       assert.equal(w.cast, true, 'chapter: its warm-up has every crowd cast, and gives them back');
     }

@@ -759,7 +759,7 @@ function warmParty(c, roots = []) {
   c.partyWarm = warm;
   // and `roots` in the scene as they stand (on the tile: Kambeðla with her plates, made in asParty, whose program Uggeðla's sail
   // and Slóeðla's crest share when the band lights them)
-  Promise.all([group, ...roots].map(root => renderer.compileAsync(root, world.camera, world.scene))).then(() => {
+  warm.settled = Promise.all([group, ...roots].map(root => renderer.compileAsync(root, world.camera, world.scene))).then(() => {
     settle();
     warm.ms = performance.now() - started;
     warm.programs = (renderer.info?.programs?.length ?? 0) - before;
@@ -1563,6 +1563,13 @@ function guestsOf(s, c) {
 }
 
 /** The top with its guests (hatid-guests.js), the valley's critters loaded for them first. */
+/** (Task 22 fix 3) Every crowd mesh that casts once guests are near set casting for a warm-up draw: { restore() } puts them back. */
+function crowdsCasting(world) {
+  const casting = (world.forest?.guests?.meshes ?? []).filter(mesh => mesh.onBeforeShadow && !mesh.castShadow);
+  for (const mesh of casting) mesh.castShadow = true;
+  return { restore() { for (const mesh of casting) mesh.castShadow = false; } };
+}
+
 function guestsWith(world, top) {
   return loadCritters(world).then(models => {
     const guests = createGuests(world, { top, models, budget: BUDGET.guests });
@@ -1593,6 +1600,9 @@ export const chapter = {
   cast, // Grameðla speaks no line: she roars, snorts and nods
   lines: LINES,
   startShot: 'top_empty',
+  // (Task 22 fix 3) made while the start button waits (main.js prepareLater), not before it shows: the party's things handed to
+  // compileAsync (warmParty), then the chapter's warm-up drawn again in parts; a tap before that makes them at the tap, under the black
+  later: { make: world => world.chapterState?.warmLater?.() },
 
   warmUp(world) {
     const objects = [...world.actors.values()].map(actor => actor.root);
@@ -1600,11 +1610,10 @@ export const chapter = {
     // crowds casting: a crowd casts only once it has guests near, so the shadow pass first built its depth programs as they came
     // (the flyers' far level 0.55 s as Kambeðla came)
     for (const name of SUN_DECOR) { const sun = world.scene?.getObjectByName?.(name); if (sun) objects.push(sun); }
-    const casting = (world.forest?.guests?.meshes ?? []).filter(mesh => mesh.onBeforeShadow && !mesh.castShadow);
-    for (const mesh of casting) mesh.castShadow = true;
+    const crowds = crowdsCasting(world);
     return {
       objects, shots: ['top_empty', ...ARRIVALS.flatMap(({ friend }) => [`arrive_${friend}`, `home_${friend}`])],
-      dispose() { for (const mesh of casting) mesh.castShadow = false; },
+      dispose: crowds.restore,
     };
   },
   shots: {}, // every shot belongs to its place: chapter.locations.toppur.shots
@@ -1618,9 +1627,10 @@ export const chapter = {
       // skin, and she is hidden until she comes), whose program her first frame built (0.8 to 1 s as she came), and the party's
       // things (warmParty: made and handed to compileAsync as they walked to it, a frame of up to 1 s 20 s before the song)
       if (!c.plates && c.kambedla?.raw && c.world.effects) c.plates = c.world.effects.add(addPlateGlow(c.kambedla.raw, { colour: '#ab85c1', dull: 0 }));
-      warmParty(c, c.kambedla?.raw ? [c.kambedla.raw.root] : []);
+      c.warmLater = () => warmParty(c, c.kambedla?.raw ? [c.kambedla.raw.root] : [])?.settled; // while the button waits (chapter.later)
       yield s.camera.cut('top_empty', { check: false });
       yield s.ready(); // the start button; immediate in captures
+      c.warmLater(); // a tap before the button's wait made them: at the tap, under the black (else it is the one already made)
       if (demoAsked()) startDemoChild(s, c); // a child's hands for the owner's videos (?hatid=pikk)
       yield s.fade(0, 0.8);
       yield* story(s, c);
@@ -1671,10 +1681,12 @@ export const party = {
   // It starts as a video does: at once where the browser lets sound begin (the tap on its tile), else from a round play button.
   startsItself: true,
   startButton: playStart,
+  later: null, // it warms behind its own black (asParty)
 
   warmUp(world) {
     const objects = [...world.actors.values()].map(actor => actor.root);
-    return { objects, shots: ['moon_peek', ...new Set(CAMERA.filter(shot => shot.beat < 140).map(shot => shot.cut))], dispose() {} };
+    const crowds = crowdsCasting(world); // (fix 3) as the chapter's
+    return { objects, shots: ['moon_peek', ...new Set(CAMERA.filter(shot => shot.beat < 140).map(shot => shot.cut))], dispose: crowds.restore };
   },
 
   *script(s) {
