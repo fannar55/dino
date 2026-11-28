@@ -306,7 +306,7 @@ Hér gengur skemmtun fyrir raunveruleika. Ekkert af þessu þarf að geta gerst 
 - **Sjöunda stjarnan** fær eigið stef: fáir, bjartir og framandi tónar sem tilheyra ekki skóginum. Það er vísirinn að sögu 2.
 - **Línur:** nýtt línusafn, `hatid`, með auðkenni sem byrja á `h_`, tekið upp með `remake/tools/voice-lines.mjs` eftir reglunum í
   `CLAUDE.md`: `--dry` fyrst, Ný 3 fyrir allar nýjar línur Mosa, og já/nei-síða eigandans flutt inn með `remake/tools/heard.mjs`.
-  Raddir allra sem tala eru til. Köllin hennar Slóeðlu í dansinum eru í sama safni.
+  Raddir allra sem tala eru til. Köllin í dansinum eru í sama safni (Flugeðlu, sjá breytinguna 27. nóvember í 6. kafla).
 - **Línur heyrast aldrei ofan í lagið** nema köllin, sem eiga sínar eyður í taktkortinu.
 
 ## 9. Vistun, röð kaflanna og bókin
