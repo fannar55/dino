@@ -857,6 +857,48 @@ test('the tile plays from the moon\'s Tút to the last chord, says only the four
   assert.ok(Math.abs(partyTime(100) - (c.partyStart - began + secondsAt(100))) < FRAME + 1e-6, 'partyTime is the tile\'s second of a beat');
 });
 
+// (Task 22 fix 1) what a shader is made of, as three keys its program: the kind of object and each material's type and patch (its
+// own source for a ShaderMaterial), its maps and colours; not its name
+const shaderOf = o => [o.isInstancedMesh && 'instanced', o.isSkinnedMesh && 'skinned', o.isPoints && 'points', o.isSprite && 'sprite',
+  o.geometry?.morphAttributes?.position?.length && 'morphs',
+  ...[o.material].flat().filter(Boolean).map(m => (m.isShaderMaterial ? `${m.type} ${m.vertexShader} ${m.fragmentShader}` : m.type)
+    + ` ${m.customProgramCacheKey?.() ?? ''} ${Boolean(m.vertexColors)} ${Boolean(m.map)} ${Boolean(m.emissiveMap)} ${m.fog}`)].filter(Boolean).join(' / ');
+const drawables = root => { const out = []; root.traverse(o => { if (o.isMesh || o.isPoints || o.isLine || o.isSprite) out.push(o); }); return out; };
+
+test('the party\'s first frame builds no shader: everything new from the walk to the party to its third second (the stage, the band\'s things, the moon at its peek) was handed to compileAsync before, in the chapter and on the tile', async () => {
+  for (const [what, played, limit] of [['chapter', chapter, 300], ['tile', party, ALONE.fadeIn + ALONE.toot + 4]]) {
+    const w = { warmed: null, at: null, seen: new Set(), fresh: [], party: null };
+    // the page's renderer links in compileAsync; the harness's records what it was handed (and what the scene had by then), from
+    // before the script's first step (the tile warms behind the black, before its first frame)
+    const module = { chapter: { ...played, *script(s) {
+      const world = s.actor('mosi').raw.world;
+      world.renderer.compileAsync = root => {
+        if (!w.warmed) { w.warmed = new Set(drawables(world.scene).map(shaderOf)); w.at = s.time; }
+        for (const o of drawables(root)) w.warmed.add(shaderOf(o));
+        return Promise.resolve(root);
+      };
+      return yield* played.script.call(this, s);
+    } } };
+    await playIt(module, {
+      limit, audio: createFakeContext({ state: 'running' }),
+      child(c, { world }) {
+        if (c.partyStart != null) w.party ??= c.partyStart;
+        if (w.party != null && c.s.time > w.party + 3) return;
+        for (const o of drawables(world.scene)) {
+          if (w.seen.has(o)) continue;
+          w.seen.add(o);
+          // (what the tile's script makes in its first frames, the moth and the sun's cap, the page draws behind its play button,
+          // which the harness presses at once: counted from half a second on)
+          if (w.warmed && (what === 'chapter' || c.s.time > 0.5) && !w.warmed.has(shaderOf(o))) w.fresh.push(`${o.name}: ${shaderOf(o)} at ${c.s.time.toFixed(2)} s`);
+        }
+      },
+    });
+    assert.ok(w.warmed && w.party != null, `${what}: warmed, and the party began`);
+    assert.ok(w.at < w.party, `${what}: warmed at ${w.at?.toFixed(2)} s, the song at ${w.party.toFixed(2)} s`);
+    assert.deepEqual(w.fresh, [], `${what}: drawn with a shader nobody built before`);
+  }
+});
+
 test('reduced motion: no handheld, and the festival plays to its end', async () => {
   const run = await upright();
   ended(run, 'reduced');
