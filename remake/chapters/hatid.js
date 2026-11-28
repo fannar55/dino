@@ -1623,8 +1623,12 @@ export const party = {
         s.fade(0, ALONE.fadeIn);
         toot(s, c);
         yield s.wait(ALONE.toot);
+        // (Task 22) the last picture stays as the song left it while the end card waits: the party's far four and final_pose's two
+        // cast no shadow (the tile's end came to 270k triangles upright with every shadow back)
+        let after = null;
         try {
           yield* theParty(s, c);
+          after = noShadows(c, [...new Set([...BUDGET.noShadow, ...(BUDGET.shots.final_pose?.noShadow ?? [])])]);
         } finally {
           far.restore();
         }
@@ -1636,6 +1640,7 @@ export const party = {
           yield s.until(() => again);
         } finally {
           card.element.remove();
+          after?.restore();
         }
         yield s.fade(1, 0.6);
         c.newSong();
