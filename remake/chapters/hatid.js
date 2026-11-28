@@ -730,7 +730,7 @@ const PARTY_BEATS = (() => {
 
 /**
  * (Task 22 fix 1) The party's new shaders built before it (the stage's stones, floor, beams, rings, lights and prints; the band's fish
- * and berries), with nothing drawn: their parts made again out of any scene (stageWarmers, bandWarmers) and handed to three's
+ * and berries; in the chapter the moon's), with nothing drawn: their parts made again out of any scene (stageWarmers, bandWarmers) and handed to three's
  * renderer.compileAsync, which links them off the frame (KHR_parallel_shader_compile). The song's first frame had built them: four
  * programs (five on the tile), a second's freeze as the song began. The parts are let go as the party ends (theParty: its
  * beams and rings first draw some beats in); c.partyWarm { done, programs, ms } for the tests and the probe.
@@ -743,11 +743,14 @@ function warmParty(c) {
   const group = new THREE.Group();
   group.name = 'Hátíð: the party warmed';
   for (const mesh of [...stage.meshes, ...band.meshes]) group.add(mesh);
+  // in the chapter the moon is not made yet (moonOf, at its peek: its first frame built its two, 0.3 to 0.8 s before the toot): a
+  // face of its own in the group, never drawn
+  const moon = c.moon ? null : createMoonFace({ scene: group, ...SKY.moon });
   const before = renderer.info?.programs?.length ?? 0;
   const started = performance.now();
   const warm = {
     done: false, programs: null, ms: null,
-    dispose() { group.clear(); stage.dispose(); band.dispose(); },
+    dispose() { moon?.dispose(); group.clear(); stage.dispose(); band.dispose(); },
   };
   c.partyWarm = warm;
   // and the scene's own as they stand now (on the tile: Kambeðla's plates, made in asParty, whose program Uggeðla's sail and
