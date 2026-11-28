@@ -144,6 +144,13 @@ test('a character gets half and quarter levels by its size on screen, with some 
   // out of view it draws the quarter, whatever its size; back in view, its size counts again
   near(at(distanceFor(1200), new THREE.Vector3(centre.x + distanceFor(1200), centre.y, centre.z + 50)), 0.25, 'quarter out of view');
   near(at(distanceFor(1200)), 1, 'full back in view');
+  // (Task 22 fix 2) a shot may ask for a lighter body (userData.lodAtLeast): the half while it asks, its size's level the frame it stops
+  mesh.userData.lodAtLeast = 1;
+  near(at(distanceFor(1200)), 0.5, 'the half when asked, big as it is');
+  near(at(distanceFor(150)), 0.25, 'the quarter still when small');
+  near(at(distanceFor(1200)), 0.5, 'the half again when big');
+  delete mesh.userData.lodAtLeast;
+  near(at(distanceFor(1200)), 1, 'full the frame the ask is gone');
   // the levels draw with the full mesh's own vertex buffers
   at(distanceFor(150));
   assert.equal(mesh.geometry.attributes.position, (await gltfPromise).scene.getObjectByName(mesh.name).geometry.attributes.position);

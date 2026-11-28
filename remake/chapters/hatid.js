@@ -735,7 +735,7 @@ const PARTY_BEATS = (() => {
  * programs (five on the tile), a second's freeze as the song began. The parts are let go as the party ends (theParty: its
  * beams and rings first draw some beats in); c.partyWarm { done, programs, ms } for the tests and the probe.
  */
-function warmParty(c) {
+function warmParty(c, roots = []) {
   const { world } = c;
   const renderer = world.renderer;
   if (c.partyWarm || !renderer?.compileAsync || !world.scene || !world.camera) return c.partyWarm ?? null;
@@ -748,19 +748,24 @@ function warmParty(c) {
   const moon = c.moon ? null : createMoonFace({ scene: group, ...SKY.moon });
   const before = renderer.info?.programs?.length ?? 0;
   const started = performance.now();
+  // (fix 2) let go only once three has stopped waiting on them: a material disposed while compileAsync still polls it has no
+  // program, and three's poll throws (a seek past the whole party did it)
+  const free = () => { moon?.dispose(); group.clear(); stage.dispose(); band.dispose(); };
+  let freed = false, asked = false;
+  const settle = () => { warm.done = true; if (asked && !freed) { freed = true; free(); } };
   const warm = {
     done: false, programs: null, ms: null,
-    dispose() { moon?.dispose(); group.clear(); stage.dispose(); band.dispose(); },
+    dispose() { asked = true; if (warm.done && !freed) { freed = true; free(); } },
   };
   c.partyWarm = warm;
-  // and the scene's own as they stand now (on the tile: Kambeðla's plates, made in asParty, whose program Uggeðla's sail and
-  // Slóeðla's crest share when the band lights them)
-  Promise.all([renderer.compileAsync(group, world.camera, world.scene), renderer.compileAsync(world.scene, world.camera)]).then(() => {
-    warm.done = true;
+  // and `roots` in the scene as they stand (on the tile: Kambeðla with her plates, made in asParty, whose program Uggeðla's sail
+  // and Slóeðla's crest share when the band lights them)
+  Promise.all([group, ...roots].map(root => renderer.compileAsync(root, world.camera, world.scene))).then(() => {
+    settle();
     warm.ms = performance.now() - started;
     warm.programs = (renderer.info?.programs?.length ?? 0) - before;
     c.log({ type: 'partyWarm', programs: warm.programs, ms: Math.round(warm.ms) });
-  }, () => { warm.done = true; });
+  }, settle);
   return warm;
 }
 
@@ -1640,7 +1645,7 @@ function asParty(s, c) {
   // (Task 22 fix 1) the tile's first beat built them too, and her plates' program with them: made here behind the black (all rows
   // at 0 with dull 0 draw as her own skin), so theParty finds them made
   if (!c.plates && c.kambedla?.raw && world.effects) c.plates = world.effects.add(addPlateGlow(c.kambedla.raw, { colour: '#ab85c1', dull: 0 }));
-  warmParty(c);
+  warmParty(c, c.kambedla?.raw ? [c.kambedla.raw.root] : []);
 }
 
 export const party = {
