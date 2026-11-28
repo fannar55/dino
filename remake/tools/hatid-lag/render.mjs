@@ -22,6 +22,7 @@ import { mono } from './lib/analyze.mjs';
 import { measureRhythm, measureKey, keyNotes } from '../theme-tempo.mjs';
 import { SECTIONS, END_BEAT, BAR, H_RUNS, SOLO_FROM_BAR, SOLO_TO_BAR, SOLO_BARS, part, isIn, entriesOf, solosOf, callsOf, eventsOf, roarsOf, gainsOf, PATTERN } from './lib/plan.mjs';
 import { STEMS, noteName } from './measure.mjs';
+import { polishHatidMix } from './lib/mix-polish.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(here, '../../..');
@@ -380,6 +381,21 @@ for (const ch of [pre.L, pre.R]) for (const q of [0.5412, 1.3066]) new Biquad('h
 const easeN = Math.round(0.3 * SR);
 for (let i = 0; i < easeN; i++) { pre.L[n - 1 - i] *= i / easeN; pre.R[n - 1 - i] *= i / easeN; }
 say(`sections before the lift (LUFS) ${JSON.stringify(before)}; chorus +${up.toFixed(2)} dB, dance -${down.toFixed(2)} dB; under 30 Hz ${sub30Before.toFixed(1)} dB of the whole, cut`);
+if (process.argv.includes('--polish')) {
+  const preGain = 10 ** ((-16 - lufs(pre.L, pre.R)) / 20);
+  const scaled = (list, src = null) => {
+    const st = stereo(n);
+    if (src) for (let i = 0; i < n; i++) { st.L[i] = src.L[i] * lift[i] * preGain; st.R[i] = src.R[i] * lift[i] * preGain; }
+    else for (const s of list) for (let i = 0; i < n; i++) { const g = stemGain[s][i] * lift[i] * preGain; st.L[i] += stem[s].L[i] * g; st.R[i] += stem[s].R[i] * g; }
+    return st;
+  };
+  const coreScaled = { L: Float32Array.from(pre.L, v => v * preGain), R: Float32Array.from(pre.R, v => v * preGain), n };
+  const polished = polishHatidMix(coreScaled, {
+    drums: scaled(['drums']), bass: scaled(['bass']), music: scaled(['guitar', 'piano', 'other']), choir: scaled(['vocals']), friends: scaled(null, friends),
+  }, { bpm: BPM, beatOffset: BEAT_OFFSET, sections: SECTIONS, solos: solosOf() });
+  pre = polished.mix;
+  say(`mix-polish applied: ${JSON.stringify(polished.metrics)}`);
+}
 
 // ---------------------------------------------------------------- master: to -16 LUFS, true peak at most -1.5 dBTP after encoding
 function master(gain, ceilingDb) {
