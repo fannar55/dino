@@ -901,7 +901,17 @@ function shotLevers(c) {
     // (Task 22) `shadowless`: nothing but the friends casts a sun shadow either (the top's stones and stage, the guests' crowds)
     const cast = lever.shadowless ? shadowlessWorld(c) : [];
     for (const mesh of cast) mesh.castShadow = false;
-    leverUndo = () => { dark.restore(); for (const group of away) c.guests.set(group, 'there'); for (const mesh of cast) mesh.castShadow = true; };
+    // (Task 22 fix 2) `lighter`: these friends' skins draw their half body (level 1) whatever their size in the frame
+    // (engine/character-lod.js userData.lodAtLeast), from the cut to the next
+    const light = [];
+    for (const who of lever.lighter ?? []) c[who]?.raw?.model.traverse(o => { if (o.isSkinnedMesh && !o.name.endsWith(' shadow')) light.push(o); });
+    for (const skin of light) skin.userData.lodAtLeast = 1;
+    leverUndo = () => {
+      dark.restore();
+      for (const group of away) c.guests.set(group, 'there');
+      for (const mesh of cast) mesh.castShadow = true;
+      for (const skin of light) delete skin.userData.lodAtLeast;
+    };
   };
   update.undo = () => { leverUndo?.(); leverUndo = null; leverShot = null; };
   return update;

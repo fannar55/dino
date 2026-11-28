@@ -353,7 +353,14 @@ export function updateCharacterLods(camera, height) {
     let level = e.level;
     while (level < e.levels.length && px < e.levels[level].below * (1 - HYSTERESIS)) level++;
     while (level > 0 && px > e.levels[level - 1].below * (1 + HYSTERESIS)) level--;
-    if (level !== e.level) { e.level = level; mesh.geometry = e.geometries[level]; }
+    // a shot can ask for a lighter body than the size gives (mesh.userData.lodAtLeast, a level index; chapters/hatid.js shotLevers):
+    // the size's level goes on being kept, so the body is the size's again the frame the ask is taken off
+    const held = Math.min(e.levels.length, mesh.userData.lodAtLeast ?? 0);
+    if (level !== e.level || held !== (e.held ?? 0)) {
+      e.level = level;
+      e.held = held;
+      mesh.geometry = e.geometries[Math.max(level, held)];
+    }
   }
 }
 

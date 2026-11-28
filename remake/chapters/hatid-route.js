@@ -583,7 +583,9 @@ export const BUDGET = {
     ...Object.fromEntries(['gather', 'seventh_sky', 'lift_follow', 'mosi_up', 'rise_above'].map(name => [name, { noShadow: ['mosi', 'egill', 'kambedla', 'uggedla', 'thorsedla', 'flugedla', 'sloedla', 'gramedla'] }])),
     // gather still came to 267,017 without the friends' shadows: seven big friends stand near its lens; the top's stones and stage
     // (12.7k) and the guests' crowds (4.6k) cast none either while it holds (`shadowless`; hatid.js shotLevers)
-    gather: { noShadow: ['mosi', 'egill', 'kambedla', 'uggedla', 'thorsedla', 'flugedla', 'sloedla', 'gramedla'], shadowless: true },
+    // (Task 22 fix 2) and Slóeðla, near its lens wide, draws the half body she already draws upright (spec 10: "hinir á léttari
+    // gerð"): 254k to about 234.5k
+    gather: { noShadow: ['mosi', 'egill', 'kambedla', 'uggedla', 'thorsedla', 'flugedla', 'sloedla', 'gramedla'], shadowless: true, lighter: ['sloedla'] },
   },
   // (Task 22, qa/remake/hatid/butur8/maeling.md) party_wide at beat 76.5 on the finished party: wide 5.77 ms in a kept pair (its
   // reference 4.50), 53 calls, 241,827 triangles; upright 53 calls, 216,874 triangles, its GPU not measured calmly (the pair's
