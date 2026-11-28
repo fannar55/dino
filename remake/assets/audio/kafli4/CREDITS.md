@@ -5,8 +5,9 @@
 `flugstef.mp3`, "Vængir yfir dalnum": an orchestral theme made for this game with ElevenLabs Music (model music_v2_5) on
 2026-11-04, from a composition plan written to the flight's seconds (125 beats a minute, D major). The owner picked it on 2026-11-05
 from four songs made for the flight, in a version with 5.04 s cut out of the breath at the top of the falls (114.36–119.40 s of the
-take, joined with a 0.24 s crossfade), so the full orchestra comes in as they burst out of the spray. 96 kb/s, 184.7 s. The flight
-plays it from its start, half a second in (chapters/kafli4-flight.js: SONG).
+take, joined with a 0.24 s crossfade), so the full orchestra comes in as they burst out of the spray, and polished on 2026-11-28
+(`tools/kafli4-flugstef-polish.mjs`: mono low-end, balanced Mid/Side stage, speech clarity pocket, Gorge lift, -13.4 LUFS / -1.5 dBTP).
+192 kb/s, 184.7 s. The flight plays it from its start, half a second in (chapters/kafli4-flight.js: SONG).
 
 ## The flight's sounds and the rest
 
