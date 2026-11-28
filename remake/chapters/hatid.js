@@ -392,8 +392,7 @@ function* theStars(s, c) {
   c.floating = false;
   yield* c.her.rise();
   // everyone to the party
-  cut(s, c, 'party_high');
-  warmParty(c); // (Task 22 fix 1) the party's shaders built while they walk, not in the song's first frame
+  cut(s, c, 'party_high'); // (Task 22 fix 3) the party's shaders were warmed behind the start button (the chapter's script)
   const walks = FRIENDS8.map(who => {
     const actor = c[who].raw;
     const to = stands.party[who].at;
@@ -1597,7 +1596,16 @@ export const chapter = {
 
   warmUp(world) {
     const objects = [...world.actors.values()].map(actor => actor.root);
-    return { objects, shots: ['top_empty', ...ARRIVALS.flatMap(({ friend }) => [`arrive_${friend}`, `home_${friend}`])], dispose() {} };
+    // (Task 22 fix 3) the sun's pieces, wherever they stand (their first frame in view built them, 0.13 s at 84 s), and the guests'
+    // crowds casting: a crowd casts only once it has guests near, so the shadow pass first built its depth programs as they came
+    // (the flyers' far level 0.55 s as Kambeðla came)
+    for (const name of SUN_DECOR) { const sun = world.scene?.getObjectByName?.(name); if (sun) objects.push(sun); }
+    const casting = (world.forest?.guests?.meshes ?? []).filter(mesh => mesh.onBeforeShadow && !mesh.castShadow);
+    for (const mesh of casting) mesh.castShadow = true;
+    return {
+      objects, shots: ['top_empty', ...ARRIVALS.flatMap(({ friend }) => [`arrive_${friend}`, `home_${friend}`])],
+      dispose() { for (const mesh of casting) mesh.castShadow = false; },
+    };
   },
   shots: {}, // every shot belongs to its place: chapter.locations.toppur.shots
 
@@ -1606,6 +1614,11 @@ export const chapter = {
     const close = c.run();
     try {
       asChapter6Left(s, c);
+      // (Task 22 fix 3) behind the start button, not in a frame of the play: her plates (all rows at 0 with dull 0 draw as her own
+      // skin, and she is hidden until she comes), whose program her first frame built (0.8 to 1 s as she came), and the party's
+      // things (warmParty: made and handed to compileAsync as they walked to it, a frame of up to 1 s 20 s before the song)
+      if (!c.plates && c.kambedla?.raw && c.world.effects) c.plates = c.world.effects.add(addPlateGlow(c.kambedla.raw, { colour: '#ab85c1', dull: 0 }));
+      warmParty(c, c.kambedla?.raw ? [c.kambedla.raw.root] : []);
       yield s.camera.cut('top_empty', { check: false });
       yield s.ready(); // the start button; immediate in captures
       if (demoAsked()) startDemoChild(s, c); // a child's hands for the owner's videos (?hatid=pikk)

@@ -295,6 +295,8 @@ export function createGuests(world, { top, models, budget = 23, ways = {} }) {
     },
     where: () => members.map(m => ({ group: m.group, k: m.k, at: m.at, heading: m.heading, shown: m.shown })),
     get calls() { return crowds.calls?.() ?? null; },
+    /** (Task 22 fix 3) the crowds' meshes, one a kind and level: the chapter's warm-up has them cast, so their depth programs are built behind the start button */
+    get meshes() { return crowds.meshes; },
     dispose() {
       disposed = true;
       crowds.dispose();

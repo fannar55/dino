@@ -865,9 +865,9 @@ const shaderOf = o => [o.isInstancedMesh && 'instanced', o.isSkinnedMesh && 'ski
     + ` ${m.customProgramCacheKey?.() ?? ''} ${Boolean(m.vertexColors)} ${Boolean(m.map)} ${Boolean(m.emissiveMap)} ${m.fog}`)].filter(Boolean).join(' / ');
 const drawables = root => { const out = []; root.traverse(o => { if (o.isMesh || o.isPoints || o.isLine || o.isSprite) out.push(o); }); return out; };
 
-test('the party\'s first frame builds no shader: everything new from the walk to the party to its third second (the stage, the band\'s things, the moon at its peek) was handed to compileAsync before, in the chapter and on the tile', async () => {
+test('the party\'s first frame builds no shader: everything new from the walk to the party to its third second (the stage, the band\'s things, the moon at its peek) was handed to compileAsync before, in the chapter behind its start button (her plates too) and on the tile; the chapter\'s warm-up has the crowds cast', async () => {
   for (const [what, played, limit] of [['chapter', chapter, 300], ['tile', party, ALONE.fadeIn + ALONE.toot + 4]]) {
-    const w = { warmed: null, at: null, seen: new Set(), fresh: [], party: null };
+    const w = { warmed: null, at: null, seen: new Set(), fresh: [], party: null, walk: null, plates: null, cast: null };
     // the page's renderer links in compileAsync; the harness's records what it was handed (and what the scene had by then), from
     // before the script's first step (the tile warms behind the black, before its first frame)
     const module = { chapter: { ...played, *script(s) {
@@ -884,18 +884,37 @@ test('the party\'s first frame builds no shader: everything new from the walk to
       child(c, { world }) {
         if (c.partyStart != null) w.party ??= c.partyStart;
         if (w.party != null && c.s.time > w.party + 3) return;
+        // (fix 3) the chapter warms behind its start button, so it counts from the walk to the party (all new from there to the
+        // song's third second was in its warm); her plate skin was handed in too; its warm-up has every crowd cast, and gives it back
+        if (what === 'chapter') {
+          if (c.shotLabel === 'party_high') w.walk ??= c.s.time;
+          if (w.plates === null && c.plates) w.plates = drawables(c.kambedla.raw.root).some(o => String(o.material?.customProgramCacheKey?.()).endsWith('|plate-glow') && w.warmed?.has(shaderOf(o)));
+          const meshes = (world.forest?.guests?.meshes ?? []).filter(m => m.onBeforeShadow);
+          if (w.cast === null && meshes.length) {
+            const before = meshes.map(m => m.castShadow);
+            const warm = played.warmUp(world);
+            const during = meshes.every(m => m.castShadow);
+            warm.dispose();
+            w.cast = during && meshes.every((m, i) => m.castShadow === before[i]);
+          }
+        }
         for (const o of drawables(world.scene)) {
           if (w.seen.has(o)) continue;
           w.seen.add(o);
           // (what the tile's script makes in its first frames, the moth and the sun's cap, the page draws behind its play button,
           // which the harness presses at once: counted from half a second on)
-          if (w.warmed && (what === 'chapter' || c.s.time > 0.5) && !w.warmed.has(shaderOf(o))) w.fresh.push(`${o.name}: ${shaderOf(o)} at ${c.s.time.toFixed(2)} s`);
+          if (w.warmed && (what === 'chapter' ? w.walk != null : c.s.time > 0.5) && !w.warmed.has(shaderOf(o))) w.fresh.push(`${o.name}: ${shaderOf(o)} at ${c.s.time.toFixed(2)} s`);
         }
       },
     });
     assert.ok(w.warmed && w.party != null, `${what}: warmed, and the party began`);
     assert.ok(w.at < w.party, `${what}: warmed at ${w.at?.toFixed(2)} s, the song at ${w.party.toFixed(2)} s`);
     assert.deepEqual(w.fresh, [], `${what}: drawn with a shader nobody built before`);
+    if (what === 'chapter') {
+      assert.equal(w.at, 0, 'chapter: warmed before its first frame (behind the start button)');
+      assert.equal(w.plates, true, 'chapter: her plate skin was handed to compileAsync with the party');
+      assert.equal(w.cast, true, 'chapter: its warm-up has every crowd cast, and gives them back');
+    }
   }
 });
 
