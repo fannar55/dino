@@ -682,6 +682,60 @@ export function endPoseOf(who, out = { turns: {}, feet: { L: 0, R: 0 } }) {
 }
 
 /**
+ * The things of the solos: the fish (instanced, the four that fly, and the one she catches with its tail's morph) and the berries, in
+ * `things` (a Group in no scene). createBand draws them; bandWarmers (Task 22 fix 1) makes them only for their shaders to be built
+ * before the party.
+ */
+function bandThings() {
+  const things = new THREE.Group();
+  things.name = 'Band things';
+  const fishModel = createModel('fish');
+  const fishMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.1, emissive: new THREE.Color('#ffc764'), emissiveIntensity: 0.35 }); // lit gold, to be seen against the night (fix 1: the blue washed it pale)
+  fishMaterial.name = 'band fish';
+  // the model's swim is a morph (its own Mesh plays it); held still here, without it (an instanced mesh with morphs and no morph
+  // texture breaks three's render: the first stills)
+  const fishGeometry = fishModel.geometry.clone();
+  fishGeometry.morphAttributes = {};
+  fishGeometry.morphTargetsRelative = false;
+  const fish = new THREE.InstancedMesh(fishGeometry, fishMaterial, FISH.arcs.length - 1);
+  fish.name = 'Band fish';
+  fish.frustumCulled = false;
+  fish.castShadow = false;
+  fish.count = 0;
+  things.add(fish);
+  // (fix 1) the fifth, the one she catches: its own mesh with the model's `flex`, so its tail flaps in her jaws
+  const held = new THREE.Mesh(fishModel.geometry, fishMaterial);
+  held.name = 'Band fish held';
+  held.frustumCulled = false;
+  held.castShadow = false;
+  held.visible = false;
+  held.updateMorphTargets?.();
+  const flexAt = held.morphTargetDictionary?.flex ?? -1;
+  things.add(held);
+  // the berries
+  const berryMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, emissive: new THREE.Color('#5a0a10'), emissiveIntensity: 0.8 });
+  berryMaterial.name = 'band berries';
+  const berries = new THREE.InstancedMesh(berryGeometry(), berryMaterial, BERRIES.count);
+  berries.name = 'Band berries';
+  berries.frustumCulled = false;
+  berries.castShadow = false;
+  berries.count = 0;
+  const red = new THREE.Color('#d8323a');
+  for (let i = 0; i < BERRIES.count; i++) berries.setColorAt(i, red);
+  things.add(berries);
+  return { things, fishModel, fishMaterial, fishGeometry, fish, held, flexAt, berryMaterial, berries };
+}
+
+/** (Task 22 fix 1) The band's things made again in no scene, for hatid.js warmParty: { meshes, dispose() } (see stageWarmers). */
+export function bandWarmers() {
+  const t = bandThings();
+  return {
+    meshes: [t.fish, t.held, t.berries],
+    dispose() { t.fish.dispose?.(); t.berries.dispose?.(); t.fishGeometry.dispose(); t.fishModel.geometry.dispose(); t.berries.geometry.dispose(); t.fishMaterial.dispose(); t.berryMaterial.dispose(); },
+  };
+}
+
+/**
  * The band on the party's friends. c: { world, dance (createDance's), stands.party, reduced, top?, plates?, guests (hatid.js's or the
  * top's: ride) }. update(beat) before the dance's (it takes the soloist for her trick and gives her back), its layer laid over
  * everyone in the dance's update, place() after the actors (the things that ride on bones: the fish in her jaws), lights(beat) for the
@@ -766,44 +820,8 @@ export function createBand(c, { reduced = Boolean(c.reduced) } = {}) {
   }
 
   // the things of the solos (drawn only in their solo) and the glows
-  const things = new THREE.Group();
-  things.name = 'Band things';
+  const { things, fishModel, fishMaterial, fishGeometry, fish, held, flexAt, berryMaterial, berries } = bandThings();
   world.scene?.add(things);
-  // the fish
-  const fishModel = createModel('fish');
-  const fishMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.1, emissive: new THREE.Color('#ffc764'), emissiveIntensity: 0.35 }); // lit gold, to be seen against the night (fix 1: the blue washed it pale)
-  fishMaterial.name = 'band fish';
-  // the model's swim is a morph (its own Mesh plays it); held still here, without it (an instanced mesh with morphs and no morph
-  // texture breaks three's render: the first stills)
-  const fishGeometry = fishModel.geometry.clone();
-  fishGeometry.morphAttributes = {};
-  fishGeometry.morphTargetsRelative = false;
-  const fish = new THREE.InstancedMesh(fishGeometry, fishMaterial, FISH.arcs.length - 1);
-  fish.name = 'Band fish';
-  fish.frustumCulled = false;
-  fish.castShadow = false;
-  fish.count = 0;
-  things.add(fish);
-  // (fix 1) the fifth, the one she catches: its own mesh with the model's `flex`, so its tail flaps in her jaws
-  const held = new THREE.Mesh(fishModel.geometry, fishMaterial);
-  held.name = 'Band fish held';
-  held.frustumCulled = false;
-  held.castShadow = false;
-  held.visible = false;
-  held.updateMorphTargets?.();
-  const flexAt = held.morphTargetDictionary?.flex ?? -1;
-  things.add(held);
-  // the berries
-  const berryMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, emissive: new THREE.Color('#5a0a10'), emissiveIntensity: 0.8 });
-  berryMaterial.name = 'band berries';
-  const berries = new THREE.InstancedMesh(berryGeometry(), berryMaterial, BERRIES.count);
-  berries.name = 'Band berries';
-  berries.frustumCulled = false;
-  berries.castShadow = false;
-  berries.count = 0;
-  const red = new THREE.Color('#d8323a');
-  for (let i = 0; i < BERRIES.count; i++) berries.setColorAt(i, red);
-  things.add(berries);
   // the glows on Uggeðla's sail and Slóeðla's crest
   const sail = actors.uggedla ? addSkinGlow(actors.uggedla, sailRow, HUES.uggedla) : null;
   const crest = actors.sloedla ? addSkinGlow(actors.sloedla, crestRow, HUES.sloedla) : null;

@@ -942,10 +942,8 @@ function stoneMesh(world) {
 }
 const STONE_GLOW = { tint: 0.7, body: 0.28, edge: 1.4, low: 0.35 };
 
-export function createStage(c) {
-  const { world, top = null, reduced = false } = c;
-  const heightAt = top?.heightAt ?? world.heightAt ?? (() => GROUND);
-  const o = { reduced, heightAt };
+/** The stage's drawn parts, made in `world.scene` (none when it has no scene): what createStage draws and stageWarmers warms. */
+function stageParts(world, { heightAt, reduced }) {
   const stones = stoneMesh(world);
   const floor = createGlowFloor(world, { heightAt, keep: [{ at: STAGE.centre, r: STAGE.radius + 1.5 }], from: FLOOR_FROM, size: FLOOR_STYLE.size, rest: FLOOR_STYLE.rest, own: FLOOR_STYLE.own, hop: !reduced });
   floor.mesh.name = 'Stage floor';
@@ -953,6 +951,38 @@ export function createStage(c) {
   const points = createLightPoints(world, { capacity: BUDGET.lights, name: 'Stage lights' });
   const rings = createRings(world, { capacity: RINGS.capacity, name: 'Stage rings' });
   const feet = createPrintLight(world); // (fix 1) Grameðla's giant prints
+  const meshes = [stones.mesh, floor.mesh, beams.mesh ?? beams.object, points.mesh ?? points.object, rings.mesh ?? rings.object, feet.mesh].filter(Boolean);
+  const dispose = () => {
+    stones.mesh.removeFromParent();
+    stones.geometry.dispose();
+    stones.material.dispose();
+    stones.mesh.dispose?.();
+    floor.dispose();
+    beams.dispose();
+    points.dispose();
+    rings.dispose();
+    feet.dispose();
+  };
+  return { stones, floor, beams, points, rings, feet, meshes, dispose };
+}
+
+/**
+ * (Task 22 fix 1) The stage's parts made again out of any scene, only for their shaders to be built before the party (hatid.js
+ * warmParty: renderer.compileAsync, nothing drawn): { meshes, dispose() }. Its first frame built them, a second's stall as the song
+ * began. Kept until the party's own parts draw with the same programs (a disposed material's program goes when nothing else uses it).
+ */
+export function stageWarmers(c) {
+  const { world, top = null, reduced = false } = c;
+  const parts = stageParts({ ...world, scene: null }, { heightAt: top?.heightAt ?? world.heightAt ?? (() => GROUND), reduced });
+  return { meshes: parts.meshes, dispose: parts.dispose };
+}
+
+export function createStage(c) {
+  const { world, top = null, reduced = false } = c;
+  const heightAt = top?.heightAt ?? world.heightAt ?? (() => GROUND);
+  const o = { reduced, heightAt };
+  const parts = stageParts(world, { heightAt, reduced });
+  const { stones, floor, beams, points, rings, feet } = parts;
   const dusk = createDusk(world);
   const flies = reduced ? FIREFLIES.count / 2 : FIREFLIES.count;
   const matrix = new THREE.Matrix4(), quaternion = new THREE.Quaternion(), position = new THREE.Vector3(), scale = new THREE.Vector3();
@@ -1105,15 +1135,7 @@ export function createStage(c) {
         if (seaTouched) restSea();
         top.sea.ripples?.([]);
       }
-      stones.mesh.removeFromParent();
-      stones.geometry.dispose();
-      stones.material.dispose();
-      stones.mesh.dispose?.();
-      floor.dispose();
-      beams.dispose();
-      points.dispose();
-      rings.dispose();
-      feet.dispose();
+      parts.dispose();
     },
   };
 }

@@ -39,9 +39,9 @@ import { FRIENDS } from '../engine/scene/journal-data.js';
 import { createSeat, ride, floatTo, floatDown } from '../engine/riding.js';
 import { createSong } from '../engine/audio/song.js';
 import { preloadSamples } from '../engine/audio/sfx.js';
-import { createStage, moonAt, moonPlaceAt, skyBurstsAt, auroraAt, breathAt } from './hatid-stage.js';
+import { createStage, stageWarmers, moonAt, moonPlaceAt, skyBurstsAt, auroraAt, breathAt } from './hatid-stage.js';
 import { createDance, CALL_LINE } from './hatid-dance.js';
-import { createBand } from './hatid-band.js';
+import { createBand, bandWarmers } from './hatid-band.js';
 import { addPlateGlow } from '../engine/plate-glow.js';
 import { LOOKS } from '../engine/looks.js';
 import { easeLight, lightTo } from '../engine/light-blend.js';
@@ -393,6 +393,7 @@ function* theStars(s, c) {
   yield* c.her.rise();
   // everyone to the party
   cut(s, c, 'party_high');
+  warmParty(c); // (Task 22 fix 1) the party's shaders built while they walk, not in the song's first frame
   const walks = FRIENDS8.map(who => {
     const actor = c[who].raw;
     const to = stands.party[who].at;
@@ -727,6 +728,39 @@ const PARTY_BEATS = (() => {
   return beats;
 })();
 
+/**
+ * (Task 22 fix 1) The party's new shaders built before it (the stage's stones, floor, beams, rings, lights and prints; the band's fish
+ * and berries), with nothing drawn: their parts made again out of any scene (stageWarmers, bandWarmers) and handed to three's
+ * renderer.compileAsync, which links them off the frame (KHR_parallel_shader_compile). The song's first frame had built them: four
+ * programs (five on the tile), a second's freeze as the song began. The parts are let go as the party ends (theParty: its
+ * beams and rings first draw some beats in); c.partyWarm { done, programs, ms } for the tests and the probe.
+ */
+function warmParty(c) {
+  const { world } = c;
+  const renderer = world.renderer;
+  if (c.partyWarm || !renderer?.compileAsync || !world.scene || !world.camera) return c.partyWarm ?? null;
+  const stage = stageWarmers(c), band = bandWarmers();
+  const group = new THREE.Group();
+  group.name = 'Hátíð: the party warmed';
+  for (const mesh of [...stage.meshes, ...band.meshes]) group.add(mesh);
+  const before = renderer.info?.programs?.length ?? 0;
+  const started = performance.now();
+  const warm = {
+    done: false, programs: null, ms: null,
+    dispose() { group.clear(); stage.dispose(); band.dispose(); },
+  };
+  c.partyWarm = warm;
+  // and the scene's own as they stand now (on the tile: Kambeðla's plates, made in asParty, whose program Uggeðla's sail and
+  // Slóeðla's crest share when the band lights them)
+  Promise.all([renderer.compileAsync(group, world.camera, world.scene), renderer.compileAsync(world.scene, world.camera)]).then(() => {
+    warm.done = true;
+    warm.ms = performance.now() - started;
+    warm.programs = (renderer.info?.programs?.length ?? 0) - before;
+    c.log({ type: 'partyWarm', programs: warm.programs, ms: Math.round(warm.ms) });
+  }, () => { warm.done = true; });
+  return warm;
+}
+
 function* theParty(s, c) {
   mark(c, 'party');
   const start = s.time;
@@ -791,6 +825,8 @@ function* theParty(s, c) {
     levers.undo();
     shadows.restore();
     unshake();
+    c.partyWarm?.dispose(); // (Task 22 fix 1) the beams and rings first draw some beats in: kept to the end
+    c.partyWarm = null;
     c.band.dispose();
     c.dance.dispose();
     if (c.restAfter) {
@@ -1588,6 +1624,10 @@ function asParty(s, c) {
   c.moon.update(s.time);
   c.stars = c.skyStars.stars;
   toTheParty(c);
+  // (Task 22 fix 1) the tile's first beat built them too, and her plates' program with them: made here behind the black (all rows
+  // at 0 with dull 0 draw as her own skin), so theParty finds them made
+  if (!c.plates && c.kambedla?.raw && world.effects) c.plates = world.effects.add(addPlateGlow(c.kambedla.raw, { colour: '#ab85c1', dull: 0 }));
+  warmParty(c);
 }
 
 export const party = {
